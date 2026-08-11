@@ -13,6 +13,9 @@ const green = "#9ece6a";
 const orange = "#ff9e64";
 const magenta = "#bb9af7";
 const red = "#f7768e";
+const human = "#ffffff";
+const addWash = "rgba(158, 206, 106, 0.22)";
+const delWash = "rgba(247, 118, 142, 0.12)";
 
 export const theme = EditorView.theme(
   {
@@ -40,27 +43,50 @@ export const theme = EditorView.theme(
     },
     ".cm-activeLine": { backgroundColor: "transparent" },
 
-    // The live diff. The human speaks in one colour throughout: markdown's own
-    // syntax colours are overridden inside their text, so a remark dropped into
-    // a list does not come out looking like the agent's list.
-    ".cm-relay-add, .cm-relay-add span": {
-      color: `${green} !important`,
+    // The live diff. The human's text is white on green whatever markdown
+    // thinks the line is, so a remark dropped into a list does not come out
+    // looking like the agent's list.
+    ".cm-relay-add, .cm-relay-add span, .cm-relay-add-line, .cm-relay-add-line span": {
+      color: `${human} !important`,
       fontStyle: "normal !important",
     },
     ".cm-relay-add": {
-      backgroundColor: "rgba(158, 206, 106, 0.10)",
+      backgroundColor: addWash,
       borderRadius: "2px",
     },
-    ".cm-relay-del, .cm-relay-del span": {
-      color: `${red} !important`,
+    // A line that is entirely theirs lights up end to end rather than word by
+    // word — the same distinction git draws.
+    ".cm-relay-add-line": {
+      backgroundColor: addWash,
+      boxShadow: `inset 2px 0 0 ${green}`,
     },
+    ".cm-relay-touched": { boxShadow: `inset 2px 0 0 ${green}` },
+
+    ".cm-relay-del, .cm-relay-del span": { color: `${red} !important` },
     ".cm-relay-del": {
-      backgroundColor: "rgba(247, 118, 142, 0.09)",
+      backgroundColor: delWash,
       textDecoration: "line-through",
       textDecorationColor: "rgba(247, 118, 142, 0.55)",
       borderRadius: "2px",
     },
-    ".cm-relay-touched": { boxShadow: `inset 2px 0 0 rgba(158, 206, 106, 0.55)` },
+    // Deleted lines stand in the gap they left, aligned with the real lines
+    // around them.
+    ".cm-relay-del-block": {
+      backgroundColor: delWash,
+      boxShadow: `inset 2px 0 0 ${red}`,
+    },
+    ".cm-relay-del-line": {
+      padding: "0 0.75rem",
+      color: red,
+      textDecoration: "line-through",
+      textDecorationColor: "rgba(247, 118, 142, 0.55)",
+      whiteSpace: "pre-wrap",
+    },
+    ".cm-relay-del-more": {
+      padding: "0 0.75rem",
+      color: dim,
+      fontSize: "0.85em",
+    },
 
     ".cm-panels": { backgroundColor: panel, color: fg },
     ".cm-panel.cm-search input, .cm-panel.cm-search button": {

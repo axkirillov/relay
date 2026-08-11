@@ -112,7 +112,7 @@ export function page(source: string): string {
   <footer>
     <span id="stats">unchanged</span>
     <span class="spacer"></span>
-    <span><kbd>ZZ</kbd> accept</span>
+    <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
     <span><kbd>:q</kbd> close without replying</span>
     <button id="accept">Accept</button>
   </footer>

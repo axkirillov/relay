@@ -1,6 +1,6 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Prec } from "@codemirror/state";
 import { drawSelection, EditorView, highlightSpecialChars, keymap } from "@codemirror/view";
 import { Vim, vim } from "@replit/codemirror-vim";
 
@@ -92,6 +92,18 @@ async function boot() {
         markdownHighlight,
         theme,
         liveDiff(original, showStats),
+        // Ahead of vim's own keymap, so it accepts from any mode.
+        Prec.highest(
+          keymap.of([
+            {
+              key: "Ctrl-x",
+              run: () => {
+                void accept();
+                return true;
+              },
+            },
+          ]),
+        ),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
     }),
