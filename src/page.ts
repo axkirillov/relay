@@ -48,13 +48,15 @@ export function page(source: string): string {
   #editor { flex: 1 1 auto; min-height: 0; position: relative; }
   .cm-editor { height: 100%; }
 
+  /* Wraps rather than clips: the hints run out of room in a narrow window. */
   footer {
     flex: 0 0 auto;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1rem;
-    height: 36px;
-    padding: 0 1rem;
+    gap: .35rem 1rem;
+    min-height: 36px;
+    padding: .3rem 1rem;
     background: var(--panel);
     border-top: 1px solid var(--line);
     color: var(--dim);
@@ -78,6 +80,7 @@ export function page(source: string): string {
   #mode.visual { color: #ff9e64; }
   #stats .add { color: var(--add); }
   #stats .del { color: var(--del); }
+  #note { color: var(--accent); }
   #accept {
     -webkit-app-region: no-drag;
     font: 600 12px/1 inherit;
@@ -120,7 +123,9 @@ export function page(source: string): string {
   <footer>
     <span id="mode">NORMAL</span>
     <span id="stats">unchanged</span>
+    <span id="note"></span>
     <span class="spacer"></span>
+    <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
     <span><kbd>:q</kbd> close without replying</span>
     <button id="accept">Accept</button>

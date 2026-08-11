@@ -15,6 +15,11 @@ to stdout.
 - exit **1** — the window was closed without a reply; stdout is empty
 - exit **2** — bad usage, or the file could not be read
 
+In the window: `⌃X` or `ZZ` accepts, `:q` closes without replying, and `:res`
+puts a stretch of the document back the way it arrived — the cursor line in
+normal mode, the selection in visual mode, or a range like `:12,18res`. Lines
+are numbered so they can be pointed at in a reply.
+
 No MCP server, no daemon, no registration: one process per relay, for as long as
 the human takes. Any agent that can run a command can use it.
 
@@ -24,6 +29,7 @@ the human takes. Any agent that can run a command can use it.
 pnpm install
 pnpm build      # dist/relay.js and the editor bundle
 pnpm check      # types
+pnpm test       # the line arithmetic behind :res
 pnpm smoke      # end to end, no window
 ```
 

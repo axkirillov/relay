@@ -1,15 +1,23 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
-import { drawSelection, EditorView, highlightSpecialChars, keymap } from "@codemirror/view";
+import {
+  drawSelection,
+  EditorView,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { liveDiff, type Stats } from "./livediff";
+import { restore } from "./restore";
 import { markdownHighlight, theme } from "./theme";
 
 const mount = document.getElementById("editor")!;
 const statsEl = document.getElementById("stats")!;
 const modeEl = document.getElementById("mode")!;
+const noteEl = document.getElementById("note")!;
 const overlayEl = document.getElementById("overlay")!;
 
 let view: EditorView;
@@ -31,6 +39,13 @@ function showMode(mode: string, subMode?: string) {
   const label = mode === "visual" ? `VISUAL${subMode === "linewise" ? " LINE" : subMode === "blockwise" ? " BLOCK" : ""}` : mode.toUpperCase();
   modeEl.textContent = label;
   modeEl.className = mode === "insert" ? "insert" : mode === "visual" ? "visual" : "";
+}
+
+let noteTimer = 0;
+function note(text: string) {
+  noteEl.textContent = text;
+  window.clearTimeout(noteTimer);
+  noteTimer = window.setTimeout(() => (noteEl.textContent = ""), 4000);
 }
 
 function showStats(s: Stats) {
@@ -67,12 +82,23 @@ async function accept() {
   }
 }
 
-function bindVim() {
+function bindVim(original: string) {
   Vim.defineEx("accept", "acc", () => void accept());
   Vim.defineEx("write", "w", () => void accept());
   Vim.defineEx("wq", "wq", () => void accept());
   Vim.defineEx("xit", "x", () => void accept());
   Vim.defineEx("quit", "q", () => window.close());
+
+  // Vim leaves visual mode before an ex command runs, so the editor's own
+  // selection is already gone by now; the range vim parsed off the command line
+  // is what is left, and it covers `'<,'>` from visual mode, an explicit
+  // `:1,4res`, and the cursor line in normal mode alike.
+  Vim.defineEx("restore", "res", (_cm, params) => {
+    const cursor = view.state.doc.lineAt(view.state.selection.main.head).number - 1;
+    const from = params.selectionLine ?? cursor;
+    const to = params.selectionLineEnd ?? from;
+    note(restore(view, original, from, to) ? "restored" : "nothing to restore");
+  });
 
   Vim.defineAction("relayAccept", () => void accept());
   Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
@@ -83,7 +109,7 @@ async function boot() {
     fetch("/doc").then((r) => r.text()),
     fetch("/prefill").then((r) => r.text()),
   ]);
-  bindVim();
+  bindVim(original);
 
   view = new EditorView({
     parent: mount,
@@ -92,6 +118,7 @@ async function boot() {
       extensions: [
         vim(),
         history(),
+        lineNumbers(),
         drawSelection(),
         highlightSpecialChars(),
         EditorView.lineWrapping,

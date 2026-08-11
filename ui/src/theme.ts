@@ -20,18 +20,36 @@ const delWash = "rgba(247, 118, 142, 0.12)";
 export const theme = EditorView.theme(
   {
     "&": { color: fg, backgroundColor: bg, height: "100%", fontSize: "15px" },
+    // The measure is centred here rather than on .cm-content, because the line
+    // number gutter is a sibling pinned to the left edge of the scroller: centre
+    // the content and the numbers strand themselves across the window from it.
     ".cm-scroller": {
       fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
       lineHeight: "1.7",
       overflowX: "hidden",
+      // width as well as maxWidth: auto side margins turn off a flex item's
+      // stretch, and without a width of its own the scroller would shrink to
+      // whatever the longest line happens to be and shift as the human types.
+      width: "100%",
+      maxWidth: "calc(96ch + 4rem)",
+      margin: "0 auto",
     },
     ".cm-content": {
-      maxWidth: "96ch",
-      margin: "0 auto",
       padding: "1.25rem 0 45vh 0",
       caretColor: orange,
     },
     ".cm-line": { padding: "0 0.75rem" },
+
+    // Numbers so the human can point at a line when they write back.
+    ".cm-gutters": {
+      backgroundColor: "transparent",
+      borderRight: "none",
+      color: dim,
+    },
+    ".cm-lineNumbers .cm-gutterElement": {
+      padding: "0 0.75rem 0 0.75rem",
+      minWidth: "3ch",
+    },
 
     "&.cm-focused .cm-cursor": { borderLeftColor: orange, borderLeftWidth: "2px" },
     "&.cm-focused .cm-fat-cursor": { background: orange, outline: "none" },
