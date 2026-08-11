@@ -38,9 +38,13 @@ export const theme = EditorView.theme(
     "&:not(.cm-focused) .cm-fat-cursor": { background: "none", outline: `1px solid ${orange}` },
     ".cm-fat-cursor-mark": { background: orange },
 
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-      backgroundColor: "#283457",
-    },
+    // Matching CodeMirror's own selector depth on purpose: its dark base theme
+    // styles this exact path with `#233`, which is invisible here, and a
+    // shorter selector loses to it.
+    "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection":
+      {
+        background: "#3d59a1",
+      },
     ".cm-activeLine": { backgroundColor: "transparent" },
 
     // The live diff. The human's text is white on green whatever markdown

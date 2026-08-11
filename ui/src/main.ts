@@ -2,13 +2,14 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightSpecialChars, keymap } from "@codemirror/view";
-import { Vim, vim } from "@replit/codemirror-vim";
+import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { liveDiff, type Stats } from "./livediff";
 import { markdownHighlight, theme } from "./theme";
 
 const mount = document.getElementById("editor")!;
 const statsEl = document.getElementById("stats")!;
+const modeEl = document.getElementById("mode")!;
 const overlayEl = document.getElementById("overlay")!;
 
 let view: EditorView;
@@ -24,6 +25,12 @@ function overlay(mark: string, title: string, note: string, tone: "ok" | "error"
 
 function hideOverlay() {
   delete overlayEl.dataset.show;
+}
+
+function showMode(mode: string, subMode?: string) {
+  const label = mode === "visual" ? `VISUAL${subMode === "linewise" ? " LINE" : subMode === "blockwise" ? " BLOCK" : ""}` : mode.toUpperCase();
+  modeEl.textContent = label;
+  modeEl.className = mode === "insert" ? "insert" : mode === "visual" ? "visual" : "";
 }
 
 function showStats(s: Stats) {
@@ -98,6 +105,9 @@ async function boot() {
   });
 
   view.focus();
+  getCM(view)?.on("vim-mode-change", (e: { mode: string; subMode?: string }) =>
+    showMode(e.mode, e.subMode),
+  );
   document.getElementById("accept")!.addEventListener("click", () => void accept());
 
   // Capture phase on window, not a CodeMirror keymap: the vim extension handles

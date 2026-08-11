@@ -68,6 +68,14 @@ export function page(source: string): string {
     border-radius: 3px;
     padding: 1px 5px;
   }
+  #mode {
+    min-width: 6.5ch;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--dim);
+  }
+  #mode.insert { color: var(--add); }
+  #mode.visual { color: #ff9e64; }
   #stats .add { color: var(--add); }
   #stats .del { color: var(--del); }
   #accept {
@@ -110,6 +118,7 @@ export function page(source: string): string {
   <div id="editor"></div>
 
   <footer>
+    <span id="mode">NORMAL</span>
     <span id="stats">unchanged</span>
     <span class="spacer"></span>
     <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
