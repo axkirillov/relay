@@ -11,28 +11,52 @@ relay has shown them.
 
 ## Shape
 
-All TypeScript. Two processes, one language:
+A single command. All TypeScript, two processes:
 
 ```
-relay (node)  ──stdio──> MCP client (the agent)
+relay <file.md>  ──> stdout: a unified diff
      │
-     └─spawn─> Electron window ──http──> loopback, for the document + result
+     └─spawn─> Electron window ──http──> loopback, for the document and the reply
 ```
 
-Node owns stdio so the MCP protocol can never be corrupted by Electron's own
-output. Electron owns the window and the keyboard.
+**Not an MCP server.** One process per relay, alive for exactly as long as the
+human takes, then gone. Nothing to register, nothing running between calls, and
+any agent that can run a command can use it — as can a person, by hand.
+
+The cost is that an agent must run it as a background command rather than a
+foreground one, because harnesses cap how long a foreground command may take
+and a human may not answer for an hour. An MCP wrapper around the same core
+stays possible if that ever becomes the wrong trade.
 
 ## Flow
 
-1. Agent writes a markdown file, calls `relay(path)`.
-2. relay copies it to durable storage, opens the window.
-3. The tool call blocks — forever, if that is what it takes.
+1. Agent writes a markdown file, runs `relay <path>`.
+2. relay copies it to durable storage and opens the window.
+3. The command blocks — forever, if that is what it takes.
 4. The human edits **anywhere**: any line, between words, inside a word. There
    are no protected regions and no comment blocks.
 5. Their changes are highlighted live, diffed against the original, so it is
    always obvious which text is theirs and which is the agent's.
 6. They accept.
-7. relay stores the result and returns **a unified diff** to the agent.
+7. The window closes and relay prints **a unified diff** to stdout.
+
+## Exit
+
+- **0** — accepted. stdout is the diff, or a line saying nothing changed.
+- **1** — the window was closed without a reply. stdout is empty.
+- **2** — bad usage, or the file could not be read.
+
+## Accepting is unmistakable
+
+The window closes. That is the confirmation — there is nothing to notice and
+nothing to miss.
+
+Ordering matters here, and an earlier build got it wrong: it printed its result
+and exited the instant the reply arrived, killing the HTTP server before the
+page's request had been answered. The page saw a dead connection, reported a
+network error, and stayed open — on a reply that had in fact been delivered.
+relay now answers the page, waits for that answer to be flushed, closes the
+window, and only then prints and exits.
 
 ## Editing is unrestricted
 
@@ -60,9 +84,9 @@ editing. They are never boxed into options the agent thought of.
 
 ## Window
 
-- Full display height, roughly 60% of display width.
+- Full display height, roughly 60% of display width, centred.
 - Narrow margins — the text column should not be squeezed.
-- Title bar must not collide with the traffic-light buttons.
+- The title sits to the right of the traffic-light buttons, never under them.
 
 ## Storage
 

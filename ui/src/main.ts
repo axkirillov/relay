@@ -4,78 +4,81 @@ import { EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightSpecialChars, keymap } from "@codemirror/view";
 import { Vim, vim } from "@replit/codemirror-vim";
 
-import { blockHighlight, insertBlock, jumpBlock, protectAgentText } from "./blocks";
+import { liveDiff, type Stats } from "./livediff";
 import { markdownHighlight, theme } from "./theme";
 
-const status = document.getElementById("status")!;
-const mount = document.getElementById("editor")! as HTMLElement;
-const docUrl = mount.dataset.doc!;
-const acceptUrl = mount.dataset.accept!;
-
-function setStatus(text: string, tone: "idle" | "warn" | "done" = "idle") {
-  status.textContent = text;
-  status.dataset.tone = tone;
-}
+const mount = document.getElementById("editor")!;
+const statsEl = document.getElementById("stats")!;
+const overlayEl = document.getElementById("overlay")!;
 
 let view: EditorView;
-let submitted = false;
+let sending = false;
+
+function overlay(mark: string, title: string, note: string, tone: "ok" | "error" = "ok") {
+  overlayEl.querySelector(".mark")!.textContent = mark;
+  overlayEl.querySelector(".title")!.textContent = title;
+  overlayEl.querySelector(".note")!.textContent = note;
+  overlayEl.dataset.tone = tone;
+  overlayEl.dataset.show = "";
+}
+
+function hideOverlay() {
+  delete overlayEl.dataset.show;
+}
+
+function showStats(s: Stats) {
+  if (!s.added && !s.removed) {
+    statsEl.textContent = "unchanged";
+    return;
+  }
+  statsEl.innerHTML =
+    `<span class="add">+${s.added}</span> <span class="del">−${s.removed}</span> ` +
+    `<span>edit${s.added + s.removed === 1 ? "" : "s"}</span>`;
+}
 
 async function accept() {
-  if (submitted) return;
-  submitted = true;
-  setStatus("sending…");
+  if (sending) return;
+  sending = true;
+  overlay("↑", "Sending", "handing your reply to the agent…");
   try {
-    const res = await fetch(acceptUrl, {
+    const res = await fetch("/accept", {
       method: "POST",
       headers: { "Content-Type": "text/markdown" },
       body: view.state.doc.toString(),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    setStatus("accepted — the agent has it", "done");
-    view.contentDOM.blur();
+    overlay("✓", "Accepted", "the agent has your reply — this window is closing");
+    // If the CLI is gone the window will not be closed for us; say so rather
+    // than leaving a lie on screen.
+    setTimeout(() => {
+      overlay("✓", "Accepted", "the agent has your reply — you can close this window now");
+    }, 3000);
   } catch (err) {
-    submitted = false;
-    setStatus(`could not send: ${err}`, "warn");
+    sending = false;
+    overlay("!", "Could not send", `${err}. Click to go back and try again.`, "error");
+    overlayEl.addEventListener("click", hideOverlay, { once: true });
   }
 }
 
-/** Flash the editor when a change was refused for touching agent text. */
-function refuse() {
-  view.dom.classList.add("cm-relay-refused");
-  setStatus("that text is the agent's — press o to add a comment", "warn");
-  setTimeout(() => view.dom.classList.remove("cm-relay-refused"), 200);
-}
-
-function installVimBindings() {
-  Vim.defineAction("relayOpenBelow", (cm: any) => {
-    insertBlock(cm.cm6 as EditorView, false);
-    Vim.handleKey(cm, "i", "mapping");
-  });
-  Vim.defineAction("relayOpenAbove", (cm: any) => {
-    insertBlock(cm.cm6 as EditorView, true);
-    Vim.handleKey(cm, "i", "mapping");
-  });
-  Vim.defineAction("relayNextBlock", (cm: any) => jumpBlock(cm.cm6 as EditorView, true));
-  Vim.defineAction("relayPrevBlock", (cm: any) => jumpBlock(cm.cm6 as EditorView, false));
-  Vim.defineAction("relayAccept", () => void accept());
-
-  Vim.mapCommand("o", "action", "relayOpenBelow", {}, { context: "normal" });
-  Vim.mapCommand("O", "action", "relayOpenAbove", {}, { context: "normal" });
-  Vim.mapCommand("]u", "action", "relayNextBlock", {}, { context: "normal" });
-  Vim.mapCommand("[u", "action", "relayPrevBlock", {}, { context: "normal" });
-  Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
-
+function bindVim() {
   Vim.defineEx("accept", "acc", () => void accept());
+  Vim.defineEx("write", "w", () => void accept());
+  Vim.defineEx("wq", "wq", () => void accept());
+  Vim.defineEx("xit", "x", () => void accept());
+  Vim.defineEx("quit", "q", () => window.close());
+
+  Vim.defineAction("relayAccept", () => void accept());
+  Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
 }
 
 async function boot() {
-  const doc = await (await fetch(docUrl)).text();
-  installVimBindings();
+  const original = await (await fetch("/doc")).text();
+  bindVim();
 
   view = new EditorView({
     parent: mount,
     state: EditorState.create({
-      doc,
+      doc: original,
       extensions: [
         vim(),
         history(),
@@ -85,15 +88,13 @@ async function boot() {
         markdown({ base: markdownLanguage }),
         markdownHighlight,
         theme,
-        protectAgentText(refuse),
-        blockHighlight,
+        liveDiff(original, showStats),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
     }),
   });
 
   view.focus();
-  setStatus("the agent is waiting — o to comment, ZZ to accept");
   document.getElementById("accept")!.addEventListener("click", () => void accept());
 }
 

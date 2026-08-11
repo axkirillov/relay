@@ -1,97 +1,58 @@
 #!/usr/bin/env bash
-# Drive relay over stdio exactly as an MCP client would, accept over HTTP,
-# and check the annotated document comes back out of the tool call.
+# End to end, with no window: run the CLI, fetch what it serves, POST an edit as
+# the page would, and check the diff that comes back out of stdout.
 set -euo pipefail
 
-WT=$(cd "$(dirname "$0")/.." && pwd)
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"; kill "$PID" 2>/dev/null || true' EXIT
+WT="$(cd "$(dirname "$0")/.." && pwd)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
 
-cat >"$TMP/finding.md" <<'MD'
+fail() { echo "FAIL: $*"; cat "$TMP/err" 2>/dev/null; exit 1; }
+
+cat >"$TMP/finding.md" <<'EOF'
 # Refresh job
 
-The nightly job hits the 100k cap every run, so the tail expires silently.
+The refresh job hits the 100k cap every run.
+Raise the cap to 250k.
+EOF
 
-## Proposal
+cat >"$TMP/edited.md" <<'EOF'
+# Refresh job
 
-Raise the cap to 250k. Should I?
-MD
+The refresh job hits the 100k cap every run.
+Fix the query instead - raising it just moves the wall.
+EOF
 
-mkfifo "$TMP/in"
-RELAY_NO_OPEN=1 "$WT/relay" <"$TMP/in" >"$TMP/out" 2>"$TMP/err" &
+RELAY_NO_OPEN=1 node "$WT/dist/relay.js" "$TMP/finding.md" >"$TMP/out" 2>"$TMP/err" &
 PID=$!
-exec 3>"$TMP/in"
 
-send() { printf '%s\n' "$1" >&3; }
-
-send '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}'
-send '{"jsonrpc":"2.0","method":"notifications/initialized"}'
-sleep 0.4
-send '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
-sleep 0.3
-send "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"relay\",\"arguments\":{\"path\":\"$TMP/finding.md\"}}}"
-
-# Wait for the relay to open and grab its URL from the log line.
 URL=""
-for _ in $(seq 1 40); do
-  URL=$(grep -o 'http://127\.0\.0\.1:[0-9]*/r/[a-f0-9]*' "$TMP/err" | head -1 || true)
+for _ in $(seq 1 100); do
+  URL=$(grep -o 'http://127.0.0.1:[0-9]*/' "$TMP/err" | head -1 || true)
   [ -n "$URL" ] && break
   sleep 0.1
 done
-[ -n "$URL" ] || { echo "FAIL: relay never opened"; cat "$TMP/err"; exit 1; }
-echo "opened at $URL"
+[ -n "$URL" ] || fail "relay never started serving"
 
-# The tool call must still be blocked at this point.
-if grep -q '"id":3' "$TMP/out" 2>/dev/null; then
-  echo "FAIL: tool returned before the human accepted"; exit 1
-fi
-echo "ok: tool call is blocked"
+curl -sf "$URL" | grep -q '/assets/relay.js' || fail "page does not load the editor bundle"
+curl -sf "${URL}doc" | diff -q - "$TMP/finding.md" >/dev/null || fail "/doc is not the document"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "${URL}assets/relay.js")" = 200 ] || fail "bundle not served"
 
-# The page is a shell that loads the editor; the document comes from /doc.
-curl -sf "$URL" | grep -q 'assets/relay.js' \
-  && echo "ok: page loads the editor" \
-  || { echo "FAIL: editor bundle not referenced by the page"; exit 1; }
+# The tool call is still blocked at this point.
+kill -0 "$PID" 2>/dev/null || fail "relay exited before anyone replied"
 
-curl -sf "$URL/doc" | diff -q - "$TMP/finding.md" >/dev/null \
-  && echo "ok: /doc serves the markdown byte for byte" \
-  || { echo "FAIL: /doc does not match the source file"; exit 1; }
+curl -sf -X POST -H 'Content-Type: text/markdown' \
+  --data-binary @"$TMP/edited.md" "${URL}accept" || fail "accept was refused"
 
-HOST=$(printf '%s' "$URL" | cut -d/ -f1-3)
-BUNDLE=$(curl -s -o /dev/null -w '%{http_code}:%{size_download}' "$HOST/assets/relay.js")
-case "$BUNDLE" in
-  200:*) echo "ok: editor bundle served from the binary (${BUNDLE#*:} bytes)" ;;
-  *) echo "FAIL: embedded bundle missing ($BUNDLE)"; exit 1 ;;
-esac
+wait "$PID" || fail "relay exited $? after a successful accept"
 
-# Accept, with a human remark inserted.
-ANNOTATED='# Refresh job
+grep -q '^-Raise the cap to 250k' "$TMP/out" || fail "diff is missing the removed line"
+grep -q '^+Fix the query instead' "$TMP/out" || fail "diff is missing the added line"
 
-The nightly job hits the 100k cap every run, so the tail expires silently.
-
-<<< USER >>> since when? it was fine in July <<< /USER >>>
-
-## Proposal
-
-Raise the cap to 250k. Should I?
-
-<<< USER >>> no — fix the query <<< /USER >>>'
-
-curl -sf -X POST -H 'Content-Type: text/markdown' --data-binary "$ANNOTATED" "$URL/accept"
-echo "ok: accepted"
-
-for _ in $(seq 1 40); do
-  grep -q '"id":3' "$TMP/out" && break
-  sleep 0.1
+DIR=$(ls -dt "$HOME"/.relay/*-finding 2>/dev/null | head -1 || true)
+[ -n "$DIR" ] || fail "nothing written to ~/.relay"
+for f in meta.json sent.md accepted.md diff.patch; do
+  [ -s "$DIR/$f" ] || fail "~/.relay is missing $f"
 done
 
-echo "--- tool result ---"
-grep '"id":3' "$TMP/out" | head -1 | python3 -c '
-import json,sys
-r = json.load(sys.stdin)["result"]
-text = r["content"][0]["text"]
-assert not r.get("isError"), "tool reported an error"
-assert "fix the query" in text, "user remark missing from result"
-assert "since when?" in text, "first remark missing from result"
-print(text)
-print("--- PASS: annotated document round-tripped to the agent ---")
-'
+echo "ok — blocked, served, accepted, diffed, stored ($DIR)"

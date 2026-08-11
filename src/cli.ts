@@ -1,0 +1,80 @@
+import { readFile } from "node:fs/promises";
+import { relative, resolve } from "node:path";
+
+import { createTwoFilesPatch, structuredPatch } from "diff";
+
+import { serve } from "./server.js";
+import * as storage from "./storage.js";
+import { openWindow } from "./window.js";
+
+const usage = `relay <file.md>
+
+Show a markdown document to the human and wait — for as long as it takes — for
+their reply. They can edit anywhere in it; their edits are highlighted live
+against what you sent.
+
+On accept, the unified diff of their edits is printed to stdout and relay exits
+0. If they close the window without replying, relay exits 1 and prints nothing.
+
+  RELAY_NO_OPEN=1   serve the document but do not open a window
+  RELAY_DEBUG=1     let the window's own output through to stderr
+`;
+
+const args = process.argv.slice(2).filter((a) => a !== "--");
+if (args.length !== 1 || args[0] === "-h" || args[0] === "--help") {
+  process.stderr.write(usage);
+  process.exit(args.length === 1 ? 0 : 2);
+}
+
+const path = resolve(args[0]!);
+let sent: string;
+try {
+  sent = await readFile(path, "utf8");
+} catch (err) {
+  process.stderr.write(`relay: cannot read ${path}: ${(err as Error).message}\n`);
+  process.exit(2);
+}
+
+const store = storage.open(path, sent);
+const relay = await serve(path, sent);
+process.stderr.write(`relay: waiting for the human — ${relay.url}\n`);
+
+const win = process.env.RELAY_NO_OPEN ? null : openWindow(relay.url, !!process.env.RELAY_DEBUG);
+
+const accepted = relay.accepted.then((edited) => ({ edited }));
+const abandoned = win ? win.closed.then(() => null) : new Promise<null>(() => {});
+
+let outcome = await Promise.race([accepted, abandoned]);
+
+// Closing the window and accepting can land within milliseconds of each other;
+// a reply already in flight wins.
+if (outcome === null) outcome = await Promise.race([accepted, wait(300).then(() => null)]);
+
+if (outcome === null) {
+  store.abandon();
+  await win?.close();
+  relay.close();
+  process.stderr.write("relay: the human closed the window without replying\n");
+  process.exitCode = 1;
+} else {
+  // The window vanishing is the confirmation. Nothing to read, nothing to miss.
+  await win?.close();
+  relay.close();
+
+  const rel = relative(process.cwd(), path);
+  const name = !rel || rel.startsWith("..") ? path : rel;
+  const patch = clean(createTwoFilesPatch(name, name, sent, outcome.edited));
+  store.finish(outcome.edited, patch);
+
+  const changed = structuredPatch(name, name, sent, outcome.edited).hunks.length > 0;
+  process.stdout.write(changed ? patch : "no changes — the human accepted the document as written\n");
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Drop the `Index:`/`====` preamble jsdiff prepends; git-style is enough. */
+function clean(patch: string): string {
+  return patch.replace(/^(Index:.*\n)?={10,}\n/, "");
+}

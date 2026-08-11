@@ -12,44 +12,28 @@ const cyan = "#7dcfff";
 const green = "#9ece6a";
 const orange = "#ff9e64";
 const magenta = "#bb9af7";
-const userTint = "#1f2335";
-const userBar = "#e0af68";
+const red = "#f7768e";
+const amber = "#e0af68";
 
 export const theme = EditorView.theme(
   {
-    "&": {
-      color: fg,
-      backgroundColor: bg,
-      height: "100%",
-      fontSize: "15px",
-    },
+    "&": { color: fg, backgroundColor: bg, height: "100%", fontSize: "15px" },
     ".cm-scroller": {
       fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
       lineHeight: "1.7",
       overflowX: "hidden",
     },
-    // The document sits in a centred column rather than hugging the left edge.
     ".cm-content": {
-      maxWidth: "82ch",
+      maxWidth: "96ch",
       margin: "0 auto",
-      padding: "3rem 0 60vh 0",
+      padding: "1.25rem 0 45vh 0",
       caretColor: orange,
     },
-    ".cm-line": { padding: "0 1.5rem" },
+    ".cm-line": { padding: "0 0.75rem" },
 
-    "&.cm-focused .cm-cursor": {
-      borderLeftColor: orange,
-      borderLeftWidth: "2px",
-    },
-    // Block cursor for normal mode, from the vim extension.
-    "&.cm-focused .cm-fat-cursor": {
-      background: orange,
-      outline: "none",
-    },
-    "&:not(.cm-focused) .cm-fat-cursor": {
-      background: "none",
-      outline: `1px solid ${orange}`,
-    },
+    "&.cm-focused .cm-cursor": { borderLeftColor: orange, borderLeftWidth: "2px" },
+    "&.cm-focused .cm-fat-cursor": { background: orange, outline: "none" },
+    "&:not(.cm-focused) .cm-fat-cursor": { background: "none", outline: `1px solid ${orange}` },
     ".cm-fat-cursor-mark": { background: orange },
 
     "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
@@ -57,29 +41,21 @@ export const theme = EditorView.theme(
     },
     ".cm-activeLine": { backgroundColor: "transparent" },
 
-    // A USER block: tinted, with a bar down the left so it reads as an
-    // insertion into the agent's document rather than part of it.
-    ".cm-relay-user": {
-      backgroundColor: userTint,
-      boxShadow: `inset 3px 0 0 ${userBar}`,
+    // The live diff. Whose text is whose has to be readable at a glance.
+    ".cm-relay-add": {
+      backgroundColor: "rgba(158, 206, 106, 0.20)",
+      borderRadius: "2px",
+      color: "#dcf0c0",
     },
-    ".cm-relay-first": { borderTop: `1px solid ${line}` },
-    ".cm-relay-last": { borderBottom: `1px solid ${line}` },
-    ".cm-relay-marker": {
-      color: dim,
-      fontSize: "11px",
-      letterSpacing: "0.08em",
+    ".cm-relay-del": {
+      color: red,
+      backgroundColor: "rgba(247, 118, 142, 0.10)",
+      textDecoration: "line-through",
+      textDecorationColor: "rgba(247, 118, 142, 0.6)",
+      opacity: "0.75",
+      borderRadius: "2px",
     },
-
-    // Flash shown when an edit is refused because it touched agent text.
-    "&.cm-relay-refused .cm-content": {
-      animation: "cm-relay-shake 160ms ease-in-out",
-    },
-    "@keyframes cm-relay-shake": {
-      "0%, 100%": { transform: "translateX(0)" },
-      "25%": { transform: "translateX(-3px)" },
-      "75%": { transform: "translateX(3px)" },
-    },
+    ".cm-relay-touched": { boxShadow: `inset 2px 0 0 ${amber}` },
 
     ".cm-panels": { backgroundColor: panel, color: fg },
     ".cm-panel.cm-search input, .cm-panel.cm-search button": {
@@ -87,7 +63,6 @@ export const theme = EditorView.theme(
       color: fg,
       border: `1px solid ${line}`,
     },
-    // The vim command line at the bottom.
     ".cm-vim-panel": {
       backgroundColor: panel,
       color: fg,

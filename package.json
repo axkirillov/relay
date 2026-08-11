@@ -1,0 +1,33 @@
+{
+  "name": "relay",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "relay": "dist/relay.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "tsc --noEmit",
+    "smoke": "bash scripts/smoke.sh"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.9.0",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.43.8",
+    "@lezer/highlight": "^1.2.1",
+    "@replit/codemirror-vim": "^6.4.0",
+    "diff": "^8.0.2",
+    "electron": "^43.3.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "electron"]
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.2"
+  }
+}
