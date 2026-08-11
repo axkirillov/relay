@@ -72,13 +72,16 @@ function bindVim() {
 }
 
 async function boot() {
-  const original = await (await fetch("/doc")).text();
+  const [original, start] = await Promise.all([
+    fetch("/doc").then((r) => r.text()),
+    fetch("/prefill").then((r) => r.text()),
+  ]);
   bindVim();
 
   view = new EditorView({
     parent: mount,
     state: EditorState.create({
-      doc: original,
+      doc: start,
       extensions: [
         vim(),
         history(),

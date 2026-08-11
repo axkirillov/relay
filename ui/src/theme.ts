@@ -13,7 +13,6 @@ const green = "#9ece6a";
 const orange = "#ff9e64";
 const magenta = "#bb9af7";
 const red = "#f7768e";
-const amber = "#e0af68";
 
 export const theme = EditorView.theme(
   {
@@ -41,21 +40,27 @@ export const theme = EditorView.theme(
     },
     ".cm-activeLine": { backgroundColor: "transparent" },
 
-    // The live diff. Whose text is whose has to be readable at a glance.
+    // The live diff. The human speaks in one colour throughout: markdown's own
+    // syntax colours are overridden inside their text, so a remark dropped into
+    // a list does not come out looking like the agent's list.
+    ".cm-relay-add, .cm-relay-add span": {
+      color: `${green} !important`,
+      fontStyle: "normal !important",
+    },
     ".cm-relay-add": {
-      backgroundColor: "rgba(158, 206, 106, 0.20)",
+      backgroundColor: "rgba(158, 206, 106, 0.10)",
       borderRadius: "2px",
-      color: "#dcf0c0",
+    },
+    ".cm-relay-del, .cm-relay-del span": {
+      color: `${red} !important`,
     },
     ".cm-relay-del": {
-      color: red,
-      backgroundColor: "rgba(247, 118, 142, 0.10)",
+      backgroundColor: "rgba(247, 118, 142, 0.09)",
       textDecoration: "line-through",
-      textDecorationColor: "rgba(247, 118, 142, 0.6)",
-      opacity: "0.75",
+      textDecorationColor: "rgba(247, 118, 142, 0.55)",
       borderRadius: "2px",
     },
-    ".cm-relay-touched": { boxShadow: `inset 2px 0 0 ${amber}` },
+    ".cm-relay-touched": { boxShadow: `inset 2px 0 0 rgba(158, 206, 106, 0.55)` },
 
     ".cm-panels": { backgroundColor: panel, color: fg },
     ".cm-panel.cm-search input, .cm-panel.cm-search button": {

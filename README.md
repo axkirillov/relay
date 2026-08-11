@@ -29,6 +29,8 @@ pnpm smoke      # end to end, no window
 
 `RELAY_NO_OPEN=1` serves the document without opening a window.
 `RELAY_DEBUG=1` lets the window's own output through to stderr.
+`RELAY_PREFILL=<file>` opens the editor on `<file>` while still diffing against
+the document — so the diff view can be looked at without typing into it.
 
 Every relay is kept in `~/.relay/<timestamp>-<slug>/` — the agent only gets a
 diff back, so what it was diffed against has to live somewhere.

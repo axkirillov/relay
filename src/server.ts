@@ -18,7 +18,7 @@ export type Relay = {
  * One process serves exactly one relay, so there are no session ids and no
  * registry — just four routes over loopback.
  */
-export async function serve(source: string, doc: string): Promise<Relay> {
+export async function serve(source: string, doc: string, prefill = doc): Promise<Relay> {
   let settle: (doc: string) => void;
   const accepted = new Promise<string>((resolve) => {
     settle = resolve;
@@ -28,7 +28,12 @@ export async function serve(source: string, doc: string): Promise<Relay> {
     const path = (req.url ?? "/").split("?")[0];
 
     if (req.method === "GET" && path === "/") return send(res, 200, "text/html; charset=utf-8", page(source));
+    // /doc is what the agent sent — the baseline every edit is measured
+    // against. /prefill is what the editor opens with; the two differ only
+    // under RELAY_PREFILL, which exists so the diff view can be looked at
+    // without anyone having to type into it.
     if (req.method === "GET" && path === "/doc") return send(res, 200, "text/markdown; charset=utf-8", doc);
+    if (req.method === "GET" && path === "/prefill") return send(res, 200, "text/markdown; charset=utf-8", prefill);
     if (req.method === "GET" && path === "/assets/relay.js") {
       readFile(bundle).then(
         (js) => send(res, 200, "text/javascript; charset=utf-8", js),

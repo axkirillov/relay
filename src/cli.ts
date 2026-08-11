@@ -35,8 +35,10 @@ try {
   process.exit(2);
 }
 
+const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
+
 const store = storage.open(path, sent);
-const relay = await serve(path, sent);
+const relay = await serve(path, sent, prefill);
 process.stderr.write(`relay: waiting for the human — ${relay.url}\n`);
 
 const win = process.env.RELAY_NO_OPEN ? null : openWindow(relay.url, !!process.env.RELAY_DEBUG);
