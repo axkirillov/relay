@@ -1,6 +1,6 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { EditorState, Prec } from "@codemirror/state";
+import { EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightSpecialChars, keymap } from "@codemirror/view";
 import { Vim, vim } from "@replit/codemirror-vim";
 
@@ -92,18 +92,6 @@ async function boot() {
         markdownHighlight,
         theme,
         liveDiff(original, showStats),
-        // Ahead of vim's own keymap, so it accepts from any mode.
-        Prec.highest(
-          keymap.of([
-            {
-              key: "Ctrl-x",
-              run: () => {
-                void accept();
-                return true;
-              },
-            },
-          ]),
-        ),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
     }),
@@ -111,6 +99,22 @@ async function boot() {
 
   view.focus();
   document.getElementById("accept")!.addEventListener("click", () => void accept());
+
+  // Capture phase on window, not a CodeMirror keymap: the vim extension handles
+  // keys from a ViewPlugin keydown handler, which runs before the keymap facet,
+  // so even Prec.highest lost ⌃X in normal mode. Capturing at the window beats
+  // both, in every mode.
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "x") {
+        e.preventDefault();
+        e.stopPropagation();
+        void accept();
+      }
+    },
+    true,
+  );
 }
 
 void boot();
