@@ -47,10 +47,21 @@ if grep -q '"id":3' "$TMP/out" 2>/dev/null; then
 fi
 echo "ok: tool call is blocked"
 
-# The page renders the document.
-curl -sf "$URL" | grep -q 'expires silently' \
-  && echo "ok: page shows the document" \
-  || { echo "FAIL: document missing from page"; exit 1; }
+# The page is a shell that loads the editor; the document comes from /doc.
+curl -sf "$URL" | grep -q 'assets/relay.js' \
+  && echo "ok: page loads the editor" \
+  || { echo "FAIL: editor bundle not referenced by the page"; exit 1; }
+
+curl -sf "$URL/doc" | diff -q - "$TMP/finding.md" >/dev/null \
+  && echo "ok: /doc serves the markdown byte for byte" \
+  || { echo "FAIL: /doc does not match the source file"; exit 1; }
+
+HOST=$(printf '%s' "$URL" | cut -d/ -f1-3)
+BUNDLE=$(curl -s -o /dev/null -w '%{http_code}:%{size_download}' "$HOST/assets/relay.js")
+case "$BUNDLE" in
+  200:*) echo "ok: editor bundle served from the binary (${BUNDLE#*:} bytes)" ;;
+  *) echo "FAIL: embedded bundle missing ($BUNDLE)"; exit 1 ;;
+esac
 
 # Accept, with a human remark inserted.
 ANNOTATED='# Refresh job

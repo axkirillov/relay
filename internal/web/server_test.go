@@ -45,8 +45,13 @@ func TestAcceptUnblocksWaiter(t *testing.T) {
 	if page.StatusCode != http.StatusOK {
 		t.Fatalf("page status = %d, want 200", page.StatusCode)
 	}
-	if !strings.Contains(string(body), "the cap is hit every run.") {
-		t.Error("page does not contain the document")
+	// The page is a shell; the editor fetches the document from /doc so that
+	// HTML escaping can never touch the markdown.
+	if !strings.Contains(string(body), "/r/"+sess.ID+"/doc") {
+		t.Error("page does not point the editor at the document")
+	}
+	if strings.Contains(string(body), "the cap is hit every run.") {
+		t.Error("document was templated into the page; it must be fetched instead")
 	}
 
 	const annotated = "# Findings\n\nthe cap is hit every run.\n\n<<< USER >>> since when? <<< /USER >>>\n"

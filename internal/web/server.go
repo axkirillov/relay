@@ -28,6 +28,7 @@ func New() (*Server, error) {
 	s := &Server{ln: ln, sessions: make(map[string]*Session)}
 
 	mux := http.NewServeMux()
+	mux.Handle("GET /assets/", assetHandler())
 	mux.HandleFunc("GET /r/{id}", s.handlePage)
 	mux.HandleFunc("GET /r/{id}/doc", s.handleDoc)
 	mux.HandleFunc("POST /r/{id}/accept", s.handleAccept)

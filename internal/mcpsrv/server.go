@@ -67,7 +67,7 @@ func (s *Server) handleRelay(ctx context.Context, req mcp.CallToolRequest) (*mcp
 	}
 	s.logger.Printf("relay %s open at %s (%s)", sess.ID, url, abs)
 
-	if err := launch.Browser(url); err != nil {
+	if err := launch.Window(url); err != nil {
 		s.logger.Printf("relay %s: %v — open it yourself: %s", sess.ID, err, url)
 	}
 

@@ -1,9 +1,12 @@
 VERSION ?= dev
 
-.PHONY: build test smoke fmt vet clean
+.PHONY: build ui test smoke fmt vet clean
 
-build:
+build: ui
 	go build -ldflags "-X main.version=$(VERSION)" -o relay .
+
+ui:
+	cd ui && pnpm install --silent && node build.mjs
 
 test:
 	go test ./...

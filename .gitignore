@@ -1,5 +1,8 @@
 /relay
 node_modules/
-dist/
 *.log
 .DS_Store
+
+# The editor bundle is committed on purpose: `go install` must yield a binary
+# with a UI in it, without needing node.
+!internal/web/dist/

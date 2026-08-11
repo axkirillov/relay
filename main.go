@@ -68,7 +68,7 @@ func serveOnce(w *web.Server, path string, logger *log.Logger) error {
 		return err
 	}
 	logger.Printf("open at %s", url)
-	if err := launch.Browser(url); err != nil {
+	if err := launch.Window(url); err != nil {
 		logger.Printf("%v — open it yourself: %s", err, url)
 	}
 
