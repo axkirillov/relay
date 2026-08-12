@@ -17,15 +17,20 @@ const human = "#ffffff";
 const addWash = "rgba(158, 206, 106, 0.22)";
 const delWash = "rgba(247, 118, 142, 0.12)";
 
+// The document's own size and leading, in one place because the heading rule at
+// the bottom of this file is derived from them.
+const size = 15;
+const leading = 1.7;
+
 export const theme = EditorView.theme(
   {
-    "&": { color: fg, backgroundColor: bg, height: "100%", fontSize: "15px" },
+    "&": { color: fg, backgroundColor: bg, height: "100%", fontSize: `${size}px` },
     // The measure is centred here rather than on .cm-content, because the line
     // number gutter is a sibling pinned to the left edge of the scroller: centre
     // the content and the numbers strand themselves across the window from it.
     ".cm-scroller": {
       fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-      lineHeight: "1.7",
+      lineHeight: `${leading}`,
       overflowX: "hidden",
       // width as well as maxWidth: auto side margins turn off a flex item's
       // stretch, and without a width of its own the scroller would shrink to
@@ -138,7 +143,6 @@ export const theme = EditorView.theme(
     ".cm-relay-render a": { color: cyan },
     ".cm-relay-render code": { fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', color: green },
     ".cm-relay-render summary": { cursor: "pointer", color: cyan },
-    ".cm-relay-blocked": { color: orange, fontStyle: "italic" },
 
     ".cm-panels": { backgroundColor: panel, color: fg },
     ".cm-panel.cm-search input, .cm-panel.cm-search button": {
@@ -157,13 +161,32 @@ export const theme = EditorView.theme(
   { dark: true },
 );
 
+/**
+ * How tall a heading's line is allowed to be.
+ *
+ * A line number is drawn at the top of its line, so a heading set larger than
+ * the text around it has to be careful with leading: half of whatever a line
+ * box has spare goes above the glyphs, and every pixel of that is a pixel the
+ * heading sinks below its own number. Leaving each heading a fixed multiple of
+ * its size — a big heading, so a big multiple — is what had the numbers sitting
+ * visibly high beside them.
+ *
+ * So the leading a heading gets is only what keeps the two level: the document
+ * line height, plus a small share of the size the heading gained. The share is
+ * measured — it is where the face's cap height sits against half the spread of
+ * its ascenders and descenders — and holds for every heading level, which is
+ * why one rule covers them all. Headings are separated from their surroundings
+ * by the blank line markdown asks for either way.
+ */
+const headingLine = `calc(${size * leading}px + 0.6 * (1em - ${size}px))`;
+
 // Markdown is styled rather than merely monospaced: headings carry real weight
 // and size, so the document reads as a document.
 export const markdownHighlight = syntaxHighlighting(
   HighlightStyle.define([
-    { tag: t.heading1, color: blue, fontWeight: "700", fontSize: "1.7em", lineHeight: "1.9" },
-    { tag: t.heading2, color: blue, fontWeight: "700", fontSize: "1.35em", lineHeight: "2" },
-    { tag: t.heading3, color: cyan, fontWeight: "700", fontSize: "1.15em" },
+    { tag: t.heading1, color: blue, fontWeight: "700", fontSize: "1.7em", lineHeight: headingLine },
+    { tag: t.heading2, color: blue, fontWeight: "700", fontSize: "1.35em", lineHeight: headingLine },
+    { tag: t.heading3, color: cyan, fontWeight: "700", fontSize: "1.15em", lineHeight: headingLine },
     { tag: [t.heading4, t.heading5, t.heading6], color: cyan, fontWeight: "700" },
     { tag: t.strong, color: "#e6eaff", fontWeight: "700" },
     { tag: t.emphasis, color: fg, fontStyle: "italic" },
