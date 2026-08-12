@@ -16,6 +16,12 @@ const red = "#f7768e";
 const human = "#ffffff";
 const addWash = "rgba(158, 206, 106, 0.22)";
 const delWash = "rgba(247, 118, 142, 0.12)";
+// Code is washed rather than filled, and that is the whole reason it is written
+// as an rgba here. A highlight style paints on the text's own span, and those
+// sit above the layer drawSelection draws the selection into — so an opaque
+// colour on this one tag hid the visual-mode selection on every line of code and
+// inside every `span` of inline code. Translucent, it shows through instead.
+const codeWash = "rgba(122, 162, 247, 0.11)";
 
 // The document's own size and leading, in one place because the heading rule at
 // the bottom of this file is derived from them.
@@ -193,7 +199,7 @@ export const markdownHighlight = syntaxHighlighting(
     { tag: t.strikethrough, color: dim, textDecoration: "line-through" },
     { tag: t.link, color: cyan, textDecoration: "underline" },
     { tag: t.url, color: dim },
-    { tag: [t.monospace], color: green, backgroundColor: "#1e2030" },
+    { tag: [t.monospace], color: green, backgroundColor: codeWash },
     { tag: t.quote, color: dim, fontStyle: "italic" },
     { tag: t.list, color: magenta },
     { tag: t.contentSeparator, color: dim },
