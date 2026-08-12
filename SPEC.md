@@ -117,7 +117,10 @@ pointer naming that file, and the last twenty. The start says what the command
 set out to do and the end says how it turned out, which between them is usually
 the whole answer; the file has every line for when it is not. The pointer is
 written the moment the spill starts rather than at the end, so a `⌃C` cannot leave
-a cut-off block with no file named. Output that would never end is capped at 8 MB
+a cut-off block with no file named. The fold hides that pointer along with the
+rest of the head, so the notice standing in its place names the file too — the one
+output the document did not keep whole is never the one with nothing on screen
+saying where the rest of it went. Output that would never end is capped at 8 MB
 — a bound on the disk, not the document — and the command is stopped there and
 told so.
 

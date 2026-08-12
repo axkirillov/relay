@@ -2,6 +2,10 @@ import { spawn } from "node:child_process";
 import { closeSync, openSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 
+// `.ts`, unlike the bundle's own `.js` specifiers: run.ts is loaded straight by
+// node in its test, and node resolves what is written.
+import { spillNotice } from "./spill.ts";
+
 /**
  * A command the human ran from inside the window.
  *
@@ -108,7 +112,7 @@ export function start(
     held = "";
     // Named here rather than at the end, because ⌃C ends the response: without
     // this the human would be left holding a cut-off block and no file to go to.
-    write(`\n… long output — all of it is in ${tilde(logPath)}\n`);
+    write(`\n${spillNotice(tilde(logPath))}\n`);
   };
 
   const remember = (text: string) => {

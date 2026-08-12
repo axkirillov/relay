@@ -2,6 +2,8 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { spillPath } from "./spill.ts";
+
 // A plain shell, so nobody's profile can put a banner in the assertions.
 process.env.SHELL = "/bin/sh";
 
@@ -111,6 +113,7 @@ check("the status is only there on failure", (await ran("echo fine")).includes("
   has("the document keeps the head", doc, `\n${headLines}\n`);
   check("and stops there", doc.includes(`\n${headLines + 1}\n`), false);
   has("the document says where the rest went", doc, log);
+  check("and the fold can read that file back out of it", spillPath(doc), log);
   has("it says how much it is not showing", doc, `${(5000 - headLines - tailLines).toLocaleString("en-US")} more lines`);
   has("and it keeps the tail", doc, "\n5000\n");
   check("the document itself stays small", doc.length < maxDocBytes, true);

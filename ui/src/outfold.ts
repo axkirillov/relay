@@ -2,6 +2,7 @@ import { syntaxTree } from "@codemirror/language";
 import { type EditorState, type Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view";
 
+import { spillPath } from "../../src/spill";
 import { isRendering } from "./render";
 import { outputInfo } from "./runblock";
 
@@ -32,18 +33,26 @@ type SyntaxNode = {
 class Earlier extends WidgetType {
   lines: number;
   at: number;
-  constructor(lines: number, at: number) {
+  path: string | null;
+  constructor(lines: number, at: number, path: string | null) {
     super();
     this.lines = lines;
     this.at = at;
+    this.path = path;
   }
   eq(other: Earlier) {
-    return other.lines === this.lines && other.at === this.at;
+    return other.lines === this.lines && other.at === this.at && other.path === this.path;
   }
   toDOM(view: EditorView) {
     const el = document.createElement("div");
     el.className = "cm-relay-fold";
-    el.textContent = `… ${this.lines} earlier lines — click, or :raw, to see them`;
+    // An output long enough to have gone to a file names that file on a line the
+    // fold then hides, so the notice standing in front of it carries the name
+    // instead. Otherwise the one output the document really did lose is the one
+    // with nothing on screen saying where the rest of it went.
+    el.textContent = this.path
+      ? `… ${this.lines} earlier lines in ${this.path} — click, or :raw`
+      : `… ${this.lines} earlier lines — click, or :raw, to see them`;
     el.addEventListener("mousedown", (e) => {
       // The caret stays where it was: this is a disclosure, not a place to type.
       e.preventDefault();
@@ -92,7 +101,11 @@ function build(state: EditorState): DecorationSet {
 
     ranges.push(
       Decoration.replace({
-        widget: new Earlier(last - tailLines - first + 1, fence.from),
+        widget: new Earlier(
+          last - tailLines - first + 1,
+          fence.from,
+          spillPath(state.doc.sliceString(from, to)),
+        ),
         block: true,
       }).range(from, to),
     );
