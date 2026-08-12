@@ -110,6 +110,21 @@ to contend for.
 The HTTP server comes up immediately either way, so a queued relay is serving
 its document and printing its URL while it waits.
 
+## The agent stops waiting the moment the human answers
+
+A harness may enforce the block with a gate of its own — the one here is a hook
+that latches when it sees `relay` launched and refuses the agent every tool call
+until the latch is gone. relay removes that latch as it exits, however it exits,
+so the answer arriving is itself what frees the agent. Nothing has to poll, and
+nothing has to notice.
+
+The latch is a file the gate writes before relay starts:
+`$RELAY_GATE_STATE/open-$CLAUDE_CODE_SESSION_ID`, under `~/.local/state/relay`
+by default. relay takes down only the one it was launched under and only if it
+is unchanged since — a relay run by hand latched nothing and takes nothing down
+with it, and a round that has already latched again keeps its latch. Where there
+is no gate there is no file, and nothing to remove.
+
 ## Storage
 
 ```
