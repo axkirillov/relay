@@ -9,7 +9,7 @@
   "scripts": {
     "build": "node build.mjs",
     "check": "tsc --noEmit",
-    "test": "node --no-warnings ui/src/restore.test.ts",
+    "test": "for t in ui/src/*.test.ts; do echo \"— $t\"; node --no-warnings \"$t\" || exit 1; done",
     "smoke": "bash scripts/smoke.sh"
   },
   "dependencies": {

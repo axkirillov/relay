@@ -11,6 +11,7 @@ import {
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { liveDiff, type Stats } from "./livediff";
+import { isRendering, renderBlocks, setRendering } from "./render";
 import { restore } from "./restore";
 import { markdownHighlight, theme } from "./theme";
 
@@ -100,6 +101,14 @@ function bindVim(original: string) {
     note(restore(view, original, from, to) ? "restored" : "nothing to restore");
   });
 
+  // One toggle rather than an on and an off command: `:ren` would be a prefix
+  // away from `:res` on the command line.
+  Vim.defineEx("raw", "raw", () => {
+    const on = !isRendering(view.state);
+    view.dispatch({ effects: setRendering.of(on) });
+    note(on ? "rendered" : "source");
+  });
+
   Vim.defineAction("relayAccept", () => void accept());
   Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
 }
@@ -125,6 +134,7 @@ async function boot() {
         markdown({ base: markdownLanguage }),
         markdownHighlight,
         theme,
+        renderBlocks(original),
         liveDiff(original, showStats),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],

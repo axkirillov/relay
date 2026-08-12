@@ -5,6 +5,12 @@ export function page(source: string): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- The document can contain HTML, and it is rendered. Nothing in here may
+     reach the network or run: the only script allowed is the editor bundle this
+     server serves, and inline handlers are refused whatever the sanitiser
+     missed. 'unsafe-inline' for styles is unavoidable — CodeMirror injects its
+     own <style> at runtime, as does the block above. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>${escape(basename(source))} — relay</title>
 <style>
   :root {
@@ -126,6 +132,7 @@ export function page(source: string): string {
     <span id="note"></span>
     <span class="spacer"></span>
     <span><kbd>:res</kbd> put a line back</span>
+    <span><kbd>:raw</kbd> render on/off</span>
     <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
     <span><kbd>:q</kbd> close without replying</span>
     <button id="accept">Accept</button>
