@@ -1,6 +1,6 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
-import { bannedAttr, bannedTag, blocks, escapeHtml, remoteUrl, tagBalance } from "./render.ts";
+import { bannedAttr, bannedTag, blocks, escapeHtml, tagBalance } from "./render.ts";
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -40,11 +40,6 @@ check("attr: data:text/html src", bannedAttr("src", "data:text/html,<script>"), 
 check("attr: data:image/png src is fine", bannedAttr("src", "data:image/png;base64,iVB"), false);
 check("attr: plain href", bannedAttr("href", "https://example.com"), false);
 check("attr: class", bannedAttr("class", "anything"), false);
-
-check("remote: https", remoteUrl("https://example.com/a.png"), true);
-check("remote: protocol-relative", remoteUrl("//example.com/a.png"), true);
-check("remote: relative path", remoteUrl("a.png"), false);
-check("remote: data uri", remoteUrl("data:image/png;base64,iVB"), false);
 
 check("escape: angle brackets and quotes", escapeHtml(`<a href="x">&`), "&lt;a href=&quot;x&quot;&gt;&amp;");
 
@@ -126,8 +121,20 @@ check("html: table cells are escaped", html("| a |\n| - |\n| <b> |\n"), [
 
 check("html: local image", html("![cat](cat.png)\n"), [`<img src="cat.png" alt="cat">`]);
 
-check("html: remote image says so", html("![cat](https://x.test/cat.png)\n"), [
-  `<span class="cm-relay-blocked">remote image not loaded — https://x.test/cat.png</span>`,
+// Remote pictures are fetched and shown; the content policy allows images off
+// the machine and nothing else.
+check("html: remote image", html("![cat](https://x.test/cat.png)\n"), [
+  `<img src="https://x.test/cat.png" alt="cat">`,
+]);
+
+check("html: protocol-relative image", html("![cat](//x.test/cat.png)\n"), [
+  `<img src="//x.test/cat.png" alt="cat">`,
+]);
+
+// A quote in the URL would otherwise end the attribute and open whatever
+// follows as markup of its own.
+check("html: image url is escaped", html(`![c](a.png?q="x)\n`), [
+  `<img src="a.png?q=&quot;x" alt="c">`,
 ]);
 
 check("html: an svg is passed through whole", html('<svg viewBox="0 0 4 4"><rect width="4" height="4"/></svg>\n'), [

@@ -5,12 +5,14 @@ export function page(source: string): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- The document can contain HTML, and it is rendered. Nothing in here may
-     reach the network or run: the only script allowed is the editor bundle this
-     server serves, and inline handlers are refused whatever the sanitiser
-     missed. 'unsafe-inline' for styles is unavoidable — CodeMirror injects its
-     own <style> at runtime, as does the block above. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<!-- The document can contain HTML, and it is rendered. Nothing in here may run:
+     the only script allowed is the editor bundle this server serves, and inline
+     handlers are refused whatever the sanitiser missed. Images are the single
+     exception to the network being closed — a document that links a picture
+     should show the picture — and the request goes out as an image or not at
+     all. 'unsafe-inline' for styles is unavoidable: CodeMirror injects its own
+     <style> at runtime, as does the block above. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>${escape(basename(source))} — relay</title>
 <style>
   :root {

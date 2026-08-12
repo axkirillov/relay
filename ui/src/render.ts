@@ -50,15 +50,6 @@ export function bannedAttr(name: string, value: string): boolean {
   return false;
 }
 
-/**
- * Anything that would fetch from the network. The window has a content policy
- * that blocks these outright, so they are caught here to say so plainly instead
- * of leaving a broken image on screen.
- */
-export function remoteUrl(url: string): boolean {
-  return /^\s*(https?:)?\/\//i.test(url);
-}
-
 export function escapeHtml(s: string): string {
   return s.replace(
     /[&<>"]/g,
@@ -187,9 +178,7 @@ function standaloneImage(state: EditorState, node: SyntaxNode): Block | null {
   const m = /^!\[([^\]]*)\]\(([^)\s]*)/.exec(text);
   if (!m) return null;
   const [, alt = "", src = ""] = m;
-  const html = remoteUrl(src)
-    ? `<span class="cm-relay-blocked">remote image not loaded — ${escapeHtml(src)}</span>`
-    : `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`;
+  const html = `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`;
   return { from: node.from, to: node.to, html, kind: "image" };
 }
 
@@ -219,7 +208,9 @@ function tableHtml(state: EditorState, table: SyntaxNode): string {
 /**
  * Parse and strip in a document of its own, so nothing runs on the way in.
  * `DOMParser` does not execute scripts, and what is left after this has no
- * handlers, no remote sources and no code to run.
+ * handlers and no code to run. Images are the one thing allowed off the
+ * machine, and only ever as pictures — the content policy permits no other
+ * kind of request.
  */
 function sanitize(html: string): DocumentFragment {
   const parsed = new DOMParser().parseFromString(html, "text/html");
@@ -231,12 +222,6 @@ function sanitize(html: string): DocumentFragment {
     }
     for (const attr of [...el.attributes]) {
       if (bannedAttr(attr.name, attr.value)) el.removeAttribute(attr.name);
-    }
-    if (el.tagName === "IMG" && remoteUrl(el.getAttribute("src") ?? "")) {
-      const note = parsed.createElement("span");
-      note.className = "cm-relay-blocked";
-      note.textContent = `remote image not loaded — ${el.getAttribute("src")}`;
-      el.replaceWith(note);
     }
   }
 
@@ -261,12 +246,23 @@ class Rendered extends WidgetType {
   // here would be height it never knows about and every block would push the
   // text a little further down than its own line number. The outer element
   // therefore spaces with padding, and the box that can be seen is inside it.
-  toDOM() {
+  toDOM(view: EditorView) {
     const el = document.createElement("div");
     el.className = "cm-relay-render";
     const box = el.appendChild(document.createElement("div"));
     box.className = "cm-relay-box";
     box.appendChild(sanitize(this.html));
+    // An image off the network arrives after the block has been measured, and
+    // arriving is what gives it its height. Nothing tells the editor that on
+    // its own, so every line below would keep the spacing of a block that was
+    // empty when it was measured — the numbers drifting again, by however tall
+    // the picture turned out to be.
+    for (const img of box.querySelectorAll("img")) {
+      if (img.complete) continue;
+      const measure = () => view.requestMeasure();
+      img.addEventListener("load", measure, { once: true });
+      img.addEventListener("error", measure, { once: true });
+    }
     return el;
   }
   // Clicks have to reach the editor: putting the caret in the block is how the
