@@ -133,6 +133,7 @@ export function page(source: string): string {
     <span id="stats">unchanged</span>
     <span id="note"></span>
     <span class="spacer"></span>
+    <span><kbd>⌃↵</kbd> run a command</span>
     <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>:raw</kbd> render on/off</span>
     <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>

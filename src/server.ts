@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import { contentType, type Images, localImages } from "./images.js";
 import { page } from "./page.js";
+import { type Running, start } from "./run.js";
 
 const maxDocBytes = 8 << 20;
+const maxCommandBytes = 64 << 10;
 const bundle = fileURLToPath(new URL("./assets/relay.js", import.meta.url));
 
 export type Relay = {
@@ -26,6 +28,8 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
   });
 
   const images = await localImages(source, doc);
+  // Every command still going, so that none of them outlives the window.
+  const running = new Set<Running>();
 
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
@@ -54,6 +58,9 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
     }
     if (req.method === "GET" && path.startsWith("/local/")) return sendLocal(res, images, path.slice(7));
     if (req.method === "POST" && path === "/accept") return handleAccept(req, res, settle);
+    // A shell block the human asked for. The body is the command, the response
+    // is its output as it happens, and hanging up is how the human stops it.
+    if (req.method === "POST" && path === "/run") return handleRun(req, res, running);
 
     send(res, 404, "text/plain", "not found");
   });
@@ -69,8 +76,76 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
   return {
     url: `http://127.0.0.1:${addr.port}/`,
     accepted,
-    close: () => server.close(),
+    close: () => {
+      // The window is going, so there is nobody left to read a command's output
+      // and nowhere to put it. Nothing a relay started outlives the relay.
+      for (const job of running) job.kill();
+      running.clear();
+      server.close();
+    },
   };
+}
+
+/**
+ * Run a command and answer with its output as it arrives.
+ *
+ * Chunked text rather than a single body, because a command the human is
+ * watching is worth watching as it happens. There is no run id and nothing to
+ * poll: the response *is* the run, so the page aborting the request is the
+ * human's ⌃C, and `close` firing before the command ended means exactly that.
+ *
+ * It runs in the relay's own cwd — the directory the agent asked from, which is
+ * the one the command was written for.
+ */
+function handleRun(req: IncomingMessage, res: ServerResponse, running: Set<Running>) {
+  read(req, maxCommandBytes).then(
+    (command) => {
+      if (!command.trim()) return send(res, 400, "text/plain", "no command");
+
+      res.writeHead(200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      res.flushHeaders();
+
+      let over = false;
+      const job = start(command, process.cwd(), (text) => {
+        if (!res.writableEnded) res.write(text);
+      });
+      running.add(job);
+
+      // Both the abort and the ordinary end arrive here; only an early one is
+      // the human hanging up.
+      res.on("close", () => {
+        if (!over) job.kill();
+      });
+
+      void job.done.then(() => {
+        over = true;
+        running.delete(job);
+        res.end();
+      });
+    },
+    () => send(res, 413, "text/plain", "command too large"),
+  );
+}
+
+function read(req: IncomingMessage, limit: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on("data", (c: Buffer) => {
+      size += c.length;
+      if (size > limit) {
+        req.destroy();
+        reject(new Error("too large"));
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
 }
 
 function sendLocal(res: ServerResponse, images: Images, index: string) {

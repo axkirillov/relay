@@ -121,6 +121,17 @@ export const theme = EditorView.theme(
       fontSize: "0.85em",
     },
 
+    // The head of a long output, folded away. Every line it stands for is still
+    // in the document — this is a fold, not a truncation — so it reads as a way
+    // in rather than as a warning that something was lost.
+    ".cm-relay-fold": {
+      padding: "0 0.75rem",
+      color: dim,
+      fontSize: "0.85em",
+      cursor: "pointer",
+    },
+    ".cm-relay-fold:hover": { color: orange },
+
     // Rendered HTML. Deliberately not monospace: the change of typeface is how
     // you can tell at a glance that a block is standing rendered rather than as
     // the source you can edit.

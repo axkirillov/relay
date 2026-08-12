@@ -11,8 +11,10 @@ import {
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { liveDiff, type Stats } from "./livediff";
+import { foldOutput } from "./outfold";
 import { type Images, isRendering, renderBlocks, setRendering } from "./render";
 import { restore } from "./restore";
+import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
 import { markdownHighlight, theme } from "./theme";
 
 const mount = document.getElementById("editor")!;
@@ -43,10 +45,24 @@ function showMode(mode: string, subMode?: string) {
 }
 
 let noteTimer = 0;
+/** What the footer goes back to saying — a command in flight outlasts a remark. */
+let holding = "";
+
 function note(text: string) {
   noteEl.textContent = text;
   window.clearTimeout(noteTimer);
-  noteTimer = window.setTimeout(() => (noteEl.textContent = ""), 4000);
+  noteTimer = window.setTimeout(() => (noteEl.textContent = holding), 4000);
+}
+
+function hold(text: string) {
+  holding = text;
+  noteEl.textContent = text;
+  window.clearTimeout(noteTimer);
+}
+
+function release() {
+  holding = "";
+  noteEl.textContent = "";
 }
 
 function showStats(s: Stats) {
@@ -83,6 +99,79 @@ async function accept() {
   }
 }
 
+/** The command in flight, if there is one; aborting it is the human's ⌃C. */
+let job: AbortController | null = null;
+
+/**
+ * Run the shell block the cursor is in, and write its output into the document.
+ *
+ * The output has to be document text, because the diff is the only thing the
+ * agent gets back — it asked for the command because it wants the answer. So
+ * output lands under the command as an ordinary fenced block, the human can edit
+ * or delete it like anything else, and accepting sends it.
+ */
+async function runAtCursor() {
+  if (job) return note("something is already running — ⌃C stops it");
+
+  const block = shellBlockAt(view.state, view.state.selection.main.head);
+  if (!block) return note("no command here — put the cursor in a ```sh block");
+
+  const plan = startOutput(view.state, block);
+  view.dispatch({
+    changes: { from: plan.from, to: plan.to, insert: plan.insert },
+    effects: setSink.of(plan.at),
+  });
+
+  const first = block.command.split("\n")[0]!;
+  hold(`running ${first}${block.command.includes("\n") ? " …" : ""} — ⌃C stops it`);
+
+  job = new AbortController();
+  let wrote = false;
+  try {
+    const res = await fetch("/run", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: block.command,
+      signal: job.signal,
+    });
+    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    // Whole lines only. The closing fence sits directly below the last line of
+    // output, so writing half a line would put the fence on the end of it — and
+    // an unterminated block is not a block the fold or the agent can read.
+    let partial = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      partial += decoder.decode(value, { stream: true });
+      const cut = partial.lastIndexOf("\n");
+      if (cut < 0) continue;
+      wrote = append(partial.slice(0, cut + 1)) || wrote;
+      partial = partial.slice(cut + 1);
+    }
+    if (partial) wrote = append(`${partial}\n`) || wrote;
+    if (!wrote) append("[no output]\n");
+  } catch (err) {
+    // The stop was ours, so the server's own last word went nowhere: say it here.
+    if (err instanceof DOMException && err.name === "AbortError") append("[stopped]\n");
+    else append(`relay could not run it: ${err}\n`);
+  } finally {
+    job = null;
+    release();
+    view.dispatch({ effects: setSink.of(null) });
+  }
+}
+
+/** Output goes where the sink is now — which is not where it was a keystroke ago. */
+function append(text: string): boolean {
+  const at = view.state.field(sink);
+  if (at === null) return false;
+  view.dispatch({ changes: { from: at, insert: text } });
+  return true;
+}
+
 function bindVim(original: string) {
   Vim.defineEx("accept", "acc", () => void accept());
   Vim.defineEx("write", "w", () => void accept());
@@ -108,6 +197,9 @@ function bindVim(original: string) {
     view.dispatch({ effects: setRendering.of(on) });
     note(on ? "rendered" : "source");
   });
+
+  // `:run` rather than `:r`, which is vim's own read.
+  Vim.defineEx("run", "run", () => void runAtCursor());
 
   Vim.defineAction("relayAccept", () => void accept());
   Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
@@ -175,6 +267,8 @@ async function boot() {
         markdownHighlight,
         theme,
         renderBlocks(original, images),
+        foldOutput(),
+        sink,
         liveDiff(original, showStats),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
@@ -194,10 +288,27 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
-      if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "x") {
+      if (!e.ctrlKey || e.metaKey || e.altKey) return;
+      const key = e.key.toLowerCase();
+
+      if (key === "x") {
         e.preventDefault();
         e.stopPropagation();
         void accept();
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        void runAtCursor();
+        return;
+      }
+      // Only while something is running — otherwise ⌃C is vim's, where it stands
+      // in for Esc.
+      if (key === "c" && job) {
+        e.preventDefault();
+        e.stopPropagation();
+        job.abort();
       }
     },
     true,
