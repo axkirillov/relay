@@ -149,6 +149,8 @@ export const theme = EditorView.theme(
     ".cm-relay-render a": { color: cyan },
     ".cm-relay-render code": { fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', color: green },
     ".cm-relay-render summary": { cursor: "pointer", color: cyan },
+    // Stands in for an image whose file was not there.
+    ".cm-relay-blocked": { color: orange, fontStyle: "italic" },
 
     ".cm-panels": { backgroundColor: panel, color: fg },
     ".cm-panel.cm-search input, .cm-panel.cm-search button": {

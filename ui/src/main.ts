@@ -11,7 +11,7 @@ import {
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { liveDiff, type Stats } from "./livediff";
-import { isRendering, renderBlocks, setRendering } from "./render";
+import { type Images, isRendering, renderBlocks, setRendering } from "./render";
 import { restore } from "./restore";
 import { markdownHighlight, theme } from "./theme";
 
@@ -151,9 +151,12 @@ function took(operator: string, text: string): string {
 }
 
 async function boot() {
-  const [original, start] = await Promise.all([
+  const [original, start, images] = await Promise.all([
     fetch("/doc").then((r) => r.text()),
     fetch("/prefill").then((r) => r.text()),
+    // Where the local pictures are, if there are any. An old server without the
+    // route is no reason not to open the document.
+    fetch("/local").then((r) => (r.ok ? (r.json() as Promise<Images>) : {})),
   ]);
   bindVim(original);
 
@@ -171,7 +174,7 @@ async function boot() {
         markdown({ base: markdownLanguage }),
         markdownHighlight,
         theme,
-        renderBlocks(original),
+        renderBlocks(original, images),
         liveDiff(original, showStats),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
