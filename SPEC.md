@@ -82,6 +82,70 @@ there; and the original is on disk if it needs to re-read it.
 No widgets, no schema. The agent asks in ordinary text; the human answers by
 editing. They are never boxed into options the agent thought of.
 
+## A terminal in the window
+
+Half of what an agent asks a human for is a command it cannot run itself, and
+alt-tabbing to a terminal is the friction. So the window has one: `⌃\`` opens a
+pane at the bottom on a real pty, in the directory relay was run from, and `⌃\``
+again crosses back to the document without putting the pane away — `:term` does
+that, as does the ✕ in its bar. Colours, TUIs, `⌃C`, `git rebase -i`: a shell,
+not a command runner. The pane is opt-in, and nothing is spawned until it is
+opened for the first time — the window is a document first, and a terminal that
+was always up would change what relay is.
+
+The pty lives in the **CLI process**, not the page. That is forced — the page has
+`contextIsolation: true, nodeIntegration: false` and could not spawn a process if
+it tried — and it is the good outcome: the CLI is plain node, so `node-pty` loads
+the prebuild for the system ABI and nothing has to be rebuilt against Electron's.
+The bridge is three routes on the loopback server already there: `GET /pty` is an
+event stream of output, `POST /pty/in` is a burst of typing, `POST /pty/size` is
+the new size. Base64 on the way out, because a pty speaks in the carriage returns
+an event stream is delimited by. Server-sent events rather than a socket upgrade
+because it costs no framing code, and the page only ever listens on it.
+
+Everything dies with the window. `relay` kills the shell as it shuts the server,
+and if relay is killed outright the pty master closes and the shell gets its
+`SIGHUP` from the OS, the way a terminal emulator's children always have.
+
+### Getting what happened in there back to the agent
+
+This is the feature's whole justification, not a nicety. **A pty's scrollback is
+not document text, and the diff is relay's only channel back** — so an agent that
+asked the human to run something, and got a terminal widget for its trouble, is
+no better off than before, and the human is back to copy-pasting.
+
+Two roads out, and they are both the same road the document already uses:
+
+- **`⌘Y` takes the last command and its output into the document** as a fenced
+  block, at the caret, where the diff will carry it. With something selected in
+  the terminal, it takes the selection instead. This is the one the feature is
+  for: one key, from inside the shell, and what the agent asked to see is in the
+  reply.
+- **A selection in the terminal is a yank.** It goes into vim's unnamed register
+  and on to the system clipboard from there, so `p` pastes it into the document
+  and `⌘V` pastes it anywhere else — exactly what a yank in the document does.
+
+Which rows are "the last command and its output" is read off the terminal's own
+buffer rather than the byte stream, so what comes back is what the human can see:
+wrapping resolved, escapes gone, a TUI's redraws collapsed into the screen it
+settled on. The region starts at the row the cursor was on when they last pressed
+Enter and ends above the prompt the shell has drawn since. A prompt of more than
+one line leaves its upper lines inside that region, and there is no shell
+integration to ask, so they are recognised instead: a prompt repeats itself, and
+what stood above the command when it ran is what to look for at the end of its
+output. A prompt that changed in between — the command was a `cd` — is not
+recognised and stays, which is the harmless way round. On the alternate screen a
+full-screen program has no scrollback to walk, and its screen is the whole of
+what it has to say, so that is what is taken.
+
+### Inside the terminal, every key is the shell's
+
+`⌃X` accepts from the document and does nothing in the pane. A shell has its own
+uses for `⌃X`, `⌃C`, `⌃D` and the rest, and a terminal that quietly kept a few
+back would not be a terminal. The two exceptions are the ones that have to be:
+`⌃\`` to leave, and `⌘Y` (`⌃⇧Y` off a Mac) to take — chosen because they are keys
+a shell has no use for.
+
 ## Window
 
 - Full display height, roughly 60% of display width, centred.
@@ -147,6 +211,8 @@ is no gate there is no file, and nothing to remove.
   The next one appearing is the whole signal.
 - **Markdown for v1.** Richer artifact-style documents are the eventual goal,
   but HTML is heavy and models are still poor at SVG, so: markdown now.
+- **One shell per window, and only if it is asked for.** No tabs, no splits, no
+  session to reattach to. The pane exists to answer the question on screen.
 
 ## Out of scope for v1
 

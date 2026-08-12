@@ -14,6 +14,7 @@ export function page(source: string): string {
      <style> at runtime, as does the block above. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>${escape(basename(source))} — relay</title>
+<link rel="stylesheet" href="/assets/relay.css">
 <style>
   :root {
     --bg: #16161e;
@@ -53,8 +54,56 @@ export function page(source: string): string {
   }
   header .name { color: var(--fg); font-weight: 600; }
 
+  /* The document and the terminal share what is left between the bars, and the
+     terminal is the one with a height of its own — the document takes the rest. */
+  #split { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   #editor { flex: 1 1 auto; min-height: 0; position: relative; }
   .cm-editor { height: 100%; }
+
+  #term {
+    flex: 0 0 auto;
+    height: 42%;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+  }
+  #term[data-hidden] { display: none; }
+  /* Four pixels of nothing that the pane can be dragged by. */
+  #term-grip {
+    flex: 0 0 auto;
+    height: 5px;
+    margin-top: -3px;
+    cursor: row-resize;
+  }
+  #term-grip:hover { background: var(--accent); opacity: .5; }
+  #term-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
+    padding: .15rem 1rem .3rem;
+    color: var(--dim);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  #term-where { color: var(--fg); overflow: hidden; text-overflow: ellipsis; }
+  #term-bar .spacer { flex: 1 1 auto; }
+  #term-bar button {
+    -webkit-app-region: no-drag;
+    font: inherit;
+    color: var(--dim);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+  #term-bar button:hover { color: var(--fg); }
+  #term-view { flex: 1 1 auto; min-height: 0; padding: 0 1rem .35rem; }
+  /* xterm sizes itself to what it is given, so what it is given must be exact. */
+  #term-view .xterm { height: 100%; }
 
   /* Wraps rather than clips: the hints run out of room in a narrow window. */
   footer {
@@ -126,13 +175,28 @@ export function page(source: string): string {
     <span>· the agent is waiting</span>
   </header>
 
-  <div id="editor"></div>
+  <div id="split">
+    <div id="editor"></div>
+
+    <div id="term" data-hidden>
+      <div id="term-grip"></div>
+      <div id="term-bar">
+        <span id="term-where"></span>
+        <span class="spacer"></span>
+        <button id="term-take"><kbd id="term-keys">⌘Y</kbd> take into the document</button>
+        <span><kbd>⌃\`</kbd> back to the document</span>
+        <button id="term-close">✕</button>
+      </div>
+      <div id="term-view"></div>
+    </div>
+  </div>
 
   <footer>
     <span id="mode">NORMAL</span>
     <span id="stats">unchanged</span>
     <span id="note"></span>
     <span class="spacer"></span>
+    <span><kbd>⌃\`</kbd> terminal</span>
     <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>:raw</kbd> render on/off</span>
     <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>

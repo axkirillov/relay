@@ -22,6 +22,26 @@ are numbered so they can be pointed at in a reply. Whatever a yank or a delete
 takes reaches the system clipboard as well as vim's own register — vim's
 `clipboard=unnamed` — so what `y` picks up leaves the window with you.
 
+## The terminal
+
+`⌃\`` opens a real shell at the bottom of the window, in the directory relay was
+run from — so a command an agent wants run does not need another window. It is a
+pty, not a command runner: colours, TUIs, `⌃C`, `git rebase -i`. `⌃\`` again
+crosses back to the document with the pane still up; `:term` opens and closes it.
+Inside it every key belongs to the shell, so `⌃X` does not accept from there.
+
+The point of it is getting what happened back to the agent, which only ever sees
+the diff:
+
+- **`⌘Y`** (`⌃⇧Y` off a Mac) puts the last command and its output into the
+  document as a fenced block, at the cursor. With something selected in the
+  terminal it takes the selection instead.
+- **Selecting in the terminal is a yank** — vim's register and the system
+  clipboard both — so `p` pastes it into the document.
+
+The shell dies with the window. There is one per window, it is not started until
+the pane is opened, and there is nothing to reattach to.
+
 Relays queue. Start one while another window is up and it waits its turn, then
 opens the moment the one ahead of it is answered or closed — so two agents
 asking at once become two windows in a row, never two at the same time.
@@ -35,8 +55,9 @@ the human takes. Any agent that can run a command can use it.
 pnpm install
 pnpm build      # dist/relay.js and the editor bundle
 pnpm check      # types
-pnpm test       # the line arithmetic behind :res, and the queue
+pnpm test       # the line arithmetic behind :res, the queue, a real pty
 pnpm smoke      # end to end, no window
+pnpm smoke:pty  # a shell on demand, keys in, output out, gone with the relay
 pnpm smoke:queue # two relays at once — opens real windows briefly
 ```
 

@@ -13,6 +13,7 @@ import { getCM, Vim, vim } from "@replit/codemirror-vim";
 import { liveDiff, type Stats } from "./livediff";
 import { type Images, isRendering, renderBlocks, setRendering } from "./render";
 import { restore } from "./restore";
+import { inTerminal, type Pane, terminalPane } from "./terminal";
 import { markdownHighlight, theme } from "./theme";
 
 const mount = document.getElementById("editor")!;
@@ -22,6 +23,7 @@ const noteEl = document.getElementById("note")!;
 const overlayEl = document.getElementById("overlay")!;
 
 let view: EditorView;
+let pane: Pane;
 let sending = false;
 
 function overlay(mark: string, title: string, note: string, tone: "ok" | "error" = "ok") {
@@ -109,6 +111,9 @@ function bindVim(original: string) {
     note(on ? "rendered" : "source");
   });
 
+  Vim.defineEx("terminal", "term", () => pane.toggle());
+  Vim.defineEx("take", "take", () => pane.take());
+
   Vim.defineAction("relayAccept", () => void accept());
   Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
 
@@ -182,6 +187,7 @@ async function boot() {
   });
 
   view.focus();
+  pane = terminalPane(view, note);
   getCM(view)?.on("vim-mode-change", (e: { mode: string; subMode?: string }) =>
     showMode(e.mode, e.subMode),
   );
@@ -194,6 +200,10 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
+      // ⌃X is a key a shell has its own uses for, and inside the terminal every
+      // key belongs to the shell — accepting from there would be relay reaching
+      // over the human's hands.
+      if (inTerminal(e.target)) return;
       if (e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "x") {
         e.preventDefault();
         e.stopPropagation();

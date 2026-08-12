@@ -4,9 +4,13 @@ import { fileURLToPath } from "node:url";
 
 import { contentType, type Images, localImages } from "./images.js";
 import { page } from "./page.js";
+import * as pty from "./pty.js";
 
 const maxDocBytes = 8 << 20;
+// A keystroke, or a paste of something the human had lying around.
+const maxInputBytes = 1 << 20;
 const bundle = fileURLToPath(new URL("./assets/relay.js", import.meta.url));
+const styles = fileURLToPath(new URL("./assets/relay.css", import.meta.url));
 
 export type Relay = {
   url: string;
@@ -26,6 +30,9 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
   });
 
   const images = await localImages(source, doc);
+  // Lazily, and only if the human opens the pane: most relays are answered
+  // without one, and a shell nobody asked for is a process nobody wanted.
+  let shell: pty.Session | null = null;
 
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
@@ -44,6 +51,13 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
       );
       return;
     }
+    if (req.method === "GET" && path === "/assets/relay.css") {
+      readFile(styles).then(
+        (css) => send(res, 200, "text/css; charset=utf-8", css),
+        () => send(res, 404, "text/plain", "not found"),
+      );
+      return;
+    }
     // Pictures off the disk. /local is the whole allow-list, built from the
     // document before the server came up; /local/<n> is one entry of it by
     // index. The index is the point: a path never comes back off the wire, so
@@ -54,6 +68,34 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
     }
     if (req.method === "GET" && path.startsWith("/local/")) return sendLocal(res, images, path.slice(7));
     if (req.method === "POST" && path === "/accept") return handleAccept(req, res, settle);
+
+    // The terminal pane. Output is a stream the page listens to; input is one
+    // request per burst of typing. The page is sandboxed and could not spawn a
+    // shell if it tried, so the pty is on this side of the wire and these three
+    // routes are the whole of the bridge.
+    if (req.method === "GET" && path === "/pty") {
+      const { cols, rows } = size(req);
+      if (shell?.alive) shell.resize(cols, rows);
+      else {
+        try {
+          shell = pty.open(process.cwd(), cols, rows);
+        } catch (err) {
+          return send(res, 503, "text/plain", `no terminal here: ${(err as Error).message}`);
+        }
+      }
+      return stream(req, res, shell);
+    }
+    if (req.method === "POST" && path === "/pty/in") {
+      if (!shell?.alive) return send(res, 409, "text/plain", "no shell");
+      const to = shell;
+      return input(req, res, (data) => to.write(data));
+    }
+    if (req.method === "POST" && path === "/pty/size") {
+      if (!shell?.alive) return send(res, 409, "text/plain", "no shell");
+      const { cols, rows } = size(req);
+      shell.resize(cols, rows);
+      return res.writeHead(204).end();
+    }
 
     send(res, 404, "text/plain", "not found");
   });
@@ -69,8 +111,85 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
   return {
     url: `http://127.0.0.1:${addr.port}/`,
     accepted,
-    close: () => server.close(),
+    close: () => {
+      // Nothing outlives the window. A shell left running would also keep the
+      // stream open and the server with it.
+      shell?.kill();
+      server.close();
+      server.closeAllConnections();
+    },
   };
+}
+
+/**
+ * The shell's output, as it arrives. Server-sent events rather than a socket
+ * upgrade: relay's server is a handful of routes over node's own http, and this
+ * costs it no framing code — the page only ever listens here, and says what it
+ * has to say by POSTing.
+ *
+ * Base64 because a pty speaks in carriage returns and escapes, and an event
+ * stream is delimited by newlines; the bytes have to come through untouched.
+ */
+function stream(req: IncomingMessage, res: ServerResponse, shell: pty.Session) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-store",
+    Connection: "keep-alive",
+  });
+
+  const event = (name: string, data: string) => {
+    if (res.writableEnded || res.destroyed) return;
+    res.write(`event: ${name}\ndata: ${data}\n\n`);
+  };
+
+  event("hello", JSON.stringify({ shell: shell.shell, cwd: shell.cwd }));
+  // A reload lands on the shell that is already running, so hand it what it
+  // missed before anything new arrives.
+  const missed = shell.replay();
+  if (missed) event("out", encode(missed));
+
+  const off = shell.attach(
+    (chunk) => event("out", encode(chunk)),
+    (code) => {
+      event("exit", String(code));
+      res.end();
+    },
+  );
+  req.on("close", off);
+  res.on("error", off);
+}
+
+function input(req: IncomingMessage, res: ServerResponse, write: (data: string) => void) {
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  req.on("data", (c: Buffer) => {
+    bytes += c.length;
+    if (bytes > maxInputBytes) {
+      send(res, 413, "text/plain", "too much at once");
+      req.destroy();
+      return;
+    }
+    chunks.push(c);
+  });
+  req.on("end", () => {
+    if (res.writableEnded) return;
+    write(Buffer.concat(chunks).toString("utf8"));
+    res.writeHead(204).end();
+  });
+}
+
+/** How big the page says its terminal is. */
+function size(req: IncomingMessage): { cols: number; rows: number } {
+  const params = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+  const n = (name: string, fallback: number) => {
+    const v = Number(params.get(name));
+    return Number.isInteger(v) && v > 0 && v < 5000 ? v : fallback;
+  };
+  return { cols: n("cols", 80), rows: n("rows", 24) };
+}
+
+function encode(text: string): string {
+  return Buffer.from(text, "utf8").toString("base64");
 }
 
 function sendLocal(res: ServerResponse, images: Images, index: string) {
