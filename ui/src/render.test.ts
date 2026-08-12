@@ -1,6 +1,19 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
+import { codeLanguage } from "./languages.ts";
 import { bannedAttr, bannedTag, blocks, escapeHtml, localSrc, tagBalance } from "./render.ts";
+
+/**
+ * The editor's own markdown, languages and all. It matters that this matches
+ * `main.ts`: nesting a language into a fence mounts that language's tree inside
+ * the document's, and `blocks()` walks the document's tree.
+ */
+function parsed(doc: string) {
+  return EditorState.create({
+    doc,
+    extensions: [markdown({ base: markdownLanguage, codeLanguages: codeLanguage })],
+  });
+}
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -13,14 +26,12 @@ function check(name: string, got: unknown, want: unknown) {
 
 /** What `blocks()` finds, as [kind, source text] — the shape that matters. */
 function found(doc: string) {
-  const state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
-  return blocks(state).map((b) => [b.kind, doc.slice(b.from, b.to)]);
+  return blocks(parsed(doc)).map((b) => [b.kind, doc.slice(b.from, b.to)]);
 }
 
 /** The HTML a block would be rendered from. */
 function html(doc: string) {
-  const state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
-  return blocks(state).map((b) => b.html);
+  return blocks(parsed(doc)).map((b) => b.html);
 }
 
 // --- what is banned ----------------------------------------------------------
@@ -118,6 +129,18 @@ check("blocks: tag then prose stays source", found("<b>bold</b> is the word\n"),
 check("blocks: several, in order", found("<p>one</p>\n\ntext\n\n| a |\n| - |\n| 1 |\n"), [
   ["html", "<p>one</p>"],
   ["table", "| a |\n| - |\n| 1 |"],
+]);
+
+// Code shown as code stays as code. A fenced ```html block has a real HTML tree
+// nested inside it now, and rendering that would delete the very thing the block
+// was written to show. `blocks()` stops at the fence, so it never sees it.
+check("blocks: html in a fence is not rendered", found("```html\n<p>hi</p>\n```\n"), []);
+check("blocks: a table in a fence is not rendered", found("```\n| a |\n| - |\n| 1 |\n```\n"), []);
+check("blocks: an image in a fence is not rendered", found("```md\n![cat](cat.png)\n```\n"), []);
+check("blocks: an indented html block is not rendered", found("text\n\n    <p>hi</p>\n"), []);
+// And a fence next to a real block does not stop the real one being found.
+check("blocks: a fence beside html", found("```ts\nlet a = 1\n```\n\n<p>hi</p>\n"), [
+  ["html", "<p>hi</p>"],
 ]);
 
 // --- the html that comes out -------------------------------------------------
