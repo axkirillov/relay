@@ -31,6 +31,11 @@ Copy it, add your own checks at the bottom, delete it when you are done.
 - **Run it in the background and write to a log file.** A window harness outlives
   most command timeouts, and a timeout kills the call while `tail` still holds
   every line of progress in its buffer, so you learn nothing about where it got to.
+- **`capturePage` hands back a stale frame when the window has lost the screen.**
+  Two shots taken seconds apart came back byte-identical, showing a state the DOM
+  had already left. `win.focus()`, `app.focus({ steal: true })`, and about a second
+  to settle before capturing. The DOM reads are the assertions; the picture is only
+  worth taking if it is the picture of now.
 
 ## Spawn the relay from inside the harness
 
@@ -76,6 +81,11 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
   the viewport in the DOM, so a line index read from it is an index into whatever
   happens to be on screen. This is also why the read above returns the visible
   document rather than the whole of it: assert on patterns, not on line counts.
+- **A decoration that is in the document can still be absent from the DOM** — the
+  viewport follows streaming output down, and the widget above it is dropped. Take
+  it as a fact about the screen, not about the feature: search or `gg` it back into
+  view first, and never let `querySelector(...)` be dereferenced unguarded, since
+  the throw lands in an async handler and leaves Electron alive and silent.
 - **A click sent past the window's edge is dropped, and it blurs the editor.**
   After that `⌃↵` still works — it is a window-level listener — while every vim
   key silently goes nowhere, which reads exactly like a broken feature. Scroll the
