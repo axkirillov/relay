@@ -256,10 +256,17 @@ class Rendered extends WidgetType {
   eq(other: Rendered) {
     return other.html === this.html;
   }
+  // Two elements, and the nesting is load-bearing. CodeMirror measures a block
+  // widget with getBoundingClientRect, which excludes margins, so a margin out
+  // here would be height it never knows about and every block would push the
+  // text a little further down than its own line number. The outer element
+  // therefore spaces with padding, and the box that can be seen is inside it.
   toDOM() {
     const el = document.createElement("div");
     el.className = "cm-relay-render";
-    el.appendChild(sanitize(this.html));
+    const box = el.appendChild(document.createElement("div"));
+    box.className = "cm-relay-box";
+    box.appendChild(sanitize(this.html));
     return el;
   }
   // Clicks have to reach the editor: putting the caret in the block is how the

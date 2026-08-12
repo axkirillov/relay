@@ -113,8 +113,9 @@ export const theme = EditorView.theme(
     // Rendered HTML. Deliberately not monospace: the change of typeface is how
     // you can tell at a glance that a block is standing rendered rather than as
     // the source you can edit.
-    ".cm-relay-render": {
-      margin: "0.4rem 0.75rem",
+    // Padding, never margin — see the comment on the widget in render.ts.
+    ".cm-relay-render": { padding: "0.4rem 0.75rem" },
+    ".cm-relay-box": {
       padding: "0.7rem 0.9rem",
       background: "#1b1c29",
       border: `1px solid ${line}`,
@@ -123,8 +124,8 @@ export const theme = EditorView.theme(
       font: '14px/1.55 ui-sans-serif, -apple-system, system-ui, sans-serif',
       color: fg,
     },
-    ".cm-relay-render > :first-child": { marginTop: 0 },
-    ".cm-relay-render > :last-child": { marginBottom: 0 },
+    ".cm-relay-box > :first-child": { marginTop: 0 },
+    ".cm-relay-box > :last-child": { marginBottom: 0 },
     ".cm-relay-render table": { borderCollapse: "collapse" },
     ".cm-relay-render th, .cm-relay-render td": {
       border: `1px solid ${line}`,
