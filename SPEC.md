@@ -107,8 +107,19 @@ exit adds `[exit 3]`; `⌃C` stops it and adds `[stopped]`.
 Long output is **folded, not truncated**: past twenty lines the head is replaced
 by a notice the human can click, while every line stays in the document. The
 agent gets all of it; the fold only decides how much the human scrolls past.
-`:raw` shows the lot. Output that would never end is capped at 256 KB, and the
-command is stopped there and told so.
+`:raw` shows the lot.
+
+Output too long to belong in a document at all **goes to a file instead**. Past a
+hundred lines — or 64 KB, since one line of minified javascript would flood the
+document without reaching a hundred of anything — the run writes to
+`~/.relay/<round>/run-N.log`, and the document keeps the first hundred lines, a
+pointer naming that file, and the last twenty. The start says what the command
+set out to do and the end says how it turned out, which between them is usually
+the whole answer; the file has every line for when it is not. The pointer is
+written the moment the spill starts rather than at the end, so a `⌃C` cannot leave
+a cut-off block with no file named. Output that would never end is capped at 8 MB
+— a bound on the disk, not the document — and the command is stopped there and
+told so.
 
 Nothing a relay started outlives the relay. The response *is* the run — there is
 no run id and nothing to poll — so the page hanging up is the human's ⌃C, and

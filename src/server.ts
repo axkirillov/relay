@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { contentType, type Images, localImages } from "./images.js";
@@ -21,7 +22,12 @@ export type Relay = {
  * One process serves exactly one relay, so there are no session ids and no
  * registry — just a handful of routes over loopback.
  */
-export async function serve(source: string, doc: string, prefill = doc): Promise<Relay> {
+export async function serve(
+  source: string,
+  doc: string,
+  prefill: string,
+  logDir: string,
+): Promise<Relay> {
   let settle: (doc: string) => void;
   const accepted = new Promise<string>((resolve) => {
     settle = resolve;
@@ -30,6 +36,10 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
   const images = await localImages(source, doc);
   // Every command still going, so that none of them outlives the window.
   const running = new Set<Running>();
+  // Numbered in the order the human ran them, so a pointer in the document leads
+  // to the run that wrote it. Runs short enough to stay in the document leave a
+  // gap in the numbering rather than an empty file.
+  let runs = 0;
 
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
@@ -60,7 +70,9 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
     if (req.method === "POST" && path === "/accept") return handleAccept(req, res, settle);
     // A shell block the human asked for. The body is the command, the response
     // is its output as it happens, and hanging up is how the human stops it.
-    if (req.method === "POST" && path === "/run") return handleRun(req, res, running);
+    if (req.method === "POST" && path === "/run") {
+      return handleRun(req, res, running, join(logDir, `run-${++runs}.log`));
+    }
 
     send(res, 404, "text/plain", "not found");
   });
@@ -97,7 +109,12 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
  * It runs in the relay's own cwd — the directory the agent asked from, which is
  * the one the command was written for.
  */
-function handleRun(req: IncomingMessage, res: ServerResponse, running: Set<Running>) {
+function handleRun(
+  req: IncomingMessage,
+  res: ServerResponse,
+  running: Set<Running>,
+  logPath: string,
+) {
   read(req, maxCommandBytes).then(
     (command) => {
       if (!command.trim()) return send(res, 400, "text/plain", "no command");
@@ -109,9 +126,14 @@ function handleRun(req: IncomingMessage, res: ServerResponse, running: Set<Runni
       res.flushHeaders();
 
       let over = false;
-      const job = start(command, process.cwd(), (text) => {
-        if (!res.writableEnded) res.write(text);
-      });
+      const job = start(
+        command,
+        process.cwd(),
+        (text) => {
+          if (!res.writableEnded) res.write(text);
+        },
+        logPath,
+      );
       running.add(job);
 
       // Both the abort and the ordinary end arrive here; only an early one is
