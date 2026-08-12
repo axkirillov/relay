@@ -1,6 +1,6 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
-import { bannedAttr, bannedTag, blocks, escapeHtml, tagBalance } from "./render.ts";
+import { bannedAttr, bannedTag, blocks, escapeHtml, localSrc, tagBalance } from "./render.ts";
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -42,6 +42,16 @@ check("attr: plain href", bannedAttr("href", "https://example.com"), false);
 check("attr: class", bannedAttr("class", "anything"), false);
 
 check("escape: angle brackets and quotes", escapeHtml(`<a href="x">&`), "&lt;a href=&quot;x&quot;&gt;&amp;");
+
+// --- which image sources name a file on disk ---------------------------------
+check("local: absolute path", localSrc("/tmp/a.png"), true);
+check("local: relative path", localSrc("shots/a.png"), true);
+check("local: padded path", localSrc("  /tmp/a.png  "), true);
+check("local: https is not local", localSrc("https://example.com/a.png"), false);
+check("local: data is not local", localSrc("data:image/png;base64,iVB"), false);
+check("local: protocol-relative is not local", localSrc("//example.com/a.png"), false);
+check("local: fragment is not a file", localSrc("#a"), false);
+check("local: nothing at all", localSrc(""), false);
 
 // --- tag balance -------------------------------------------------------------
 check("balance: closed", tagBalance("<div>hi</div>"), 0);
@@ -120,6 +130,19 @@ check("html: table cells are escaped", html("| a |\n| - |\n| <b> |\n"), [
 ]);
 
 check("html: local image", html("![cat](cat.png)\n"), [`<img src="cat.png" alt="cat">`]);
+
+// The same src the server keyed its allow-list by, so the lookup can hit.
+check("html: angle brackets are markdown, not path", html("![cat](<cat.png>)\n"), [
+  `<img src="cat.png" alt="cat">`,
+]);
+
+check("html: angle brackets carry a space", html("![cat](<a cat.png>)\n"), [
+  `<img src="a cat.png" alt="cat">`,
+]);
+
+check("html: a title is not part of the src", html(`![cat](cat.png "a cat")\n`), [
+  `<img src="cat.png" alt="cat">`,
+]);
 
 // Remote pictures are fetched and shown; the content policy allows images off
 // the machine and nothing else.

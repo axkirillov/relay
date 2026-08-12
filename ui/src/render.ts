@@ -17,6 +17,19 @@ type SyntaxNode = {
 export type Block = { from: number; to: number; html: string; kind: Kind };
 type Kind = "html" | "table" | "image";
 
+/**
+ * Where to fetch each local image from, keyed by the src as the document spells
+ * it. The server builds this from the document and serves nothing that is not in
+ * it; this side only ever looks a src up.
+ */
+export type Images = Record<string, string>;
+
+/** A src that names a file on this machine rather than somewhere to fetch from. */
+export function localSrc(src: string): boolean {
+  const s = src.trim();
+  return s !== "" && !/^[a-z][a-z0-9+.-]*:/i.test(s) && !s.startsWith("//") && !s.startsWith("#");
+}
+
 // Nothing here loads code or steals the caret. <details>, <svg> and <table> are
 // the point of the feature and stay.
 const banned = new Set([
@@ -175,9 +188,14 @@ function standaloneImage(state: EditorState, node: SyntaxNode): Block | null {
   const text = state.doc.sliceString(node.from, node.to);
   if (state.doc.sliceString(parent.from, parent.to).trim() !== text.trim()) return null;
 
-  const m = /^!\[([^\]]*)\]\(([^)\s]*)/.exec(text);
+  // Angle brackets are markdown's way of wrapping a path rather than part of
+  // one, and the only way it can spell a path with a space in it. The server
+  // reads the document by the same rule, so a src ends up the same string on
+  // both sides and the lookup can hit.
+  const m = /^!\[([^\]]*)\]\(\s*(?:<([^<>]*)>|([^)\s]*))/.exec(text);
   if (!m) return null;
-  const [, alt = "", src = ""] = m;
+  const [, alt = "", bracketed, bare] = m;
+  const src = bracketed ?? bare ?? "";
   const html = `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`;
   return { from: node.from, to: node.to, html, kind: "image" };
 }
@@ -211,8 +229,12 @@ function tableHtml(state: EditorState, table: SyntaxNode): string {
  * handlers and no code to run. Images are the one thing allowed off the
  * machine, and only ever as pictures — the content policy permits no other
  * kind of request.
+ *
+ * Local images are also settled here, rather than where each kind of block is
+ * built, because there are two ways to write one — a markdown image and a raw
+ * `<img>` in an HTML block — and by this point they are the same element.
  */
-function sanitize(html: string): DocumentFragment {
+function sanitize(html: string, images: Images): DocumentFragment {
   const parsed = new DOMParser().parseFromString(html, "text/html");
 
   for (const el of [...parsed.body.querySelectorAll("*")]) {
@@ -223,6 +245,7 @@ function sanitize(html: string): DocumentFragment {
     for (const attr of [...el.attributes]) {
       if (bannedAttr(attr.name, attr.value)) el.removeAttribute(attr.name);
     }
+    if (el.tagName === "IMG") resolveLocal(el, images, parsed);
   }
 
   const frag = document.createDocumentFragment();
@@ -230,14 +253,38 @@ function sanitize(html: string): DocumentFragment {
   return frag;
 }
 
+/**
+ * A path on disk is not something this window can fetch, so it becomes the
+ * address the server gave that file. A local src with no address behind it is a
+ * file that was not there when the document was served — say that, because a
+ * broken-image icon does not distinguish it from a picture that failed to
+ * decode.
+ */
+function resolveLocal(el: Element, images: Images, doc: Document) {
+  const src = el.getAttribute("src") ?? "";
+  if (!localSrc(src)) return;
+
+  const served = images[src.trim()];
+  if (served) return el.setAttribute("src", served);
+
+  const note = doc.createElement("span");
+  note.className = "cm-relay-blocked";
+  note.textContent = `image not found — ${src}`;
+  el.replaceWith(note);
+}
+
 class Rendered extends WidgetType {
   // A plain field, not a parameter property: node's type stripping runs this
   // file for the tests and does not support them.
   html: string;
-  constructor(html: string) {
+  images: Images;
+  constructor(html: string, images: Images) {
     super();
     this.html = html;
+    this.images = images;
   }
+  // The map is fixed for the life of the window, so the html alone says whether
+  // two widgets would draw the same thing.
   eq(other: Rendered) {
     return other.html === this.html;
   }
@@ -251,7 +298,7 @@ class Rendered extends WidgetType {
     el.className = "cm-relay-render";
     const box = el.appendChild(document.createElement("div"));
     box.className = "cm-relay-box";
-    box.appendChild(sanitize(this.html));
+    box.appendChild(sanitize(this.html, this.images));
     // An image off the network arrives after the block has been measured, and
     // arriving is what gives it its height. Nothing tells the editor that on
     // its own, so every line below would keep the spacing of a block that was
@@ -296,7 +343,7 @@ export function isRendering(state: EditorState): boolean {
  * human's edits and a rendered block would hide them. Between them, everything
  * the human types stays visible as text.
  */
-function build(state: EditorState, original: string): DecorationSet {
+function build(state: EditorState, original: string, images: Images): DecorationSet {
   if (!state.field(rendering)) return Decoration.none;
 
   const sel = state.selection.main;
@@ -308,7 +355,7 @@ function build(state: EditorState, original: string): DecorationSet {
     if (sel.from <= to && sel.to >= from) continue;
     if (!original.includes(state.doc.sliceString(from, to))) continue;
     if (from >= to) continue;
-    ranges.push(Decoration.replace({ widget: new Rendered(block.html), block: true }).range(from, to));
+    ranges.push(Decoration.replace({ widget: new Rendered(block.html, images), block: true }).range(from, to));
   }
 
   return Decoration.set(ranges, true);
@@ -319,16 +366,16 @@ function build(state: EditorState, original: string): DecorationSet {
  * from a plugin, because it needs their heights before it has drawn anything.
  * So this is computed over the whole document, not just the viewport.
  */
-export function renderBlocks(original: string) {
+export function renderBlocks(original: string, images: Images = {}) {
   const field = StateField.define<DecorationSet>({
-    create: (state) => build(state, original),
+    create: (state) => build(state, original, images),
     update(deco, tr) {
       const stale =
         tr.docChanged ||
         tr.selection ||
         tr.effects.some((e) => e.is(setRendering)) ||
         syntaxTree(tr.startState) !== syntaxTree(tr.state);
-      return stale ? build(tr.state, original) : deco;
+      return stale ? build(tr.state, original, images) : deco;
     },
     provide: (f) => EditorView.decorations.from(f),
   });

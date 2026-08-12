@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
+import { contentType, type Images, localImages } from "./images.js";
 import { page } from "./page.js";
 
 const maxDocBytes = 8 << 20;
@@ -16,13 +17,15 @@ export type Relay = {
 
 /**
  * One process serves exactly one relay, so there are no session ids and no
- * registry — just four routes over loopback.
+ * registry — just a handful of routes over loopback.
  */
 export async function serve(source: string, doc: string, prefill = doc): Promise<Relay> {
   let settle: (doc: string) => void;
   const accepted = new Promise<string>((resolve) => {
     settle = resolve;
   });
+
+  const images = await localImages(source, doc);
 
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
@@ -41,6 +44,15 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
       );
       return;
     }
+    // Pictures off the disk. /local is the whole allow-list, built from the
+    // document before the server came up; /local/<n> is one entry of it by
+    // index. The index is the point: a path never comes back off the wire, so
+    // there is nothing here to traverse out of and no file to name that the
+    // agent did not already name itself.
+    if (req.method === "GET" && path === "/local") {
+      return send(res, 200, "application/json; charset=utf-8", JSON.stringify(images.map));
+    }
+    if (req.method === "GET" && path.startsWith("/local/")) return sendLocal(res, images, path.slice(7));
     if (req.method === "POST" && path === "/accept") return handleAccept(req, res, settle);
 
     send(res, 404, "text/plain", "not found");
@@ -59,6 +71,16 @@ export async function serve(source: string, doc: string, prefill = doc): Promise
     accepted,
     close: () => server.close(),
   };
+}
+
+function sendLocal(res: ServerResponse, images: Images, index: string) {
+  const n = /^\d+$/.test(index) ? Number(index) : -1;
+  const file = images.files[n];
+  if (file === undefined) return send(res, 404, "text/plain", "not found");
+  readFile(file).then(
+    (bytes) => send(res, 200, contentType(file), bytes),
+    () => send(res, 404, "text/plain", "not found"),
+  );
 }
 
 let taken = false;
