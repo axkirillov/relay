@@ -11,7 +11,8 @@
     "check": "tsc --noEmit",
     "test": "for t in ui/src/*.test.ts src/*.test.ts; do echo \"— $t\"; node --no-warnings \"$t\" || exit 1; done",
     "smoke": "bash scripts/smoke.sh",
-    "smoke:queue": "bash scripts/queue.sh"
+    "smoke:queue": "bash scripts/queue.sh",
+    "smoke:latch": "bash scripts/latch.sh"
   },
   "dependencies": {
     "@codemirror/commands": "^6.9.0",

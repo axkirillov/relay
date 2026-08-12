@@ -3,6 +3,7 @@ import { relative, resolve } from "node:path";
 
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
+import { unlatchOnExit } from "./latch.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
@@ -28,6 +29,10 @@ the window is open costs the human's reply.
   RELAY_NO_OPEN=1   serve the document but do not open a window
   RELAY_DEBUG=1     let the window's own output through to stderr
 `;
+
+// Before anything that can exit. A relay that cannot even read its document has
+// still latched the agent's gate, and stays refused until this has run.
+unlatchOnExit();
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
 if (args.length !== 1 || args[0] === "-h" || args[0] === "--help") {
