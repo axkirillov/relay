@@ -10,6 +10,8 @@ import {
 } from "@codemirror/view";
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
+import { fenceBackground } from "./fence";
+import { codeLanguage } from "./languages";
 import { liveDiff, type Stats } from "./livediff";
 import { foldOutput } from "./outfold";
 import { type Images, isRendering, renderBlocks, setRendering } from "./render";
@@ -263,8 +265,9 @@ async function boot() {
         drawSelection(),
         highlightSpecialChars(),
         EditorView.lineWrapping,
-        markdown({ base: markdownLanguage }),
+        markdown({ base: markdownLanguage, codeLanguages: codeLanguage }),
         markdownHighlight,
+        fenceBackground,
         theme,
         renderBlocks(original, images),
         foldOutput(),

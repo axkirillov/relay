@@ -1,6 +1,7 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 
+import { codeLanguage } from "./languages.ts";
 import { commandOf, isShellLang, shellBlockAt, startOutput } from "./runblock.ts";
 
 let fails = 0;
@@ -12,8 +13,16 @@ function check(name: string, got: unknown, want: unknown) {
   console.log(`FAIL ${name}\n     got  ${g}\n     want ${w}`);
 }
 
+/**
+ * The editor's own markdown, languages and all — as `main.ts` builds it. A shell
+ * fence is exactly the case where nesting bites: the language's tree is mounted
+ * over the `CodeText` node these functions read the command out of.
+ */
 function stateOf(doc: string) {
-  return EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
+  return EditorState.create({
+    doc,
+    extensions: [markdown({ base: markdownLanguage, codeLanguages: codeLanguage })],
+  });
 }
 
 /** `|` is the cursor. What would run with it there, or null if nothing would. */
