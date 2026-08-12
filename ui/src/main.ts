@@ -111,6 +111,43 @@ function bindVim(original: string) {
 
   Vim.defineAction("relayAccept", () => void accept());
   Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
+
+  copyToClipboard();
+}
+
+/**
+ * What vim takes, the system clipboard gets — vim's own `clipboard=unnamed`.
+ *
+ * The registers live inside this page and die with it, so a line yanked to quote
+ * somewhere else was going nowhere. Rather than reimplement the operators, this
+ * hooks the register controller: yank, delete and change are the only three that
+ * reach its pushText, and it is handed the name of the one that got it there, so
+ * a yank can still be told from a cut when there is something to say about it.
+ * The controller is built once, when the vim module loads, so patching the
+ * instance holds for as long as the window is up.
+ */
+function copyToClipboard() {
+  const registers = Vim.getRegisterController();
+  const push = registers.pushText.bind(registers);
+
+  registers.pushText = (name, operator, text, linewise, blockwise) => {
+    push(name, operator, text, linewise, blockwise);
+    // `"_` is vim's black hole — what goes into it goes nowhere.
+    if (name === "_" || !text) return;
+    // Linewise, it carries its newline the way the register's own copy does, so
+    // pasting it elsewhere lands a line rather than a fragment.
+    const copied = linewise && !text.endsWith("\n") ? `${text}\n` : text;
+    void navigator.clipboard.writeText(copied).then(
+      () => note(took(operator, copied)),
+      () => note("the clipboard refused it"),
+    );
+  };
+}
+
+function took(operator: string, text: string): string {
+  const verb = operator === "yank" ? "yanked" : "cut";
+  const lines = text.replace(/\n$/, "").split("\n").length;
+  return lines > 1 ? `${lines} lines ${verb} to the clipboard` : `${verb} to the clipboard`;
 }
 
 async function boot() {

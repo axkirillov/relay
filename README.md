@@ -18,7 +18,9 @@ to stdout.
 In the window: `⌃X` or `ZZ` accepts, `:q` closes without replying, and `:res`
 puts a stretch of the document back the way it arrived — the cursor line in
 normal mode, the selection in visual mode, or a range like `:12,18res`. Lines
-are numbered so they can be pointed at in a reply.
+are numbered so they can be pointed at in a reply. Whatever a yank or a delete
+takes reaches the system clipboard as well as vim's own register — vim's
+`clipboard=unnamed` — so what `y` picks up leaves the window with you.
 
 Relays queue. Start one while another window is up and it waits its turn, then
 opens the moment the one ahead of it is answered or closed — so two agents
