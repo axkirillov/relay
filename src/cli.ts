@@ -3,6 +3,7 @@ import { relative, resolve } from "node:path";
 
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
+import * as queue from "./queue.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
 import { openWindow } from "./window.js";
@@ -15,6 +16,9 @@ against what you sent.
 
 On accept, the unified diff of their edits is printed to stdout and relay exits
 0. If they close the window without replying, relay exits 1 and prints nothing.
+
+If another relay's window is already up, this one waits its turn and opens as
+soon as that one is done.
 
   RELAY_NO_OPEN=1   serve the document but do not open a window
   RELAY_DEBUG=1     let the window's own output through to stderr
@@ -38,10 +42,17 @@ try {
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
 const store = storage.open(path, sent);
+// Joined before the server comes up, so the line is in the order the relays
+// were run. With no window there is nothing to contend for.
+const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path);
+
 const relay = await serve(path, sent, prefill);
 process.stderr.write(`relay: waiting for the human — ${relay.url}\n`);
 
-const win = process.env.RELAY_NO_OPEN ? null : openWindow(relay.url, !!process.env.RELAY_DEBUG);
+if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);
+await turn?.wait();
+
+const win = turn ? openWindow(relay.url, !!process.env.RELAY_DEBUG) : null;
 
 const accepted = relay.accepted.then((edited) => ({ edited }));
 const abandoned = win ? win.closed.then(() => null) : new Promise<null>(() => {});
@@ -55,12 +66,16 @@ if (outcome === null) outcome = await Promise.race([accepted, wait(300).then(() 
 if (outcome === null) {
   store.abandon();
   await win?.close();
+  // The screen is free the moment the window is gone — before the diff work.
+  turn?.leave();
   relay.close();
   process.stderr.write("relay: the human closed the window without replying\n");
   process.exitCode = 1;
 } else {
   // The window vanishing is the confirmation. Nothing to read, nothing to miss.
   await win?.close();
+  // The screen is free the moment the window is gone — before the diff work.
+  turn?.leave();
   relay.close();
 
   const rel = relative(process.cwd(), path);

@@ -20,6 +20,10 @@ puts a stretch of the document back the way it arrived — the cursor line in
 normal mode, the selection in visual mode, or a range like `:12,18res`. Lines
 are numbered so they can be pointed at in a reply.
 
+Relays queue. Start one while another window is up and it waits its turn, then
+opens the moment the one ahead of it is answered or closed — so two agents
+asking at once become two windows in a row, never two at the same time.
+
 No MCP server, no daemon, no registration: one process per relay, for as long as
 the human takes. Any agent that can run a command can use it.
 
@@ -29,16 +33,19 @@ the human takes. Any agent that can run a command can use it.
 pnpm install
 pnpm build      # dist/relay.js and the editor bundle
 pnpm check      # types
-pnpm test       # the line arithmetic behind :res
+pnpm test       # the line arithmetic behind :res, and the queue
 pnpm smoke      # end to end, no window
+pnpm smoke:queue # two relays at once — opens real windows briefly
 ```
 
-`RELAY_NO_OPEN=1` serves the document without opening a window.
+`RELAY_NO_OPEN=1` serves the document without opening a window, and skips the
+queue with it.
 `RELAY_DEBUG=1` lets the window's own output through to stderr.
 `RELAY_PREFILL=<file>` opens the editor on `<file>` while still diffing against
 the document — so the diff view can be looked at without typing into it.
 
 Every relay is kept in `~/.relay/<timestamp>-<slug>/` — the agent only gets a
-diff back, so what it was diffed against has to live somewhere.
+diff back, so what it was diffed against has to live somewhere. The queue is
+`~/.relay/queue/`, a ticket per relay waiting for the screen.
 
 See [SPEC.md](SPEC.md).
