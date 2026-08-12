@@ -20,6 +20,11 @@ On accept, the unified diff of their edits is printed to stdout and relay exits
 If another relay's window is already up, this one waits its turn and opens as
 soon as that one is done.
 
+Waiting for a human outlasts most command timeouts, and a queued relay waits
+longer still. If the harness running this puts a clock on a command, start relay
+in the background and read its output when it exits — a timeout that fires while
+the window is open costs the human's reply.
+
   RELAY_NO_OPEN=1   serve the document but do not open a window
   RELAY_DEBUG=1     let the window's own output through to stderr
 `;
@@ -48,6 +53,10 @@ const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path);
 
 const relay = await serve(path, sent, prefill);
 process.stderr.write(`relay: waiting for the human — ${relay.url}\n`);
+// The one line every caller sees, and the one a timed-out caller is handed.
+process.stderr.write(
+  "relay: this blocks until they answer — if a command timeout can fire first, run relay in the background\n",
+);
 
 if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);
 await turn?.wait();
