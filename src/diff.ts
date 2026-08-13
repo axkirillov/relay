@@ -55,6 +55,15 @@ export type ReviewLine = {
   number: number | null;
   /** The file the block is in by this point, as its headers name it. */
   file: string | null;
+  /**
+   * The language named after `diff` on the fence — ` ```diff php ` — or null.
+   *
+   * Which is the fallback for where the code is highlighted, and only that: a
+   * fragment with no file headers has nothing else to say what it is written in.
+   * Where there are headers the file's own extension answers, per file, which is
+   * the only way a patch touching four languages can be read as four languages.
+   */
+  lang: string | null;
 };
 
 /** A comment, and where in the reviewed code the human left it. */
@@ -182,6 +191,9 @@ function closes(text: string, mark: string): boolean {
 }
 
 function read(lines: string[], block: Block, out: ReviewLine[]) {
+  // The whole info string is kept by `fenced` and only its first word is what
+  // made this a diff, so a second word is already here to be read.
+  const lang = block.info.split(/\s+/)[1] ?? null;
   let file: string | null = null;
   let inHunk = false;
   let oldNo = 0;
@@ -193,7 +205,8 @@ function read(lines: string[], block: Block, out: ReviewLine[]) {
 
   for (let n = block.from; n <= block.to; n++) {
     const text = lines[n - 1] ?? "";
-    const push = (kind: Kind, number: number | null) => out.push({ line: n, kind, text, number, file });
+    const push = (kind: Kind, number: number | null) =>
+      out.push({ line: n, kind, text, number, file, lang });
 
     const hunk = hunkHeader.exec(text);
     if (hunk) {

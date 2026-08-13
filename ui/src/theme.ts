@@ -154,10 +154,17 @@ export const theme = EditorView.theme(
     // human touched this line, and these are the agent's.
     ".cm-relay-diff-add": { backgroundColor: diffAddWash },
     ".cm-relay-diff-del": { backgroundColor: diffDelWash },
+    // The `+` and the `-`. They are still in the text — the patch is made of them
+    // — but the wash has already said which line is which, so they are read as
+    // punctuation and set at the weight of punctuation. Dimmer than the code and
+    // the same colour as the numbers in the gutter, which are the other thing on
+    // the line that is about the line rather than in it.
+    ".cm-relay-diff-mark": { color: dim },
     // The strip naming the file, and the `@@` header standing between hunks.
-    // Structure rather than content — and the diff mode has already coloured
-    // `---` and `+++` red and green on their own spans, so this has to say the
-    // colour again to get it back.
+    // Structure rather than content. The `span` half of the selector is for
+    // anything the live diff puts inside such a line when the human edits one:
+    // nothing else paints here, since a header is not code and diffcode.ts leaves
+    // it alone.
     ".cm-relay-diff-file, .cm-relay-diff-file span": { color: `${cyan} !important` },
     ".cm-relay-diff-file": { backgroundColor: diffFileWash, fontWeight: "700" },
     ".cm-relay-diff-hunk": { borderTop: `1px solid ${line}` },
@@ -306,10 +313,13 @@ export const highlightStyle = HighlightStyle.define([
   // Markup: the tag is what you scan for, the attribute hangs off it.
   { tag: t.tagName, color: red },
   { tag: t.attributeName, color: orange },
-  // A ```diff block, in the same two colours the live diff uses for the human's
-  // own edits — added is green and removed is red wherever you are reading.
-  { tag: t.inserted, color: green },
-  { tag: t.deleted, color: red },
+  // No rule for t.inserted or t.deleted, and that is the whole of how a reviewed
+  // diff comes to look like code. Those two tags are what a diff mode emits, and
+  // a rule for them paints an added line of TypeScript green from end to end
+  // instead of painting TypeScript. So a ```diff fence is given no diff mode at
+  // all (languages.ts) and what is added and what is removed is said by the wash
+  // under the line (diffview.ts) — leaving the foreground to the rules above, in
+  // the language of the file the patch touches.
   { tag: [t.operator, t.punctuation, t.bracket, t.separator, t.derefOperator], color: punct },
   { tag: t.invalid, color: red },
 ]);

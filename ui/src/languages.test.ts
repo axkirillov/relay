@@ -3,7 +3,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { highlightTree, type Tag, tags as t } from "@lezer/highlight";
 import { codeLines } from "./fence.ts";
-import { codeLanguage, fenceNames } from "./languages.ts";
+import { codeLanguage, fenceNames, languageForPath } from "./languages.ts";
 import { highlightStyle } from "./theme.ts";
 
 let fails = 0;
@@ -44,8 +44,6 @@ const roles: Array<[string, Tag]> = [
   ["tag", t.tagName],
   ["attr", t.attributeName],
   ["punct", t.punctuation],
-  ["added", t.inserted],
-  ["removed", t.deleted],
   ["mark", t.processingInstruction],
   ["lang", t.labelName],
   ["code", t.monospace],
@@ -89,6 +87,18 @@ check("names: nothing at all", codeLanguage(""), null);
 // Every name in the table resolves — a typo in an alias is otherwise silent.
 check("names: all of them resolve", fenceNames.filter((n) => !codeLanguage(n)), []);
 
+// --- which language a patched file is written in ------------------------------
+// The table is spelled in extensions, so a path needs no second list.
+check("path: an extension names the language", languageForPath("src/run.ts") === codeLanguage("ts"), true);
+check("path: a directory is not an extension", languageForPath("api/v2/Order.php") === codeLanguage("php"), true);
+check("path: case is not part of it", languageForPath("App/Order.PHP") === codeLanguage("php"), true);
+check("path: two dots, the last one counts", languageForPath("ui/src/take.test.ts") === codeLanguage("ts"), true);
+// A file named for what it is rather than for what it ends in.
+check("path: no extension at all", languageForPath("docker/Dockerfile") === codeLanguage("docker"), true);
+check("path: a dotfile is its own extension", languageForPath(".env") === codeLanguage("env"), true);
+check("path: a language we do not have", languageForPath("README.md"), null);
+check("path: nothing to go on", languageForPath("Makefile"), null);
+
 // --- a fence carries the tokens of its language ------------------------------
 check(
   "ts: every token of a declaration",
@@ -128,15 +138,27 @@ check("html: tag and attribute", inside('```html\n<a href="x">hi</a>\n```\n'), [
 check("sql: a keyword", inside("```sql\nselect 1 from t\n```\n").includes("keyword"), true);
 check("rust: a keyword", inside("```rust\nfn main() {}\n```\n").includes("keyword"), true);
 check("go: a keyword", inside("```go\nfunc main() {}\n```\n").includes("keyword"), true);
+// A fragment, with no `<?php` above it — which is what `plain` is for, and what
+// every hunk of a patch is.
+check("php: a fragment is php and not html", inside("```php\npublic function id(): int\n```\n"), [
+  "keyword",
+  "name",
+  "punct",
+  "type",
+]);
+check("php: a variable", inside("```php\n$order = null;\n```\n").includes("name"), true);
 
 // The cheap tier: CodeMirror 5 stream modes, which reach the same tags by a
 // different road. Worth a test each, because that road is the one that could rot.
 check("bash: a comment", inside("```bash\n# note\nls -la\n```\n").includes("comment"), true);
 check("bash: sh is the same mode", inside("```sh\n# note\n```\n").includes("comment"), true);
-check("diff: a plus line is added, a minus line removed", inside("```diff\n+added\n-gone\n```\n"), [
-  "added",
-  "removed",
-]);
+// A ```diff fence is given a language that emits nothing, so that diffcode.ts can
+// paint the body in the language of the file the patch touches without a diff
+// mode colouring the same characters first. Nothing here, and not the monospace
+// green a fence with no language at all would fall back to, is the whole point.
+check("diff: the body carries no tokens of its own", inside("```diff\n+added\n-gone\n```\n"), []);
+check("diff: patch is the same", inside("```patch\n+added\n```\n"), []);
+check("diff: a blank line does not stall the parser", inside("```diff\n+a\n\n+b\n```\n"), []);
 check("toml: a key", inside('```toml\na = "hi"\n```\n').includes("string"), true);
 check("dockerfile: a keyword", inside("```dockerfile\nFROM alpine\n```\n").includes("keyword"), true);
 check("c: a keyword", inside("```c\nif (x) return 1;\n```\n").includes("keyword"), true);

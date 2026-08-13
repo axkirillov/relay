@@ -4,13 +4,13 @@ import { go } from "@codemirror/lang-go";
 import { html } from "@codemirror/lang-html";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
+import { php } from "@codemirror/lang-php";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
 import { sql } from "@codemirror/lang-sql";
 import { xml } from "@codemirror/lang-xml";
 import { yaml } from "@codemirror/lang-yaml";
 import { c, cpp, csharp, java, kotlin, objectiveC, scala } from "@codemirror/legacy-modes/mode/clike";
-import { diff } from "@codemirror/legacy-modes/mode/diff";
 import { dockerFile } from "@codemirror/legacy-modes/mode/dockerfile";
 import { properties } from "@codemirror/legacy-modes/mode/properties";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
@@ -34,6 +34,13 @@ import { toml } from "@codemirror/legacy-modes/mode/toml";
  *
  * Adding a stream mode is one import and one line, for ~1kb. Say the word.
  *
+ * PHP is in the expensive tier by necessity rather than by preference: the mixed
+ * modes were left out of `@codemirror/legacy-modes`, so there is no cheap php on
+ * offer at any price. Measured at 95kb of the bundle — the largest grammar in
+ * here by a good margin — asked for and granted, because it is the language the
+ * diffs being reviewed on this machine are written in, and a review that cannot
+ * highlight the code it is a review of is the feature missing its point.
+ *
  * Markdown is deliberately absent, though it costs nothing and is already a
  * dependency: nesting it would give a ` ```md ` fence real headings, at heading
  * size, inside a code block — the block would stop looking like source, which is
@@ -47,6 +54,15 @@ const table: Array<[() => Language, ...string[]]> = [
   [() => javascript({ typescript: true, jsx: true }).language, "tsx"],
   [() => json().language, "json", "jsonc", "json5"],
   [() => python().language, "python", "py", "python3"],
+  // `plain`, so that parsing starts at the first character rather than at the
+  // first `<?`. A whole .php file opens with that marker, but a fragment of one —
+  // which is what every hunk of a patch is, and most of what a fence carries —
+  // does not, and without `plain` every such fragment is read as HTML text and
+  // comes back with not one token in it. Measured: 38 tokens against 0 on the
+  // same nine lines. The cost is that `<?php` itself is read as punctuation, and
+  // that a template mixing php into html loses its tag names; both are a great
+  // deal cheaper than the alternative.
+  [() => php({ plain: true }).language, "php"],
   [() => css().language, "css"],
   [() => html().language, "html", "htm"],
   [() => xml().language, "xml", "svg", "plist"],
@@ -57,7 +73,7 @@ const table: Array<[() => Language, ...string[]]> = [
   // `console` and `shell-session` are transcripts rather than scripts; the mode
   // reads the prompt as part of the line either way, which is what you want.
   [() => stream(shell), "shell", "sh", "bash", "zsh", "console", "shell-session"],
-  [() => stream(diff), "diff", "patch"],
+  [() => stream(silent), "diff", "patch"],
   [() => stream(toml), "toml"],
   [() => stream(dockerFile), "dockerfile", "docker"],
   [() => stream(properties), "ini", "properties", "env", "dotenv"],
@@ -73,6 +89,29 @@ const table: Array<[() => Language, ...string[]]> = [
 function stream(parser: StreamParser<unknown>): Language {
   return StreamLanguage.define(parser);
 }
+
+/**
+ * A language that says nothing about its own text.
+ *
+ * What a ```diff fence needs from this table is not a diff mode but the absence
+ * of one: diffview.ts paints inside the block, in the language of the file the
+ * patch touches, and a mode that knows only `+` and `-` would be fighting it for
+ * the same characters — the two of them colouring one line, and the winner
+ * decided by which span ended up inside the other.
+ *
+ * Two absences are on offer and they are not the same. With no entry at all, the
+ * markdown parser keeps the body as its own `CodeText`, which is tagged
+ * monospace, which is green: every line of every patch, green, before anything
+ * else is painted. Mounting a parser that emits no tokens replaces that node
+ * instead — see the note in fence.ts on what a mounted node does to the tag
+ * underneath — and hands the block over as bare text.
+ */
+const silent: StreamParser<unknown> = {
+  token: (stream) => {
+    stream.skipToEnd();
+    return null;
+  },
+};
 
 const byName = new Map<string, () => Language>();
 for (const [make, ...names] of table) for (const name of names) byName.set(name, make);
@@ -95,6 +134,25 @@ export function codeLanguage(info: string): Language | null {
   let lang = built.get(make);
   if (!lang) built.set(make, (lang = make()));
   return lang;
+}
+
+/**
+ * The language a file is written in, going by its name.
+ *
+ * For a patch, which names the files it changes and nothing else about them. The
+ * extension is looked up in the same table the fences use, which needs no second
+ * list because that table is already spelled in extensions — `ts`, `py`, `rs` are
+ * both what a fence says and what a file ends in. Where they part company it is
+ * the fence that has the extra spellings (`typescript`, `golang`), and an unused
+ * key costs nothing.
+ *
+ * A file with no extension is named for what it is — `Dockerfile` — so the whole
+ * name is the only thing left to ask about.
+ */
+export function languageForPath(path: string): Language | null {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  const dot = name.lastIndexOf(".");
+  return codeLanguage(dot === -1 ? name : name.slice(dot + 1));
 }
 
 /** Every info string that names a language, for the record and for the tests. */

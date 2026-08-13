@@ -1,7 +1,8 @@
-import { type EditorState, RangeSetBuilder, StateField } from "@codemirror/state";
+import { type EditorState, type Range, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 
 import { type Kind, readReview, type ReviewLine } from "../../src/diff";
+import { diffPaint } from "./diffcode";
 
 /**
  * A ```diff block, shown as a diff and still editable in place.
@@ -24,6 +25,13 @@ import { type Kind, readReview, type ReviewLine } from "../../src/diff";
  * the new line starts at column 0 with no marker, and src/diff.ts calls it a
  * comment because a diff line cannot look like that. Nothing to learn, and
  * nothing to switch on.
+ *
+ * What is painted is two things, in two shapes. A line decoration per line says
+ * what the line is — added, removed, a file, a header, a remark — and it is the
+ * wash of that class, under the text, that says it. Inside the lines, diffcode.ts
+ * paints the code as the code of its own language, one mark per token. So the
+ * kind of a line is the background and the meaning of a line is the foreground,
+ * and neither is ever asked to say the other.
  */
 const line: Record<Kind, string | null> = {
   file: "cm-relay-diff-file",
@@ -124,28 +132,44 @@ export function reviewNumber(state: EditorState, number: number): string | null 
   return at ? numbered(at) : null;
 }
 
+/**
+ * One decoration per class, since a token's class is a string that repeats on
+ * every line and a decoration built twice is two decorations to compare.
+ */
+const marks = new Map<string, Decoration>();
+function mark(cls: string): Decoration {
+  let deco = marks.get(cls);
+  if (!deco) marks.set(cls, (deco = Decoration.mark({ class: cls })));
+  return deco;
+}
+
 function paint(view: EditorView): DecorationSet {
   const { at: map } = view.state.field(review);
-  const builder = new RangeSetBuilder<Decoration>();
-  if (!map.size) return builder.finish();
+  const ranges: Range<Decoration>[] = [];
+  const visible = view.visibleRanges;
+  if (!map.size || !visible.length) return Decoration.none;
 
-  // A range set is built in order, and a block spanning two visible ranges is
-  // offered its shared line twice — the guard fence.ts keeps for the same reason.
-  let last = 0;
+  // The whole span, rather than each visible range in turn. Between two of them
+  // lies something replaced by a widget, and painting through the gap costs a few
+  // decorations nobody sees — where painting each range on its own would offer
+  // the line they share twice, and parse a hunk they share twice with it.
+  const first = view.state.doc.lineAt(visible[0]!.from).number;
+  const last = view.state.doc.lineAt(visible[visible.length - 1]!.to).number;
 
-  for (const { from, to } of view.visibleRanges) {
-    const first = view.state.doc.lineAt(from).number;
-    const end = view.state.doc.lineAt(to).number;
-    for (let n = Math.max(first, last + 1); n <= end; n++) {
-      const at = map.get(n);
-      const deco = at && decoration[at.kind];
-      if (!deco) continue;
-      builder.add(view.state.doc.line(n).from, view.state.doc.line(n).from, deco);
-      last = n;
-    }
+  for (let n = first; n <= last; n++) {
+    const at = map.get(n);
+    const deco = at && decoration[at.kind];
+    if (deco) ranges.push(deco.range(view.state.doc.line(n).from));
   }
 
-  return builder.finish();
+  for (const { from, to, cls } of diffPaint(view.state.doc, map, first, last)) {
+    ranges.push(mark(cls).range(from, to));
+  }
+
+  // Sorted rather than built in order: the lines come out top to bottom and the
+  // tokens come out one parse at a time, and a range set will not take the two
+  // interleaved unless it is allowed to put them in order itself.
+  return Decoration.set(ranges, true);
 }
 
 /**
