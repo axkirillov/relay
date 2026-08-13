@@ -411,6 +411,11 @@ Nothing of this happens in the window — the browser is somewhere else entirely
 so the footer is the whole of the feedback, and it waits until the opener has
 taken the link before it says it went. An opener that refuses says so there.
 
+**And the footer says the key exists**, next to `gf` where the rest of them are.
+A URL was not dead text for want of a way to open it — nobody had been told there
+was one — so a `gx` that only the spec knows about is the same silence in a new
+coat.
+
 ### What counts as a link
 
 The same reading `gf` does of a path: the link under the cursor, or the next one
