@@ -43,6 +43,13 @@ for (const [kind, cls] of Object.entries(line)) {
   if (cls) decoration[kind as Kind] = Decoration.line({ class: cls });
 }
 
+type Review = {
+  /** Every reviewed line, by the document line it is on. */
+  at: Map<number, ReviewLine>;
+  /** The widest number this document will ask the gutter to show. */
+  widest: string;
+};
+
 /**
  * Every reviewed line in the document, by the document line it is on.
  *
@@ -54,15 +61,32 @@ for (const [kind, cls] of Object.entries(line)) {
  * than a parse later, which is what a number beside a line the human is still
  * typing has to be.
  */
-const review = StateField.define<Map<number, ReviewLine>>({
+const review = StateField.define<Review>({
   create: (state) => index(state.doc.toString()),
-  update: (map, tr) => (tr.docChanged ? index(tr.state.doc.toString()) : map),
+  update: (had, tr) => (tr.docChanged ? index(tr.state.doc.toString()) : had),
 });
 
-function index(doc: string): Map<number, ReviewLine> {
-  const map = new Map<number, ReviewLine>();
-  for (const line of readReview(doc)) map.set(line.line, line);
-  return map;
+function index(doc: string): Review {
+  const at = new Map<number, ReviewLine>();
+  let widest = "";
+  for (const line of readReview(doc)) {
+    at.set(line.line, line);
+    const shown = numbered(line);
+    if (shown && shown.length > widest.length) widest = shown;
+  }
+  return { at, widest };
+}
+
+/**
+ * The number the gutter shows beside a reviewed line, or "" where it shows none.
+ *
+ * A file strip, an `@@` header and a comment are not lines of the file, so they
+ * get nothing — which is a second, quieter way of seeing that the remark you
+ * just typed is a remark.
+ */
+function numbered(line: ReviewLine): string {
+  const body = line.kind === "add" || line.kind === "del" || line.kind === "context";
+  return body && line.number !== null ? String(line.number) : "";
 }
 
 /**
@@ -76,17 +100,32 @@ function index(doc: string): Map<number, ReviewLine> {
  * numbers would say both and mean neither.
  */
 export function reviewNumber(state: EditorState, number: number): string | null {
-  const at = state.field(review, false)?.get(number);
-  if (!at) return null;
-  // A file strip, an `@@` header and a comment are not lines of the file, so
-  // they get no number — which is a second, quieter way of seeing that the
-  // remark you just typed is a remark.
-  const body = at.kind === "add" || at.kind === "del" || at.kind === "context";
-  return body && at.number !== null ? String(at.number) : "";
+  const had = state.field(review, false);
+  if (!had) return null;
+
+  // Past the last line there is no line to number, so this is not a question
+  // about the document at all: it is the gutter sizing its column, which it does
+  // by asking for the widest number the document could hold — 9, 99, 999. The
+  // file's numbers inside a diff are wider than that, and left to itself the
+  // column would grow the moment a four-digit hunk scrolled into view and drag
+  // every line of prose two characters sideways with it. Measured at 42px
+  // against 60px in a real window, which is exactly the jitter a human sees as
+  // the page moving under them while they read. So the spacer is told about the
+  // widest file number instead.
+  //
+  // Only a document whose length is itself 9, 99 or 999 lines asks about a real
+  // last line here, and it gets its own number, which is the safe way round: a
+  // line that exists is never given a number that is not its own.
+  if (number > state.doc.lines) {
+    return had.widest.length > String(number).length ? had.widest : null;
+  }
+
+  const at = had.at.get(number);
+  return at ? numbered(at) : null;
 }
 
 function paint(view: EditorView): DecorationSet {
-  const map = view.state.field(review);
+  const { at: map } = view.state.field(review);
   const builder = new RangeSetBuilder<Decoration>();
   if (!map.size) return builder.finish();
 

@@ -128,10 +128,52 @@ Nothing a relay started outlives the relay. The response *is* the run — there 
 no run id and nothing to poll — so the page hanging up is the human's ⌃C, and
 closing the window kills whatever is still going.
 
+## Reviewing a diff
+
+An agent that wants a patch read should not be sending the human to a review
+tool. Any fence whose language is `diff` or `patch` is a review where it stands:
+a wash the full width of each line by what the line is, the file strip and `@@`
+headers set apart as structure, and the file's own line numbers in the gutter —
+`refresh.ts:1004`, not "the 41st line of what you sent me". Nothing new for an
+agent to learn, and every diff already pasted into a document would have been
+reviewable.
+
+**The view is paint, and the text underneath is untouched.** Everything else this
+window renders — tables, HTML, images, folded output — swaps the source for a
+widget and puts it back when the caret arrives, which is exactly why none of them
+can be edited where they stand. A diff must not work that way, because the point
+of showing one is that the human writes into it. So nothing is replaced: the
+lines stay the characters the agent sent and only their colour is added.
+Live-editability is not built, it is what is left by not replacing anything, and
+vim motions, the live diff and `:res` all keep working inside a patch because as
+far as they are concerned nothing happened.
+
+**The first character of the line says what the human's typing is.** A unified
+diff line opens with `+`, `-` or a space — that is the diff's own rule, not one
+relay invents — so a line that opens with none of them is not part of the patch,
+and there is only one thing it can be:
+
+| What the human types | What it is |
+| --- | --- |
+| Text changed inside a line still starting with `+`, `-` or a space | An edit to that line of the patch |
+| A new line starting with `+` | Code they want added |
+| A line starting with anything else | A comment |
+
+Press `o` and type: the line starts at column 0 with no marker, so it is a
+comment, and it is painted yellow as it is written. Nothing to learn and nothing
+to switch on. The cost is a comment written as a bullet — `- why no timeout
+here?` — which opens with a marker and so comes out red as a deletion; the human
+watches that happen an inch from the cursor rather than finding out later, which
+is the trade against making every comment carry a sigil.
+
+**relay does not keep the block a patch that would still apply.** A comment line
+is precisely what breaks that, and the human's edits are read by the agent rather
+than applied by relay.
+
 ## Return value
 
-A unified diff, nothing more. The agent wrote the original, so it knows what was
-there; and the original is on disk if it needs to re-read it.
+A unified diff — and, where the human left comments in a `diff` block, a list
+saying where each one is.
 
 ```diff
 @@ -3,4 +3,4 @@
@@ -139,6 +181,22 @@ there; and the original is on disk if it needs to re-read it.
 -Raise the cap to 250k.
 +Fix the query instead — raising it just moves the wall.
 ```
+
+The agent wrote the original, so it knows what was there; and the original is on
+disk if it needs to re-read it.
+
+The comments come back through a second part of the answer because the diff
+cannot tell them apart from the human's edits — both arrive as added lines, and
+telling them apart is the whole point of the marker column. So they are named
+where they belong, counted from the `@@` header they sit under:
+
+```
+# comments left in the diff
+src/refresh.ts:1004  why 30s and not the poll interval
+```
+
+Exact rather than guessed at: a comment is a line the patch has no room for, and
+the headers above it say which file and which line it is against.
 
 ## Questions are prose
 
@@ -195,10 +253,14 @@ is no gate there is no file, and nothing to remove.
   meta.json      # id, source path, opened/accepted times, cwd
   sent.md        # exactly what the agent showed
   accepted.md    # what the human accepted
-  diff.patch     # what the agent was told
+  diff.patch     # the patch the agent was told, and only the patch
 
 ~/.relay/queue/  # a ticket per relay waiting for the screen
 ```
+
+Comments left in a diff are not stored beside it: they are lines of
+`accepted.md`, and reading them back out of it later is the same parse that put
+them in the answer.
 
 ## Settled
 
@@ -214,7 +276,13 @@ is no gate there is no file, and nothing to remove.
 ## Out of scope for v1
 
 - Rich/HTML documents
-- Margin comments anchored to a selection
+- Margin comments anchored to a selection. A comment in a `diff` block is an
+  ordinary line of the document rather than an anchor into one, which is why it
+  needs no margin to live in and no selection to hang from.
+- Folding long runs of context inside a diff. It was considered and dropped: a
+  fold is a replace decoration, and replacing lines inside the one block whose
+  whole point is that its lines stay editable text is the wrong direction to
+  push this in for a patch of reviewable size.
 - Structured JSON return
 - Widgets (radio, checkbox, text field)
 - Live-preview markdown rendering
