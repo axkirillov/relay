@@ -31,6 +31,10 @@ Copy it, add your own checks at the bottom, delete it when you are done.
 - **Run it in the background and write to a log file.** A window harness outlives
   most command timeouts, and a timeout kills the call while `tail` still holds
   every line of progress in its buffer, so you learn nothing about where it got to.
+- **Give the whole run a deadline.** Every silent-hang mode below ends the same
+  way — Electron alive, log empty, nothing to read. One harness sat like that for
+  eighty minutes before anyone looked. A `setTimeout` that prints and calls
+  `app.exit(1)` turns that into a line you can act on.
 - **`capturePage` hands back a stale frame when the window has lost the screen.**
   Two shots taken seconds apart came back byte-identical, showing a state the DOM
   had already left. `win.focus()`, `app.focus({ steal: true })`, and about a second
@@ -54,7 +58,15 @@ spawn("node", ["dist/relay.js", doc], {
   you are not driving. With it, relay serves the document and opens nothing.
 - **The harness must own the relay.** A relay backgrounded from a separate shell
   call is gone by the next one.
+- **Pass the document as an absolute path.** `cwd: repo` is the checkout, so a
+  relative path resolves inside it and the relay exits before serving anything.
+  `resolve()` the argv paths at the top rather than trusting where you were stood
+  when you launched the harness.
 - **The URL comes off stderr**, matched with `/http:\/\/127\.0\.0\.1:\d+\//`.
+- **Settle that promise on the relay's exit too.** Waiting only for the URL means
+  any relay that dies first — bad path, bad document, a port it cannot have — hangs
+  the harness forever instead of telling you why. Reject on `exit` with the stderr
+  collected so far.
 - **Read the diff off the relay's stdout.** Ending with a real `⌃X` accept and
   asserting on that diff is the only assertion that tests what the agent gets.
 
@@ -67,11 +79,20 @@ spawn("node", ["dist/relay.js", doc], {
   the ex and search panels drop the last character.
 - **Open an ex or search prompt as its own event first**, then wait ~250 ms before
   typing the body.
-- **An ex command that silently does nothing is usually a dropped keystroke, not a
-  broken binding.** The same `:fold` passed, failed, and passed again across three
-  runs. Read the mode indicator and the footer note straight after the prompt, so
-  the harness tells you whether the command ran at all before you go looking for
-  the bug in the feature.
+- **The keystroke that opens a prompt is the one that gets lost — about one fresh
+  window in five.** Measured over ten windows: `/` never arrived twice, the panel
+  never opened, and the caret sat on line 1. The pause after the opener does not
+  prevent it, because the opener itself is what went missing.
+- **So prove the keys landed before you believe anything about the feature.** Read
+  the prompt's own input — `document.querySelector(".cm-vim-panel input").value` —
+  while it is still open, and read the caret's line after `Enter`. With those two,
+  the same run that fails tells you whether it was the command or the delivery: 48
+  of 48 `:fold` and `zc` attempts worked whenever the prompt held what was typed,
+  and every failure was a caret that had never moved. Without them a lost `/` reads
+  exactly like a broken fold.
+- **Relay says so when the caret is wrong.** A footer reading `no command here …` is
+  the product being right about a harness mistake, not a feature that broke. Read
+  the footer before suspecting the feature.
 
 ## Read the document off the screen, not out of CodeMirror
 
