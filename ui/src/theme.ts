@@ -9,10 +9,12 @@ const dim = "#565f89";
 const line = "#2a2e3f";
 const blue = "#7aa2f7";
 const cyan = "#7dcfff";
+const teal = "#2ac3de";
 const green = "#9ece6a";
 const orange = "#ff9e64";
 const magenta = "#bb9af7";
 const red = "#f7768e";
+const punct = "#9aa5ce";
 const human = "#ffffff";
 const addWash = "rgba(158, 206, 106, 0.22)";
 const delWash = "rgba(247, 118, 142, 0.12)";
@@ -21,6 +23,7 @@ const delWash = "rgba(247, 118, 142, 0.12)";
 // sit above the layer drawSelection draws the selection into — so an opaque
 // colour on this one tag hid the visual-mode selection on every line of code and
 // inside every `span` of inline code. Translucent, it shows through instead.
+// The same holds for the line class in fence.ts, for the same reason.
 const codeWash = "rgba(122, 162, 247, 0.11)";
 
 // The document's own size and leading, in one place because the heading rule at
@@ -121,6 +124,27 @@ export const theme = EditorView.theme(
       fontSize: "0.85em",
     },
 
+    // Code. The tint is what marks a block as code; the colours inside it come
+    // from the highlight style at the bottom of this file. Inline code is tinted
+    // on its own span, the only way to tint a few words mid-sentence — but that
+    // span inside a fence would stack a second tint on the line's, so it stands
+    // down there.
+    ".cm-relay-fence": { backgroundColor: codeWash },
+    ".cm-relay-code": { color: green, backgroundColor: codeWash },
+    ".cm-relay-fence .cm-relay-code": { backgroundColor: "transparent" },
+
+    // The head of a long output, folded away. Every line it stands for is still
+    // in the document — this is a fold, not a truncation — so it reads as a way
+    // in rather than as a warning that something was lost.
+    ".cm-relay-fold": {
+      padding: "0 0.75rem",
+      color: dim,
+      fontSize: "0.85em",
+      cursor: "pointer",
+    },
+    ".cm-relay-fold:hover": { color: orange },
+
+
     // Rendered HTML. Deliberately not monospace: the change of typeface is how
     // you can tell at a glance that a block is standing rendered rather than as
     // the source you can edit.
@@ -189,23 +213,54 @@ export const theme = EditorView.theme(
 const headingLine = `calc(${size * leading}px + 0.6 * (1em - ${size}px))`;
 
 // Markdown is styled rather than merely monospaced: headings carry real weight
-// and size, so the document reads as a document.
-export const markdownHighlight = syntaxHighlighting(
-  HighlightStyle.define([
-    { tag: t.heading1, color: blue, fontWeight: "700", fontSize: "1.7em", lineHeight: headingLine },
-    { tag: t.heading2, color: blue, fontWeight: "700", fontSize: "1.35em", lineHeight: headingLine },
-    { tag: t.heading3, color: cyan, fontWeight: "700", fontSize: "1.15em", lineHeight: headingLine },
-    { tag: [t.heading4, t.heading5, t.heading6], color: cyan, fontWeight: "700" },
-    { tag: t.strong, color: "#e6eaff", fontWeight: "700" },
-    { tag: t.emphasis, color: fg, fontStyle: "italic" },
-    { tag: t.strikethrough, color: dim, textDecoration: "line-through" },
-    { tag: t.link, color: cyan, textDecoration: "underline" },
-    { tag: t.url, color: dim },
-    { tag: [t.monospace], color: green, backgroundColor: codeWash },
-    { tag: t.quote, color: dim, fontStyle: "italic" },
-    { tag: t.list, color: magenta },
-    { tag: t.contentSeparator, color: dim },
-    { tag: t.processingInstruction, color: dim },
-    { tag: t.labelName, color: orange },
-  ]),
-);
+// and size, so the document reads as a document. What a nested code language
+// sends up is styled here too — same tags, same mechanism, one style.
+//
+// Exported as well as installed, because a HighlightStyle can be asked which
+// class it gives a tag: that is how languages.test.ts checks these rules rather
+// than a copy of them.
+export const highlightStyle = HighlightStyle.define([
+  { tag: t.heading1, color: blue, fontWeight: "700", fontSize: "1.7em", lineHeight: headingLine },
+  { tag: t.heading2, color: blue, fontWeight: "700", fontSize: "1.35em", lineHeight: headingLine },
+  { tag: t.heading3, color: cyan, fontWeight: "700", fontSize: "1.15em", lineHeight: headingLine },
+  { tag: [t.heading4, t.heading5, t.heading6], color: cyan, fontWeight: "700" },
+  { tag: t.strong, color: "#e6eaff", fontWeight: "700" },
+  { tag: t.emphasis, color: fg, fontStyle: "italic" },
+  { tag: t.strikethrough, color: dim, textDecoration: "line-through" },
+  { tag: t.link, color: cyan, textDecoration: "underline" },
+  { tag: t.url, color: dim },
+  // A fixed class rather than colours, so the theme above can tell inline code
+  // from the text of a fence nothing was nested into. One tag does both jobs.
+  { tag: [t.monospace], class: "cm-relay-code" },
+  { tag: t.quote, color: dim, fontStyle: "italic" },
+  { tag: t.list, color: magenta },
+  { tag: t.contentSeparator, color: dim },
+  { tag: t.processingInstruction, color: dim },
+  // A fence's own language tag and a markdown link label are the same tag.
+  { tag: t.labelName, color: orange },
+
+  // Code. Nine roles, which is about as many as a reader tells apart at a glance,
+  // and every colour is one the document already uses somewhere.
+  //
+  // Foreground only, all of them. A background here lands on the token's own
+  // span, above the selection layer — the mistake `codeWash` is an rgba to avoid.
+  { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.definitionKeyword, t.operatorKeyword, t.modifier, t.self], color: magenta },
+  { tag: [t.string, t.special(t.string), t.regexp], color: green },
+  { tag: [t.number, t.bool, t.null, t.atom, t.unit, t.escape, t.character], color: orange },
+  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment, t.meta], color: dim, fontStyle: "italic" },
+  { tag: [t.typeName, t.className, t.namespace, t.changed], color: teal },
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.propertyName, t.macroName], color: blue },
+  { tag: [t.standard(t.variableName), t.special(t.variableName)], color: cyan },
+  { tag: [t.variableName, t.definition(t.variableName)], color: fg },
+  // Markup: the tag is what you scan for, the attribute hangs off it.
+  { tag: t.tagName, color: red },
+  { tag: t.attributeName, color: orange },
+  // A ```diff block, in the same two colours the live diff uses for the human's
+  // own edits — added is green and removed is red wherever you are reading.
+  { tag: t.inserted, color: green },
+  { tag: t.deleted, color: red },
+  { tag: [t.operator, t.punctuation, t.bracket, t.separator, t.derefOperator], color: punct },
+  { tag: t.invalid, color: red },
+]);
+
+export const markdownHighlight = syntaxHighlighting(highlightStyle);

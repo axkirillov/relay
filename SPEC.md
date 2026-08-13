@@ -65,6 +65,69 @@ Earlier drafts of this spec made agent text read-only and confined the human to
 gone.** It was the wrong model: it decided in advance where a remark was allowed
 to go. Now every character is editable and the diff records what changed.
 
+## Running a command
+
+An agent that wants the human to run something should not be sending them to a
+terminal. Any fence whose language is a shell — `sh`, `bash`, `zsh`, `shell`,
+`console` — is a command the human can run where it stands: `⌃↵` with the cursor
+in the block, or `:run`. Nothing new for an agent to learn, and every document
+already sent would have been runnable.
+
+**The output goes into the document.** That is the whole design, and it follows
+from the diff being the only channel back: the agent asked for the command
+because it wants the answer, so the answer has to be somewhere the diff will
+carry it. It lands directly under the command as an ordinary fenced block —
+
+````
+```sh
+pnpm test
+```
+
+````output
+ ✓ 34 tests passed
+````
+````
+
+— which means it is text like any other. The live diff paints it as an addition,
+`:res` takes it back out, and the human can trim it before accepting.
+
+Four backticks on the output fence, because output containing a ``` fence of its
+own would otherwise end the block early.
+
+**Nothing runs on its own.** A command runs when the human presses the key, it
+runs the text they can see, and running the same block twice replaces that
+block's old output instead of stacking a second copy under it.
+
+**Run and capture, not a terminal.** stdin is closed, so a command that asks a
+question is answered with end-of-file rather than hanging on a prompt nobody can
+see. It runs in the relay's own cwd — the directory the agent asked from. stdout
+and stderr are merged, because that is the order they happened in. A non-zero
+exit adds `[exit 3]`; `⌃C` stops it and adds `[stopped]`.
+
+Long output is **folded, not truncated**: past twenty lines the head is replaced
+by a notice the human can click, while every line stays in the document. The
+agent gets all of it; the fold only decides how much the human scrolls past.
+`:raw` shows the lot.
+
+Output too long to belong in a document at all **goes to a file instead**. Past a
+hundred lines — or 64 KB, since one line of minified javascript would flood the
+document without reaching a hundred of anything — the run writes to
+`~/.relay/<round>/run-N.log`, and the document keeps the first hundred lines, a
+pointer naming that file, and the last twenty. The start says what the command
+set out to do and the end says how it turned out, which between them is usually
+the whole answer; the file has every line for when it is not. The pointer is
+written the moment the spill starts rather than at the end, so a `⌃C` cannot leave
+a cut-off block with no file named. The fold hides that pointer along with the
+rest of the head, so the notice standing in its place names the file too — the one
+output the document did not keep whole is never the one with nothing on screen
+saying where the rest of it went. Output that would never end is capped at 8 MB
+— a bound on the disk, not the document — and the command is stopped there and
+told so.
+
+Nothing a relay started outlives the relay. The response *is* the run — there is
+no run id and nothing to poll — so the page hanging up is the human's ⌃C, and
+closing the window kills whatever is still going.
+
 ## Return value
 
 A unified diff, nothing more. The agent wrote the original, so it knows what was
@@ -84,8 +147,10 @@ editing. They are never boxed into options the agent thought of.
 
 ## A terminal in the window
 
-Half of what an agent asks a human for is a command it cannot run itself, and
-alt-tabbing to a terminal is the friction. So the window has one: `⌃\`` opens a
+A run block answers what the agent thought to ask. It cannot answer what the
+human thinks of next — the command that was nearly right, the one that needs a
+question answered, the `git rebase -i` — and alt-tabbing to a terminal for those
+is the friction. So the window has one: `⌃\`` opens a
 pane at the bottom on a real pty, in the directory relay was run from, and `⌃\``
 again crosses back to the document without putting the pane away — `:term` does
 that, as does the ✕ in its bar. Colours, TUIs, `⌃C`, `git rebase -i`: a shell,
@@ -140,9 +205,9 @@ what it has to say, so that is what is taken.
 
 ### Inside the terminal, every key is the shell's
 
-`⌃X` accepts from the document and does nothing in the pane. A shell has its own
-uses for `⌃X`, `⌃C`, `⌃D` and the rest, and a terminal that quietly kept a few
-back would not be a terminal. The two exceptions are the ones that have to be:
+`⌃X` accepts and `⌃↵` runs a block; from the pane they do nothing. A shell has
+its own uses for `⌃X`, `⌃C`, `⌃D` and the rest, and a terminal that quietly kept
+a few back would not be a terminal. The two exceptions are the ones that have to be:
 `⌃\`` to leave, and `⌘Y` (`⌃⇧Y` off a Mac) to take — chosen because they are keys
 a shell has no use for.
 

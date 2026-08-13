@@ -56,7 +56,9 @@ const store = storage.open(path, sent);
 // were run. With no window there is nothing to contend for.
 const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path);
 
-const relay = await serve(path, sent, prefill);
+// The round's own directory holds what a long command wrote, beside the document
+// it was run from.
+const relay = await serve(path, sent, prefill, store.dir);
 process.stderr.write(`relay: waiting for the human — ${relay.url}\n`);
 // The one line every caller sees, and the one a timed-out caller is handed.
 process.stderr.write(

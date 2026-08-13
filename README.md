@@ -15,6 +15,16 @@ to stdout.
 - exit **1** — the window was closed without a reply; stdout is empty
 - exit **2** — bad usage, or the file could not be read
 
+A command the agent wants run can be run in the window. Put the cursor in any
+shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
+`⌃↵` (or `:run`); its output streams in directly below as a ```` ````output ````
+block, so the diff carries it back. `⌃C` stops it, running the block again
+replaces its last output, and `:res` takes an output you would rather not send
+back out. Long output is folded to its last twenty lines — every line is still
+there, and `:raw` shows them all. Output longer than a document should hold goes
+to `~/.relay/<round>/run-N.log` instead, and the block keeps its first hundred
+lines, a pointer to that file, and its last twenty.
+
 In the window: `⌃X` or `ZZ` accepts, `:q` closes without replying, and `:res`
 puts a stretch of the document back the way it arrived — the cursor line in
 normal mode, the selection in visual mode, or a range like `:12,18res`. Lines
@@ -25,10 +35,10 @@ takes reaches the system clipboard as well as vim's own register — vim's
 ## The terminal
 
 `⌃\`` opens a real shell at the bottom of the window, in the directory relay was
-run from — so a command an agent wants run does not need another window. It is a
-pty, not a command runner: colours, TUIs, `⌃C`, `git rebase -i`. `⌃\`` again
-crosses back to the document with the pane still up; `:term` opens and closes it.
-Inside it every key belongs to the shell, so `⌃X` does not accept from there.
+run from — for everything a run block cannot do: colours, TUIs, `⌃C`, `git rebase
+-i`, a command that asks a question. `⌃\`` again crosses back to the document
+with the pane still up; `:term` opens and closes it. Inside it every key belongs
+to the shell, so `⌃X` does not accept and `⌃↵` does not run from there.
 
 The point of it is getting what happened back to the agent, which only ever sees
 the diff:
