@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -6,7 +6,20 @@ export type Store = {
   id: string;
   dir: string;
   finish(accepted: string, patch: string): void;
+  /**
+   * What the human has typed so far, kept because the document is about to leave
+   * the screen and the page it lives in is about to be destroyed. Served back as
+   * the prefill when the document returns.
+   */
+  draft(text: string): void;
+  /**
+   * A task the human wrote. There is no patch: nobody wrote the original, so
+   * every character of it is theirs and the whole document is the answer.
+   */
+  task(text: string): void;
   abandon(): void;
+  /** They accepted a blank. There was never anything here to keep. */
+  discard(): void;
 };
 
 /**
@@ -38,9 +51,24 @@ export function open(source: string, sent: string): Store {
       meta.accepted = new Date().toISOString();
       writeMeta();
     },
+    draft(text) {
+      writeFileSync(join(dir, "draft.md"), text);
+      meta.drafted = new Date().toISOString();
+      writeMeta();
+    },
+    task(text) {
+      writeFileSync(join(dir, "accepted.md"), text);
+      meta.accepted = new Date().toISOString();
+      writeMeta();
+    },
     abandon() {
       meta.abandoned = new Date().toISOString();
       writeMeta();
+    },
+    discard() {
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {}
     },
   };
 }

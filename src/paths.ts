@@ -22,6 +22,16 @@ export function windowFile(): string {
 }
 
 /**
+ * What to run when the human has written a task. There is no agent waiting on a
+ * document the human started themselves, and no shell behind one they made with
+ * a keystroke, so the only way their words reach anything is a command they have
+ * put here. relay knows nothing about what it does.
+ */
+export function taskHook(): string {
+  return process.env.RELAY_TASK || join(relayHome(), "task");
+}
+
+/**
  * When the human last closed the window. A relay that started before that is
  * dismissed by it — which is what makes closing the window durable rather than
  * something each relay has to have been watching at the right moment to catch.

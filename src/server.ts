@@ -23,6 +23,20 @@ export type Relay = {
   close(): void;
 };
 
+export type Hooks = {
+  /**
+   * The human asked for a new task document. Their own document is about to lose
+   * the screen to it, which is why the page saves before it asks.
+   */
+  onNew?: () => void;
+  /**
+   * What they have typed, sent because this document is about to leave the
+   * screen — the page is destroyed when the window loads the next one, and their
+   * words would go with it.
+   */
+  onDraft?: (text: string) => void;
+};
+
 /**
  * One process serves exactly one relay, so there are no session ids and no
  * registry — just a handful of routes over loopback.
@@ -32,6 +46,7 @@ export async function serve(
   doc: string,
   prefill: string,
   logDir: string,
+  hooks: Hooks = {},
 ): Promise<Relay> {
   let settle: (doc: string) => void;
   const accepted = new Promise<string>((resolve) => {
@@ -39,6 +54,10 @@ export async function serve(
   });
 
   const images = await localImages(source, doc);
+  // What the editor opens with. It is what the agent sent until the human has
+  // typed something and had the screen taken from them — after that it is their
+  // own words, and the document they come back to is the one they left.
+  let opening = prefill;
   // Lazily, and only if the human opens the pane: most relays are answered
   // without one, and a shell nobody asked for is a process nobody wanted.
   let shell: pty.Session | null = null;
@@ -62,7 +81,7 @@ export async function serve(
     // under RELAY_PREFILL, which exists so the diff view can be looked at
     // without anyone having to type into it.
     if (req.method === "GET" && path === "/doc") return send(res, 200, "text/markdown; charset=utf-8", doc);
-    if (req.method === "GET" && path === "/prefill") return send(res, 200, "text/markdown; charset=utf-8", prefill);
+    if (req.method === "GET" && path === "/prefill") return send(res, 200, "text/markdown; charset=utf-8", opening);
     if (req.method === "GET" && path === "/assets/relay.js") {
       readFile(bundle).then(
         (js) => send(res, 200, "text/javascript; charset=utf-8", js),
@@ -87,6 +106,25 @@ export async function serve(
     }
     if (req.method === "GET" && path.startsWith("/local/")) return sendLocal(res, images, path.slice(7));
     if (req.method === "POST" && path === "/accept") return handleAccept(req, res, settle);
+    // A document losing the screen must not take the human's words with it.
+    // Nothing here is a reply — the baseline is untouched, so what comes back
+    // when this document returns still diffs as theirs.
+    if (req.method === "POST" && path === "/draft") {
+      return read(req, maxDocBytes).then(
+        (text) => {
+          opening = text;
+          hooks.onDraft?.(text);
+          res.writeHead(204).end();
+        },
+        () => send(res, 413, "text/plain", "document too large"),
+      );
+    }
+    // They want to write a task. Whatever is on screen makes way for it, which
+    // is why the page saves this document before asking.
+    if (req.method === "POST" && path === "/new") {
+      hooks.onNew?.();
+      return res.writeHead(204).end();
+    }
     // A shell block the human asked for. The body is the command, the response
     // is its output as it happens, and hanging up is how the human stops it.
     if (req.method === "POST" && path === "/run") {

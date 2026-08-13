@@ -66,8 +66,14 @@ export type Screen = {
  * The window is restarted as well as started. One that dies violently leaves no
  * tombstone, and the relay at the head simply puts another up on the next tick —
  * which the old spawn-once-on-reaching-the-head could not do.
+ *
+ * `start` is false for the blank the window itself puts up when the line runs
+ * dry. It takes a screen that is already there and must never make one: a window
+ * that died would otherwise be replaced within the second by an empty document
+ * nobody asked for. It still watches for the close, because that is what tells
+ * it to go.
  */
-export function attend(turn: Turn, url: string, debug: boolean): Screen {
+export function attend(turn: Turn, url: string, debug: boolean, start = true): Screen {
   let settle: () => void;
   const closed = new Promise<void>((resolve) => {
     settle = resolve;
@@ -88,7 +94,7 @@ export function attend(turn: Turn, url: string, debug: boolean): Screen {
       return settle();
     }
 
-    if (!mine || screenHeld()) return;
+    if (!start || !mine || screenHeld()) return;
     if (Date.now() - spawnedAt < bootMs) return;
     spawnedAt = Date.now();
     ensureWindow(debug);

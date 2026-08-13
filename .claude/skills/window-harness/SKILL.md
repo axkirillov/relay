@@ -217,6 +217,11 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
 
 ## Watching what a command spawned
 
+- **Never `pkill -f relay.js`.** The human's own relays are `node
+  ~/repos/axkirillov/relay/dist/relay.js`, so that pattern reaches every agent
+  waiting on the window and each one reports back that the human closed it. Kill
+  by the pid you spawned, or match on something only your run has — the queue
+  directory, an env var, the document's own path.
 - **`pgrep -f "sleep 30"` matches the shell `pgrep` itself runs in.** Write the
   pattern so it cannot match itself: `sleep 3[0]`.
 - **zsh execs into the last command of `sh -c "a; b"`**, so the wrapper's argv
