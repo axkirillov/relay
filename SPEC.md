@@ -107,7 +107,7 @@ exit adds `[exit 3]`; `⌃C` stops it and adds `[stopped]`.
 Long output is **folded, not truncated**: past twenty lines the head is replaced
 by a notice the human can click, while every line stays in the document. The
 agent gets all of it; the fold only decides how much the human scrolls past.
-`:raw` shows the lot.
+`:raw` shows the lot, and `:fold` — or `zc` — puts an opened one back.
 
 Output too long to belong in a document at all **goes to a file instead**. Past a
 hundred lines — or 64 KB, since one line of minified javascript would flood the

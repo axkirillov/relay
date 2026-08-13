@@ -67,6 +67,11 @@ spawn("node", ["dist/relay.js", doc], {
   the ex and search panels drop the last character.
 - **Open an ex or search prompt as its own event first**, then wait ~250 ms before
   typing the body.
+- **An ex command that silently does nothing is usually a dropped keystroke, not a
+  broken binding.** The same `:fold` passed, failed, and passed again across three
+  runs. Read the mode indicator and the footer note straight after the prompt, so
+  the harness tells you whether the command ran at all before you go looking for
+  the bug in the feature.
 
 ## Read the document off the screen, not out of CodeMirror
 

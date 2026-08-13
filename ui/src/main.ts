@@ -13,7 +13,7 @@ import { getCM, Vim, vim } from "@replit/codemirror-vim";
 import { fenceBackground } from "./fence";
 import { codeLanguage } from "./languages";
 import { liveDiff, type Stats } from "./livediff";
-import { foldOutput } from "./outfold";
+import { foldOutput, opened, refold } from "./outfold";
 import { type Images, isRendering, renderBlocks, setRendering } from "./render";
 import { restore } from "./restore";
 import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
@@ -203,6 +203,14 @@ function bindVim(original: string) {
   // `:run` rather than `:r`, which is vim's own read.
   Vim.defineEx("run", "run", () => void runAtCursor());
 
+  // Opening a fold is a click; closing it again has to be said, so it is said
+  // both ways — `:fold` next to `:raw` and `:res`, and `zc`, which is what a vim
+  // user's fingers will try first.
+  const foldBack = () => note(refold(view) ? "folded" : "nothing to fold");
+  Vim.defineEx("fold", "fo", foldBack);
+  Vim.defineAction("relayFold", foldBack);
+  Vim.mapCommand("zc", "action", "relayFold", {}, { context: "normal" });
+
   Vim.defineAction("relayAccept", () => void accept());
   Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
 
@@ -273,6 +281,11 @@ async function boot() {
         foldOutput(),
         sink,
         liveDiff(original, showStats),
+        // The way back is not on screen once the notice is gone, so it is said at
+        // the one moment it is wanted.
+        EditorView.updateListener.of((u) => {
+          if (u.transactions.some(opened)) note("opened — :fold, or zc, puts it back");
+        }),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
     }),
