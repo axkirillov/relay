@@ -10,6 +10,7 @@ import {
 } from "@codemirror/view";
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
+import { diffReview, reviewNumber } from "./diffview";
 import { fenceBackground } from "./fence";
 import { codeLanguage } from "./languages";
 import { liveDiff, type Stats } from "./livediff";
@@ -261,13 +262,15 @@ async function boot() {
       extensions: [
         vim(),
         history(),
-        lineNumbers(),
+        // Inside a ```diff block the numbers are the file's own — see diffview.ts.
+        lineNumbers({ formatNumber: (n, state) => reviewNumber(state, n) ?? String(n) }),
         drawSelection(),
         highlightSpecialChars(),
         EditorView.lineWrapping,
         markdown({ base: markdownLanguage, codeLanguages: codeLanguage }),
         markdownHighlight,
         fenceBackground,
+        diffReview(),
         theme,
         renderBlocks(original, images),
         foldOutput(),

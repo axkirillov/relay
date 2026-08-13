@@ -3,6 +3,7 @@ import { relative, resolve } from "node:path";
 
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
+import { commentReport } from "./diff.js";
 import { unlatchOnExit } from "./latch.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
@@ -17,6 +18,10 @@ against what you sent.
 
 On accept, the unified diff of their edits is printed to stdout and relay exits
 0. If they close the window without replying, relay exits 1 and prints nothing.
+
+A \`\`\`diff block is shown as a review the human can write in. They edit the patch
+where it stands, and any line they write that does not open with a diff marker is
+a comment — those come back under the diff, each one located as file:line.
 
 If another relay's window is already up, this one waits its turn and opens as
 soon as that one is done.
@@ -101,6 +106,12 @@ if (outcome === null) {
 
   const changed = structuredPatch(name, name, sent, outcome.edited).hunks.length > 0;
   process.stdout.write(changed ? patch : "no changes — the human accepted the document as written\n");
+  // Their comments on a reviewed diff, under it and located. They arrive as
+  // added lines like everything else, so the diff alone cannot say which of the
+  // human's lines are remarks about the patch and which are the patch — this is
+  // the other half of the answer to that. Only when something changed: a comment
+  // is itself a change, so an untouched document has none.
+  if (changed) process.stdout.write(commentReport(outcome.edited));
 }
 
 function wait(ms: number): Promise<void> {

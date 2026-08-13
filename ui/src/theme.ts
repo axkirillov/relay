@@ -18,6 +18,15 @@ const punct = "#9aa5ce";
 const human = "#ffffff";
 const addWash = "rgba(158, 206, 106, 0.22)";
 const delWash = "rgba(247, 118, 142, 0.12)";
+// A reviewed diff, whose lines are the agent's rather than the human's: the same
+// two colours, weaker, so that the human's own edits still read as the loudest
+// thing on the screen. Yellow is the third colour, and it is free — which is
+// half of why a comment is yellow; the human asking for it is the other half.
+const yellow = "#e0af68";
+const diffAddWash = "rgba(158, 206, 106, 0.13)";
+const diffDelWash = "rgba(247, 118, 142, 0.13)";
+const diffFileWash = "rgba(122, 162, 247, 0.2)";
+const commentWash = "rgba(224, 175, 104, 0.22)";
 // Code is washed rather than filled, and that is the whole reason it is written
 // as an rgba here. A highlight style paints on the text's own span, and those
 // sit above the layer drawSelection draws the selection into — so an opaque
@@ -132,6 +141,48 @@ export const theme = EditorView.theme(
     ".cm-relay-fence": { backgroundColor: codeWash },
     ".cm-relay-code": { color: green, backgroundColor: codeWash },
     ".cm-relay-fence .cm-relay-code": { backgroundColor: "transparent" },
+
+    // A diff, reviewed. A wash the full width of the line and not just the width
+    // of its text, so a hunk scans as blocks; translucent, for the reason
+    // `codeWash` gives, since these land on `.cm-line` above the layer
+    // drawSelection paints into.
+    //
+    // Below the fence wash on purpose. Both are one class on the same element,
+    // so the rule further down is the one that paints: a changed line takes its
+    // own colour and a context line keeps the blue of code, which is what it
+    // still is. No bar down the left either — in this window the bar means the
+    // human touched this line, and these are the agent's.
+    ".cm-relay-diff-add": { backgroundColor: diffAddWash },
+    ".cm-relay-diff-del": { backgroundColor: diffDelWash },
+    // The strip naming the file, and the `@@` header standing between hunks.
+    // Structure rather than content — and the diff mode has already coloured
+    // `---` and `+++` red and green on their own spans, so this has to say the
+    // colour again to get it back.
+    ".cm-relay-diff-file, .cm-relay-diff-file span": { color: `${cyan} !important` },
+    ".cm-relay-diff-file": { backgroundColor: diffFileWash, fontWeight: "700" },
+    ".cm-relay-diff-hunk": { borderTop: `1px solid ${line}` },
+    ".cm-relay-diff-note, .cm-relay-diff-note span": {
+      color: `${dim} !important`,
+      fontStyle: "italic !important",
+    },
+
+    // A comment: the one line in a diff the human wrote, and the only one with a
+    // bar beside it.
+    //
+    // It is new text, so the live diff calls the same line an addition and puts
+    // its own green class on it. Both are line classes on `.cm-line`, which is
+    // why the green is named here as well as the yellow: a single class would
+    // tie with it and leave the answer to whichever rule happened to be written
+    // last, and a comment that comes out half green is the one thing this must
+    // never do.
+    ".cm-relay-comment, .cm-relay-comment.cm-relay-add-line, .cm-relay-comment.cm-relay-touched": {
+      backgroundColor: commentWash,
+      boxShadow: `inset 2px 0 0 ${yellow}`,
+    },
+    ".cm-relay-comment, .cm-relay-comment span": {
+      color: `${human} !important`,
+      fontStyle: "normal !important",
+    },
 
     // The head of a long output, folded away. Every line it stands for is still
     // in the document — this is a fold, not a truncation — so it reads as a way
