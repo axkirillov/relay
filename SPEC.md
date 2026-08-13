@@ -149,6 +149,22 @@ headers set apart as structure, and the file's own line numbers in the gutter �
 agent to learn, and every diff already pasted into a document would have been
 reviewable.
 
+**A patch is shown as the code it patches.** A diff mode paints two colours and a
+marker column, which is not what a reviewer reads: they read the file. So the
+markers come off, what is left is parsed in the language of the file the hunk is
+from, and the colours land on the real characters — the same TypeScript, or PHP,
+that the same lines would be anywhere else in the document. Added and removed are
+said by the wash under the line and by nothing else, and the `+`/`-` stay in the
+text but are dimmed to the colour of the gutter numbers.
+
+**Which means the file strip is worth writing.** The `--- a/path` and `+++ b/path`
+pair is what names the language, per file, and it is the same pair the comments
+come back through — without it a comment reads `why 30s` with no file in front of
+it. Both halves out of two lines an agent already has. For a fragment quoted with
+no headers at all, the fence's own second word answers instead — ` ```diff php ` —
+and where a file's extension is one this editor has no language for, its hunks are
+left unpainted rather than painted as something else.
+
 **The view is paint, and the text underneath is untouched.** Everything else this
 window renders — tables, HTML, images, folded output — swaps the source for a
 widget and puts it back when the caret arrives, which is exactly why none of them
