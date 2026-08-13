@@ -1,10 +1,11 @@
 import type { EditorView } from "@codemirror/view";
 import { Vim } from "@replit/codemirror-vim";
 import { FitAddon } from "@xterm/addon-fit";
-import { type IBuffer, Terminal } from "@xterm/xterm";
+import type { IBuffer, Terminal } from "@xterm/xterm";
 
-import "@xterm/xterm/css/xterm.css";
-import { fence, insertion, withoutPrompt } from "./take";
+import { editing } from "./editor";
+import { decode, dragToResize, intoDocument, mac, terminal } from "./pane";
+import { withoutPrompt } from "./take";
 
 const paneEl = document.getElementById("term")!;
 const viewEl = document.getElementById("term-view")!;
@@ -18,6 +19,11 @@ export type Pane = {
   toggle(): void;
   /** Selection if there is one, the last command and its output otherwise. */
   take(): void;
+  /**
+   * Give the screen up to the other pane, and hand back the way to come back.
+   * The shell keeps running behind it — a `gf` is not worth a command's life.
+   */
+  stepAside(): () => void;
   open: boolean;
 };
 
@@ -25,8 +31,6 @@ export type Pane = {
 export function inTerminal(target: EventTarget | null): boolean {
   return target instanceof Node && paneEl.contains(target);
 }
-
-const mac = navigator.platform.startsWith("Mac");
 
 /**
  * A real terminal in the window, on a pty in the relay process.
@@ -60,19 +64,18 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
     take() {
       if (!term) return note("no terminal open");
       const selected = term.hasSelection();
-      const lines = selected ? term.getSelection().split("\n") : lastCommand(term, ran);
-      const block = fence(lines);
-      if (!block) return note("nothing in the terminal to take");
-      const { from, insert } = insertion(view.state.doc.toString(), view.state.selection.main.head, block);
-      // The caret ends up under the block, so a second take stacks below the
-      // first rather than on top of it.
-      view.dispatch({
-        changes: { from, insert },
-        selection: { anchor: from + insert.length },
-        scrollIntoView: true,
-      });
-      const rows = block.split("\n").length - 2;
+      const rows = intoDocument(view, selected ? term.getSelection().split("\n") : lastCommand(term, ran));
+      if (rows === null) return note("nothing in the terminal to take");
       note(`${rows} line${rows === 1 ? "" : "s"} ${selected ? "taken" : "of the last command taken"} into the document`);
+    },
+    stepAside() {
+      const was = pane.open;
+      if (was) paneEl.dataset.hidden = "";
+      return () => {
+        if (!was) return;
+        delete paneEl.dataset.hidden;
+        resize();
+      };
     },
   };
 
@@ -90,39 +93,7 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
   }
 
   function start(): Terminal {
-    const shell = new Terminal({
-      cursorBlink: true,
-      fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-      fontSize: 13,
-      lineHeight: 1.15,
-      scrollback: 5000,
-      // ⌥B and ⌥F are how a shell moves by words, and on a Mac they are only
-      // that if this is on.
-      macOptionIsMeta: true,
-      theme: {
-        background: "#16161e",
-        foreground: "#c0caf5",
-        cursor: "#ff9e64",
-        cursorAccent: "#16161e",
-        selectionBackground: "#3d59a1",
-        black: "#1a1b26",
-        red: "#f7768e",
-        green: "#9ece6a",
-        yellow: "#e0af68",
-        blue: "#7aa2f7",
-        magenta: "#bb9af7",
-        cyan: "#7dcfff",
-        white: "#a9b1d6",
-        brightBlack: "#565f89",
-        brightRed: "#ff7a93",
-        brightGreen: "#b9f27c",
-        brightYellow: "#ff9e64",
-        brightBlue: "#7da6ff",
-        brightMagenta: "#bb9af7",
-        brightCyan: "#0db9d7",
-        brightWhite: "#c0caf5",
-      },
-    });
+    const shell = terminal();
     fit = new FitAddon();
     shell.loadAddon(fit);
     shell.open(viewEl);
@@ -169,8 +140,8 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
   function listen(term: Terminal) {
     stream = new EventSource(`/pty?cols=${term.cols}&rows=${term.rows}`);
     stream.addEventListener("hello", (e) => {
-      const { shell, cwd } = JSON.parse((e as MessageEvent<string>).data) as { shell: string; cwd: string };
-      whereEl.textContent = `${shell.split("/").pop()} · ${cwd}`;
+      const { program, cwd } = JSON.parse((e as MessageEvent<string>).data) as { program: string; cwd: string };
+      whereEl.textContent = `${program.split("/").pop()} · ${cwd}`;
     });
     stream.addEventListener("out", (e) => term.write(decode((e as MessageEvent<string>).data)));
     stream.addEventListener("exit", (e) => {
@@ -224,28 +195,8 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
     void fetch(`/pty/size?cols=${term.cols}&rows=${term.rows}`, { method: "POST" }).catch(() => {});
   }
 
-  drag();
+  dragToResize(paneEl, gripEl);
   new ResizeObserver(() => resize()).observe(viewEl);
-
-  /** The pane's height is the human's business — a rebase needs more of it. */
-  function drag() {
-    gripEl.addEventListener("pointerdown", (down: PointerEvent) => {
-      down.preventDefault();
-      gripEl.setPointerCapture(down.pointerId);
-      const startY = down.clientY;
-      const startH = paneEl.offsetHeight;
-      const move = (at: PointerEvent) => {
-        const height = Math.min(Math.max(startH - (at.clientY - startY), 120), window.innerHeight - 160);
-        paneEl.style.height = `${height}px`;
-      };
-      const up = () => {
-        gripEl.removeEventListener("pointermove", move);
-        gripEl.removeEventListener("pointerup", up);
-      };
-      gripEl.addEventListener("pointermove", move);
-      gripEl.addEventListener("pointerup", up);
-    });
-  }
 
   // Capture phase on window, the same reasoning as ⌃X in main.ts: once the
   // terminal has focus every key is the shell's, so the two that are not have to
@@ -253,6 +204,9 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
   window.addEventListener(
     "keydown",
     (e) => {
+      // These two keys are the pane's, and while nvim is up the pane is not this
+      // one. It answers them itself.
+      if (editing()) return;
       if (e.ctrlKey && !e.metaKey && !e.altKey && e.code === "Backquote") {
         e.preventDefault();
         e.stopPropagation();
@@ -314,11 +268,4 @@ function rows(buffer: IBuffer, from: number, to: number): string[] {
   const lines: string[] = [];
   for (let y = from; y < to; y++) lines.push(buffer.getLine(y)?.translateToString(true) ?? "");
   return lines;
-}
-
-function decode(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
 }

@@ -32,6 +32,19 @@ are numbered so they can be pointed at in a reply. Whatever a yank or a delete
 takes reaches the system clipboard as well as vim's own register — vim's
 `clipboard=unnamed` — so what `y` picks up leaves the window with you.
 
+## gf opens the file
+
+Put the cursor on a path in the document — `src/cli.ts`, `` `src/cli.ts` ``,
+`[cli](src/cli.ts)`, all the same — and press `gf`. Your own neovim opens in the
+window on that file, with your config, and `src/cli.ts:42` lands on line 42.
+`:q` and it is gone; the document is underneath the whole time with your edits
+and your cursor where you left them.
+
+It is your nvim on the real file, so you can change it and `:w`. Inside it every
+key is nvim's, except `⌃\`` to cross to the document and back, and `⌘Y` to take a
+⇧-dragged selection into your reply. If there is no such file nothing opens and
+the footer says what it looked for.
+
 ## The terminal
 
 `⌃\`` opens a real shell at the bottom of the window, in the directory relay was
@@ -68,6 +81,7 @@ pnpm check      # types
 pnpm test       # the line arithmetic behind :res, the queue, a real pty
 pnpm smoke      # end to end, no window
 pnpm smoke:pty  # a shell on demand, keys in, output out, gone with the relay
+pnpm smoke:goto # a real nvim on the file under the cursor, gone when it quits
 pnpm smoke:queue # two relays at once — opens real windows briefly
 ```
 

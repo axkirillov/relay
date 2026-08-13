@@ -17,7 +17,7 @@ type Module = {
 };
 
 export type Session = {
-  shell: string;
+  program: string;
   cwd: string;
   alive: boolean;
   /** What the shell has said so far, for a page that arrives after it started. */
@@ -42,8 +42,20 @@ const maxReplay = 1 << 18;
  * nothing has to be rebuilt against Electron's.
  */
 export function open(cwd: string, cols: number, rows: number): Session {
-  const shell = process.env.SHELL || "/bin/bash";
-  const pty = load().spawn(shell, login(), {
+  return run(process.env.SHELL || "/bin/bash", login(), cwd, cols, rows);
+}
+
+/**
+ * Any program on a pty of its own — nvim, when the human follows a path out of
+ * the document.
+ *
+ * The program is the pty's own child rather than something a shell was asked to
+ * run, which is the whole difference: what it does when it exits is end, and the
+ * pane it was in can go with it. A shell in between would still be there,
+ * holding a prompt in a pane that was meant to disappear.
+ */
+export function run(file: string, args: string[], cwd: string, cols: number, rows: number): Session {
+  const pty = load().spawn(file, args, {
     name: "xterm-256color",
     cols,
     rows,
@@ -55,7 +67,7 @@ export function open(cwd: string, cols: number, rows: number): Session {
   const back: string[] = [];
   let held = 0;
   const session: Session = {
-    shell,
+    program: file,
     cwd,
     alive: true,
     replay: () => back.join(""),

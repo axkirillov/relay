@@ -203,6 +203,94 @@ recognised and stays, which is the harmless way round. On the alternate screen a
 full-screen program has no scrollback to walk, and its screen is the whole of
 what it has to say, so that is what is taken.
 
+## `gf` opens the file, in their own neovim
+
+A relay document is full of `src/cli.ts:42`, and until now every one of them was
+a thing to go and look at somewhere else. `gf` on one opens **a real neovim, in
+this window, on that file, on that line** — their config, their LSP, their
+plugins. `:q` and it is gone, and they are back in the document with their edits
+and their cursor exactly where they left them.
+
+Three cheaper things were on the table first — a read-only peek rendered in the
+window, pushing the file to the nvim next door in tmux, and `open` — and all
+three were turned down for the same reason: what is wanted at that moment is
+*an editor*, and the human already has one they have spent years on.
+
+So this is not a viewer, and the spec should not imply one. It is their nvim on
+the real file: they can change it, `:w` it, and that is a consequence of what was
+asked for rather than a hole in it.
+
+**It is nvim's own pty, not a shell that runs nvim.** The difference is what
+happens when they quit: the process ends, the pty ends, the pane goes. A shell in
+between would still be sitting there afterwards, holding a prompt in a pane that
+was supposed to disappear. nvim by name rather than `$EDITOR`, because what was
+asked for was *their neovim*, and `$EDITOR` is as likely to be something that
+opens a window of its own or has no use for `+42`.
+
+**A second pty, beside the shell's.** The most likely moment for a `gf` is while
+reading something in the terminal pane, so refusing one then would be refusing it
+exactly when it is wanted; and taking the shell's pty away would kill whatever it
+was in the middle of. So nvim gets its own, the shell keeps running behind it,
+and the pane it was occupying comes back when nvim quits. This is not the tabs
+and splits the terminal pane rules out — there is still one shell, and this one
+lives for one file.
+
+### What counts as a path
+
+The path-ish text under the cursor — or, if the cursor is not on one, the next
+one along the line, which is what vim does and what makes `gf` a key rather than
+an aiming exercise. A path in prose arrives wrapped, in backticks, in a markdown
+link, in quotes, in a table cell, with the sentence's full stop stuck to the end,
+and none of that wrapping is part of the name; so none of it is in the class of
+characters a path is made of, and `` `src/cli.ts` ``, `[cli](src/cli.ts)` and a
+bare `src/cli.ts` all come out the same. In visual mode the selection is the
+path, which is the way out of a name this cannot pick out of prose.
+
+`:42` is honoured, and `:42:7` takes the column too. vim splits that across `gf`
+and `gF`; there is no reason here to want the line thrown away, so both keys do
+the same thing and a hand that learnt either need not remember which.
+
+Paths resolve against the directory relay was run from — the same one a `⌃↵`
+command runs in — with `~` and absolute paths as written. **No file, no jump**: a
+line in the footer saying what was looked for, nothing opened and nothing
+created. A directory counts, because nvim opens one as a listing and vim's own
+`gf` does the same.
+
+**There is no allow-list, and the absence is deliberate.** Pictures get one,
+because a picture's path never comes back off the wire and the agent named every
+file it meant; a path the human's cursor is on comes back off the wire by
+definition. There is also nothing to protect: it is their machine, their key, and
+they can already run any command they like in this window with `⌃↵` or the shell
+pane. Being shown a file is strictly less than that.
+
+### Inside nvim, every key is nvim's
+
+Even more so than in the shell — `⌃X`, `⌃C`, `⌃D`, `⌃R`, `⌃W`, `⌃O` all mean
+something in there. So `⌃X` does not accept and `⌃↵` does not run while nvim has
+the pane, and `gf` inside nvim is nvim's own, which is why a second one of these
+can never be opened from in there.
+
+Two keys are kept back, the same two the shell pane keeps:
+
+- **`⌃\`` crosses to the document and back**, without disturbing nvim. The
+  document is on screen the whole time — the pane leaves it room deliberately —
+  so a reply can be typed with the file still up.
+- **`⌘Y` takes the selection into the document.** nvim usually has the mouse, so
+  ⇧-drag is what selects rows for the terminal rather than for nvim; those rows
+  land in the document as a fenced block, the same crossing the shell pane's take
+  is. There is no "last command" in an editor, so without a selection there is
+  nothing to take.
+
+There is no third, and in particular no ✕ and no `:term`: **closing this pane is
+`:q`**, which is nvim's word for it and already in their hands. A pane that could
+be dismissed out from under a buffer with unsaved changes would be a way to lose
+work quietly.
+
+Accepting the relay while nvim is still open kills it along with everything else
+the window started. That is SIGHUP, which is the signal nvim has always taken as
+"the terminal is going" — it writes its swap file on the way out, so the recovery
+nvim itself offers next time is there.
+
 ### Inside the terminal, every key is the shell's
 
 `⌃X` accepts and `⌃↵` runs a block; from the pane they do nothing. A shell has
@@ -278,6 +366,8 @@ is no gate there is no file, and nothing to remove.
   but HTML is heavy and models are still poor at SVG, so: markdown now.
 - **One shell per window, and only if it is asked for.** No tabs, no splits, no
   session to reattach to. The pane exists to answer the question on screen.
+- **`gf` opens the human's real editor, not a preview of the file.** A viewer
+  would have been cheaper and was turned down.
 
 ## Out of scope for v1
 

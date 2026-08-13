@@ -54,13 +54,14 @@ export function page(source: string): string {
   }
   header .name { color: var(--fg); font-weight: 600; }
 
-  /* The document and the terminal share what is left between the bars, and the
-     terminal is the one with a height of its own — the document takes the rest. */
+  /* The document and a pane share what is left between the bars, and the pane is
+     the one with a height of its own — the document takes the rest. Only one
+     pane is ever up: the shell the human opened, or the nvim a gf opened. */
   #split { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   #editor { flex: 1 1 auto; min-height: 0; position: relative; }
   .cm-editor { height: 100%; }
 
-  #term {
+  #term, #edit {
     flex: 0 0 auto;
     height: 42%;
     min-height: 120px;
@@ -69,16 +70,19 @@ export function page(source: string): string {
     background: var(--bg);
     border-top: 1px solid var(--line);
   }
-  #term[data-hidden] { display: none; }
+  /* Reading code needs the room a shell does not, and the document below it is
+     still the point — enough of it stays visible to be visibly waiting. */
+  #edit { height: 72%; min-height: 200px; }
+  #term[data-hidden], #edit[data-hidden] { display: none; }
   /* Four pixels of nothing that the pane can be dragged by. */
-  #term-grip {
+  #term-grip, #edit-grip {
     flex: 0 0 auto;
     height: 5px;
     margin-top: -3px;
     cursor: row-resize;
   }
-  #term-grip:hover { background: var(--accent); opacity: .5; }
-  #term-bar {
+  #term-grip:hover, #edit-grip:hover { background: var(--accent); opacity: .5; }
+  #term-bar, #edit-bar {
     flex: 0 0 auto;
     display: flex;
     align-items: baseline;
@@ -89,9 +93,9 @@ export function page(source: string): string {
     white-space: nowrap;
     overflow: hidden;
   }
-  #term-where { color: var(--fg); overflow: hidden; text-overflow: ellipsis; }
-  #term-bar .spacer { flex: 1 1 auto; }
-  #term-bar button {
+  #term-where, #edit-where { color: var(--fg); overflow: hidden; text-overflow: ellipsis; }
+  #term-bar .spacer, #edit-bar .spacer { flex: 1 1 auto; }
+  #term-bar button, #edit-bar button {
     -webkit-app-region: no-drag;
     font: inherit;
     color: var(--dim);
@@ -100,10 +104,10 @@ export function page(source: string): string {
     padding: 0;
     cursor: pointer;
   }
-  #term-bar button:hover { color: var(--fg); }
-  #term-view { flex: 1 1 auto; min-height: 0; padding: 0 1rem .35rem; }
+  #term-bar button:hover, #edit-bar button:hover { color: var(--fg); }
+  #term-view, #edit-view { flex: 1 1 auto; min-height: 0; padding: 0 1rem .35rem; }
   /* xterm sizes itself to what it is given, so what it is given must be exact. */
-  #term-view .xterm { height: 100%; }
+  #term-view .xterm, #edit-view .xterm { height: 100%; }
 
   /* Wraps rather than clips: the hints run out of room in a narrow window. */
   footer {
@@ -189,6 +193,18 @@ export function page(source: string): string {
       </div>
       <div id="term-view"></div>
     </div>
+
+    <div id="edit" data-hidden>
+      <div id="edit-grip"></div>
+      <div id="edit-bar">
+        <span id="edit-where"></span>
+        <span class="spacer"></span>
+        <button id="edit-take"><kbd id="edit-keys">⌘Y</kbd> take the selection</button>
+        <span><kbd>⌃\`</kbd> back to the document</span>
+        <span><kbd>:q</kbd> leaves nvim</span>
+      </div>
+      <div id="edit-view"></div>
+    </div>
   </div>
 
   <footer>
@@ -198,6 +214,7 @@ export function page(source: string): string {
     <span class="spacer"></span>
     <span><kbd>⌃\`</kbd> terminal</span>
     <span><kbd>⌃↵</kbd> run a command</span>
+    <span><kbd>gf</kbd> open the file</span>
     <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>:raw</kbd> render on/off</span>
     <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { argv, locate, which } from "./edit.js";
 import { contentType, type Images, localImages } from "./images.js";
 import { page } from "./page.js";
 import * as pty from "./pty.js";
@@ -41,6 +42,10 @@ export async function serve(
   // Lazily, and only if the human opens the pane: most relays are answered
   // without one, and a shell nobody asked for is a process nobody wanted.
   let shell: pty.Session | null = null;
+  // The nvim a `gf` opened, if one is up. Its own pty rather than the shell's,
+  // because the shell may well be in the middle of something the human wants
+  // back afterwards; and its own lifetime, which is one file long.
+  let editor: pty.Session | null = null;
   // Every command still going, so that none of them outlives the window.
   const running = new Set<Running>();
   // Numbered in the order the human ran them, so a pointer in the document leads
@@ -116,6 +121,30 @@ export async function serve(
       return res.writeHead(204).end();
     }
 
+    // The editor pane, on the same bridge and for the same reason. It is spawned
+    // by a POST rather than by the stream the way the shell is, because the one
+    // thing that can go wrong here — there is no such file — has something to
+    // say, and an event stream that fails to open says nothing the page can read.
+    if (req.method === "POST" && path === "/edit") {
+      if (editor?.alive) return send(res, 409, "text/plain", "already in a file");
+      return handleEdit(req, res, (session) => (editor = session));
+    }
+    if (req.method === "GET" && path === "/edit") {
+      if (!editor?.alive) return send(res, 409, "text/plain", "nothing open");
+      return stream(req, res, editor);
+    }
+    if (req.method === "POST" && path === "/edit/in") {
+      if (!editor?.alive) return send(res, 409, "text/plain", "nothing open");
+      const to = editor;
+      return input(req, res, (data) => to.write(data));
+    }
+    if (req.method === "POST" && path === "/edit/size") {
+      if (!editor?.alive) return send(res, 409, "text/plain", "nothing open");
+      const { cols, rows } = size(req);
+      editor.resize(cols, rows);
+      return res.writeHead(204).end();
+    }
+
     send(res, 404, "text/plain", "not found");
   });
 
@@ -138,6 +167,11 @@ export async function serve(
       for (const job of running) job.kill();
       running.clear();
       shell?.kill();
+      // node-pty's kill is a SIGHUP, which is the signal nvim has always taken
+      // as "the terminal is going" — it writes its swap file on the way out, so
+      // a window accepted with an unsaved buffer in it leaves the recovery nvim
+      // itself offers next time.
+      editor?.kill();
       server.close();
       server.closeAllConnections();
     },
@@ -165,7 +199,7 @@ function stream(req: IncomingMessage, res: ServerResponse, shell: pty.Session) {
     res.write(`event: ${name}\ndata: ${data}\n\n`);
   };
 
-  event("hello", JSON.stringify({ shell: shell.shell, cwd: shell.cwd }));
+  event("hello", JSON.stringify({ program: shell.program, cwd: shell.cwd }));
   // A reload lands on the shell that is already running, so hand it what it
   // missed before anything new arrives.
   const missed = shell.replay();
@@ -199,6 +233,48 @@ function input(req: IncomingMessage, res: ServerResponse, write: (data: string) 
     write(Buffer.concat(chunks).toString("utf8"));
     res.writeHead(204).end();
   });
+}
+
+/**
+ * Open the human's own nvim on the path their cursor was on.
+ *
+ * nvim by name, not `$EDITOR`: what was asked for was their neovim, with their
+ * config, their LSP and their plugins, and `$EDITOR` is as likely to be a thing
+ * that opens a window of its own or takes no `+42` as it is to be that.
+ *
+ * The pty starts at a nominal size and the page resizes it a moment later, once
+ * the pane it is going into has been laid out and measured. nvim has always
+ * redrawn on a terminal resize, and this one lands well before its config has
+ * finished loading, so what it draws first it draws at the right size.
+ */
+function handleEdit(req: IncomingMessage, res: ServerResponse, keep: (session: pty.Session) => void) {
+  read(req, maxCommandBytes).then(
+    (body) => {
+      let want: { path?: string; line?: number; col?: number };
+      try {
+        want = JSON.parse(body) as typeof want;
+      } catch {
+        return send(res, 400, "text/plain", "not a path");
+      }
+      if (!want.path) return send(res, 400, "text/plain", "no path under the cursor");
+
+      const file = locate(want.path, process.cwd());
+      // Nothing opens and nothing is created — the document said a file was
+      // there and it is not, which is worth being told plainly and no more.
+      if (!file) return send(res, 404, "text/plain", `no ${want.path} under ${process.cwd()}`);
+
+      const nvim = which("nvim");
+      if (!nvim) return send(res, 503, "text/plain", "no nvim on this machine's PATH");
+
+      try {
+        keep(pty.run(nvim, argv(file, want.line, want.col), process.cwd(), 80, 24));
+      } catch (err) {
+        return send(res, 503, "text/plain", `could not open nvim: ${(err as Error).message}`);
+      }
+      send(res, 200, "application/json; charset=utf-8", JSON.stringify({ file }));
+    },
+    () => send(res, 413, "text/plain", "too long to be a path"),
+  );
 }
 
 /** How big the page says its terminal is. */
