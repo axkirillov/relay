@@ -165,6 +165,14 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
   it as a fact about the screen, not about the feature: search or `gg` it back into
   view first, and never let `querySelector(...)` be dereferenced unguarded, since
   the throw lands in an async handler and leaves Electron alive and silent.
+- **The caret's line comes off the native selection, not off `.cm-cursor`.**
+  `drawSelection` paints the cursor into a layer it hides whenever the editor is
+  unfocused, and a hidden element's `getBoundingClientRect()` is all zeroes — so
+  a nearest-line-by-rect read silently answers "line 1" for every position in the
+  document. The DOM selection is still at the cursor; walk its `focusNode` up to
+  the enclosing `.cm-line`. Six checks reported the caret in the wrong place while
+  the feature under test was working perfectly, and the footer's own answer was
+  what proved the caret had been right all along.
 - **A line's `textContent` is not the line's text.** The live diff renders what the
   human deleted as an inline widget inside the line they deleted it from, so an
   edited line reads back as the old text and the new text run together —
@@ -214,6 +222,23 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
   xterm's force-selection modifier is ⇧ everywhere else, but on a Mac it is ⌥
   and only with `macOptionClickForcesSelection` on. A ⇧-drag there selects
   nothing at all, which reads as a broken take.
+
+## Standing in for a program relay would spawn
+
+To keep a real browser (or anything else with a window) off the screen, put a
+stand-in of the same name first on the relay's `PATH` and assert what it recorded
+— `scripts/open.sh` has the pattern.
+
+- **`chmod +x` it, and check that you did.** `which()` requires the execute bit
+  and skips what has not got it *in silence*: the real `open` is next on the
+  `PATH`, so every footer still reads `opened …`, the log stays empty, and the
+  human gets a browser tab per check. A file written by an agent is mode 644.
+  One `statSync(…).mode & 0o111` at the top of the harness, before a single key
+  is sent, is the difference between a bug and five tabs.
+- **Set its log path in the relay's env, not the harness's.** The stand-in is
+  spawned by the relay, so `FAKE_OPEN_LOG` has to be in the env passed to
+  `spawn("node", ["dist/relay.js", …])`. A stand-in that cannot write its log
+  exits non-zero, which relay correctly reports as the opener refusing.
 
 ## Watching what a command spawned
 
