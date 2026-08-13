@@ -7,7 +7,7 @@ import { unlatchOnExit } from "./latch.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
-import { ensureWindow, watchWindow } from "./window.js";
+import { attend } from "./window.js";
 
 const usage = `relay <file.md>
 
@@ -72,27 +72,13 @@ process.stderr.write(
 
 if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);
 
-// Watched from here, not from the front of the line: closing the window dismisses
-// every relay waiting on it, so one that never reached the screen is listening
-// for the same thing as the one being read.
-const watch = turn ? watchWindow() : null;
-
-let shown = false;
-if (turn) {
-  // Reaching the head is both when the window shows this document and when this
-  // relay becomes the one who has to start a window if none is up. Nothing waits
-  // on it — a dismissal in the meantime ends this relay just the same.
-  void turn.wait().then(() => {
-    // Asked now, not remembered: the window can have been closed in the moment
-    // it took to get here, and starting one back up would undo the closing.
-    if (watch!.dismissed()) return;
-    shown = true;
-    ensureWindow(!!process.env.RELAY_DEBUG);
-  });
-}
+// From here on the window is somebody's job, and it is this relay's for as long
+// as it is at the head of the line. Waiting its turn and watching for the human
+// closing the window are the same watch: a close dismisses everyone in line.
+const screen = turn ? attend(turn, relay.url, !!process.env.RELAY_DEBUG) : null;
 
 const accepted = relay.accepted.then((edited) => ({ edited }));
-const dismissed: Promise<null> = watch ? watch.gone.then(() => null) : new Promise(() => {});
+const dismissed: Promise<null> = screen ? screen.closed.then(() => null) : new Promise(() => {});
 
 let outcome = await Promise.race([accepted, dismissed]);
 
@@ -103,13 +89,13 @@ if (outcome === null) outcome = await Promise.race([accepted, wait(300).then(() 
 // Leaving the line is what moves the window on to the next document, so it goes
 // before the diff work rather than after it.
 turn?.leave();
-watch?.stop();
+screen?.stop();
 relay.close();
 
 if (outcome === null) {
   store.abandon();
   process.stderr.write(
-    shown
+    screen?.shown()
       ? "relay: the human closed the window without replying\n"
       : "relay: the human closed the window before this document reached the screen\n",
   );

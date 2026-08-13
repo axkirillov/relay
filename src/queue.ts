@@ -11,6 +11,8 @@ const pollMs = 250;
 export type Turn = {
   /** Relays already in line when this one joined. */
   ahead: number;
+  /** When this relay joined the line. What a dismissal is measured against. */
+  since: number;
   /** Say where this relay's document can be read, so the window can show it. */
   serving(url: string): void;
   /** Resolves once every relay ahead of this one is done. */
@@ -70,6 +72,7 @@ export function enter(id: string, source: string): Turn {
 
   return {
     ahead: line(dir).filter((t) => t.name !== name).length,
+    since,
     leave,
     serving(url) {
       if (gone) return;

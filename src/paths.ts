@@ -20,3 +20,12 @@ export function queueDir(): string {
 export function windowFile(): string {
   return join(relayHome(), "window.json");
 }
+
+/**
+ * When the human last closed the window. A relay that started before that is
+ * dismissed by it — which is what makes closing the window durable rather than
+ * something each relay has to have been watching at the right moment to catch.
+ */
+export function closedFile(): string {
+  return join(relayHome(), "closed");
+}
