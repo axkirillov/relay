@@ -11,17 +11,24 @@ relay has shown them.
 
 ## Shape
 
-A single command. All TypeScript, two processes:
+A single command. All TypeScript, two kinds of process:
 
 ```
 relay <file.md>  ──> stdout: a unified diff
-     │
-     └─spawn─> Electron window ──http──> loopback, for the document and the reply
+     │                    ▲
+     │ a ticket           │ http on loopback — the document, and the reply
+     ▼                    │
+  the line ──head──> one Electron window
 ```
 
+The window belongs to no relay. Whichever one finds none up starts it, it shows
+whoever is at the head of the line, and it quits itself once the line is empty.
+
 **Not an MCP server.** One process per relay, alive for exactly as long as the
-human takes, then gone. Nothing to register, nothing running between calls, and
-any agent that can run a command can use it — as can a person, by hand.
+human takes, then gone; the window outlives the relay that started it, but only
+while there is something to show. Nothing to register, nothing running between
+calls, and any agent that can run a command can use it — as can a person, by
+hand.
 
 The cost is that an agent must run it as a background command rather than a
 foreground one, because harnesses cap how long a foreground command may take
@@ -31,14 +38,16 @@ stays possible if that ever becomes the wrong trade.
 ## Flow
 
 1. Agent writes a markdown file, runs `relay <path>`.
-2. relay copies it to durable storage and opens the window.
-3. The command blocks — forever, if that is what it takes.
-4. The human edits **anywhere**: any line, between words, inside a word. There
+2. relay copies it to durable storage and takes its place in the line.
+3. The window shows it — at once if the line was empty, otherwise when the
+   documents ahead of it have been answered.
+4. The command blocks — forever, if that is what it takes.
+5. The human edits **anywhere**: any line, between words, inside a word. There
    are no protected regions and no comment blocks.
-5. Their changes are highlighted live, diffed against the original, so it is
+6. Their changes are highlighted live, diffed against the original, so it is
    always obvious which text is theirs and which is the agent's.
-6. They accept.
-7. The window closes and relay prints **a unified diff** to stdout.
+7. They accept.
+8. The document leaves the screen and relay prints **a unified diff** to stdout.
 
 ## Exit
 
@@ -48,15 +57,17 @@ stays possible if that ever becomes the wrong trade.
 
 ## Accepting is unmistakable
 
-The window closes. That is the confirmation — there is nothing to notice and
-nothing to miss.
+The document goes. Either the next one is there in its place or the window
+itself goes; either way what was on screen is gone, and that is the
+confirmation — there is nothing to notice and nothing to miss.
 
 Ordering matters here, and an earlier build got it wrong: it printed its result
 and exited the instant the reply arrived, killing the HTTP server before the
 page's request had been answered. The page saw a dead connection, reported a
 network error, and stayed open — on a reply that had in fact been delivered.
-relay now answers the page, waits for that answer to be flushed, closes the
-window, and only then prints and exits.
+relay now answers the page, waits for that answer to be flushed, and only then
+leaves the line, prints and exits. Leaving the line last is what hands the
+window to the next document rather than to an empty screen.
 
 ## Editing is unrestricted
 
@@ -151,27 +162,80 @@ editing. They are never boxed into options the agent thought of.
 - Narrow margins — the text column should not be squeezed.
 - The title sits to the right of the traffic-light buttons, never under them.
 
-## One window at a time
+## Always one window
 
-There is one human and one screen, so a relay started while another is up does
-not barge in — it waits, and its window opens the moment the one ahead of it is
-answered or closed. The waiting is invisible to the human: windows simply
-arrive one after another.
+There is one human and one screen, so there is one window — not one at a time,
+one. Every document goes through it, oldest first. A relay started while another
+is up does not barge in and does not open a second window; it waits, and its
+document appears in the window already there the moment the one ahead of it is
+answered.
+
+An earlier build gave each relay its own window and let them queue. That is what
+this replaces, and the reason is what the human said: *"when I press alt-tab I
+see too many active relay windows and I don't know which one is on top of the
+stack — which one needs to be reviewed first."* Four relays should be four
+documents in a row, not four windows to sort through. There is no ordering
+problem left to have: what is on the screen is what to read.
+
+The window is not permanent. It appears with the first document, stays as long
+as documents keep arriving, and goes once the last one is answered and nobody is
+waiting — so relay keeps its "nothing running between calls" property.
+
+### The line
 
 With no daemon to hold a queue, the queue is a directory. Each relay writes a
-ticket named for its arrival, `~/.relay/queue/<ms>-<pid>.json`, and the oldest
-live ticket has the screen; everyone else polls four times a second. There is
-no lock to go stale, and a relay that dies is swept from the line by whoever
-notices — its PID no longer answers, or its ticket has stopped being touched
-(which is how a PID recycled onto an unrelated process is told from a relay).
+ticket named for its arrival, `~/.relay/queue/<ms>-<pid>.json`, holding the URL
+its document is served at. The oldest live ticket is the one on screen; everyone
+polls. There is no lock to go stale, and a relay that dies is swept from the line
+by whoever notices — its PID no longer answers, or its ticket has stopped being
+touched (which is how a PID recycled onto an unrelated process is told from a
+relay).
 
 The line is per-human, not per-repo: relays from four worktrees share it. FIFO,
-no timeout, no cap. Closing a window without replying ends that relay only —
-the next one still opens. `RELAY_NO_OPEN=1` skips the queue, having no window
-to contend for.
+no timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to
+contend for. The HTTP server comes up immediately either way, so a queued relay
+is serving its document and printing its URL while it waits.
 
-The HTTP server comes up immediately either way, so a queued relay is serving
-its document and printing its URL while it waits.
+### Nobody owns the window
+
+The window follows the line rather than being handed a document. It reads the
+line eight times a second, loads whatever is at the head, and surfaces itself
+every time that changes — a document arriving in a window already open is the
+one thing this feature exists to make obvious. When the line has been empty for
+half a second, it quits.
+
+Whichever relay is at the head starts a window if none is up; `~/.relay/window.json`
+is the window saying it is here, kept fresh by a heartbeat, and the head relay
+keeps looking, so a window that dies violently is simply replaced. Electron's
+single-instance lock is the backstop under all of that, not the plan.
+
+This also fixes something the old design could not. A window used to be spawned
+and killed by one relay, so a relay that was itself killed — a harness timeout,
+a session ending — never ran the kill, and left a window on the screen with
+nobody to answer it. Now the window quits when the line runs dry, and a killed
+relay's ticket goes stale within seconds.
+
+### Closing dismisses everything
+
+Closing the window dismisses every relay in line, not only the document on
+screen. It is the human saying *get these off my screen*, and a queued document
+opening in its place would be the opposite of that. The relay that was being
+read exits 1 saying the window was closed on it; the ones still waiting exit 1
+saying they never reached the screen.
+
+The close is durable, not observed. The window writes `~/.relay/closed` on its
+way out — the time, and the URL of what it was showing — before it takes down
+`window.json`. A relay is dismissed by a close later than its own arrival, so an
+old tombstone can never touch a new relay and nothing needs clearing. This
+matters because a document can arrive and be closed on between two of a relay's
+polls: watching for the window to disappear misses that, and the relay that
+misses it is the one that starts a window the human has just shut. The URL is
+there for the same reason — the window is the only one who knows whose document
+was on screen when it went, so it says so rather than leaving each relay to
+guess from what it happened to see.
+
+A window that dies without writing a tombstone — `kill -9`, a crash — is not a
+close. Nobody is dismissed, and the head relay puts a new window up.
 
 ## The agent stops waiting the moment the human answers
 
@@ -192,20 +256,34 @@ is no gate there is no file, and nothing to remove.
 
 ```
 ~/.relay/<timestamp>-<slug>/
-  meta.json      # id, source path, opened/accepted times, cwd
-  sent.md        # exactly what the agent showed
-  accepted.md    # what the human accepted
-  diff.patch     # what the agent was told
+  meta.json       # id, source path, opened/accepted times, cwd
+  sent.md         # exactly what the agent showed
+  accepted.md     # what the human accepted
+  diff.patch      # what the agent was told
 
-~/.relay/queue/  # a ticket per relay waiting for the screen
+~/.relay/queue/   # a ticket per relay waiting for the screen
+~/.relay/window.json  # the window, while it is up: pid, and a heartbeat
+~/.relay/closed   # the last close: when, and what was on screen
+~/.relay/window/  # Electron's userData, including its single-instance lock
 ```
+
+`RELAY_QUEUE_DIR` moves all of it, the window included — the one handle a test
+needs to put a whole relay somewhere private, rather than each path being
+overridable on its own.
 
 ## Settled
 
 - **Closing the window is reported to the agent** as such, rather than hanging.
 - **A blocked call waits forever.** No timeout.
-- **One window at a time, but relays queue.** A second relay waits its turn
-  rather than being refused or stacking a window on top of the first.
+- **Always one window.** Not one at a time — one. Every document goes through
+  it, and a second relay never puts a second window on the screen.
+- **The window is not permanent.** It comes with the first document and goes
+  with the last, rather than running always and waiting for work.
+- **One document at a time.** The next appears the moment the current one is
+  answered. No tabs, no list of what is waiting.
+- **Closing the window dismisses everything**, not only the document on screen.
+  Chosen against the recommendation at the time, and deliberately: it is the
+  "get them all off my screen" gesture.
 - **The queue is invisible.** The window does not say how many are behind it.
   The next one appearing is the whole signal.
 - **Markdown for v1.** Richer artifact-style documents are the eventual goal,

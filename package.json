@@ -12,6 +12,7 @@
     "test": "for t in ui/src/*.test.ts src/*.test.ts; do echo \"— $t\"; node --no-warnings \"$t\" || exit 1; done",
     "smoke": "bash scripts/smoke.sh",
     "smoke:queue": "bash scripts/queue.sh",
+    "smoke:dismiss": "bash scripts/dismiss.sh",
     "smoke:latch": "bash scripts/latch.sh"
   },
   "dependencies": {
