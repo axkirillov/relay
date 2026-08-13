@@ -86,6 +86,24 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
   it as a fact about the screen, not about the feature: search or `gg` it back into
   view first, and never let `querySelector(...)` be dereferenced unguarded, since
   the throw lands in an async handler and leaves Electron alive and silent.
+- **A line's `textContent` is not the line's text.** The live diff renders what the
+  human deleted as an inline widget inside the line they deleted it from, so an
+  edited line reads back as the old text and the new text run together —
+  `source.abortstop()` for a line the document has as `source.stop()`. Two runs
+  were spent concluding that `ciw` was broken in relay's window before the
+  accepted patch showed the edit had been perfect all along. Drop every node whose
+  class matches `cm-relay-del` when reading a line, and trust the accepted diff
+  over the DOM when they disagree.
+- **Search for something that occurs only where you mean to go.** `/abort` matched
+  the word in the document's prose first, so every key after it landed in a
+  paragraph forty lines above the diff — and the checks that followed reported the
+  feature broken in six different ways. Log the mode and the visible line range
+  after each navigation; a nav that quietly went nowhere otherwise reads as a
+  broken feature.
+- **To measure anything about scrolling, the document must be taller than the
+  window.** Two runs compared a gutter before and after scrolling to a diff that
+  had been on screen the whole time, which is nothing measured twice. Assert that
+  the thing is off screen first — then the measurement means something.
 - **A click sent past the window's edge is dropped, and it blurs the editor.**
   After that `⌃↵` still works — it is a window-level listener — while every vim
   key silently goes nowhere, which reads exactly like a broken feature. Scroll the
