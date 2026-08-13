@@ -16,6 +16,15 @@ import { fence, insertion } from "./take";
 
 export const mac = navigator.platform.startsWith("Mac");
 
+/**
+ * The drag that selects rows out from under a program that wants the mouse.
+ *
+ * nvim wants it, so a plain drag is nvim's own visual selection and never
+ * xterm's — and xterm's way past that is not the same key on both platforms.
+ * Saying the wrong one costs the human a gesture that does nothing.
+ */
+export const forceDrag = mac ? "⌥-drag" : "⇧-drag";
+
 const paneEls = ["term", "edit"].map((id) => document.getElementById(id)!);
 
 /** Whether a key belongs to a child process rather than to the document. */
@@ -33,6 +42,10 @@ export function terminal(): Terminal {
     // ⌥B and ⌥F are how a shell moves by words, and on a Mac they are only
     // that if this is on.
     macOptionIsMeta: true,
+    // What lets a Mac select rows at all while nvim has the mouse: xterm's
+    // override is ⇧ everywhere else, but on a Mac it is ⌥ and only when this is
+    // on. Off, there is no gesture that selects — the drag is always nvim's.
+    macOptionClickForcesSelection: true,
     theme: {
       background: "#16161e",
       foreground: "#c0caf5",

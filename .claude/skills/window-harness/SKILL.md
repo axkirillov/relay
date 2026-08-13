@@ -92,6 +92,27 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
   target in (`zt`, else `scrollIntoView`) and assert it is inside the scroller
   before clicking.
 
+## Driving a pane with a program in it
+
+- **Never send a synthetic ⌃-key immediately before an ex command.** After a
+  `sendInputEvent` of ⌃↵, the very next `:` is swallowed and the command never
+  runs; one ordinary key in between clears it. This costs two whole runs if you
+  read it as what it looks like — `:q` not closing the pane — and it survives
+  swallowing the key in the page, which is how you can tell it is the synthetic
+  input pipeline and not the code under test.
+- **`.xterm-rows` reads empty while the screen plainly shows the text.** The row
+  divs are there and their `textContent` is not. Take a screenshot before
+  believing a terminal is blank — the picture is the assertion, and a "pane
+  never painted" conclusion off the DOM alone is worth nothing.
+- **A pane that failed to close poisons every check after it.** Keys meant for
+  the document go to the program instead, and later assertions pass and fail at
+  random. Assert the pane is down before starting the next round, and give each
+  question its own nvim rather than one long session.
+- **To select in a pane while a program holds the mouse, ⌥-drag on a Mac** —
+  xterm's force-selection modifier is ⇧ everywhere else, but on a Mac it is ⌥
+  and only with `macOptionClickForcesSelection` on. A ⇧-drag there selects
+  nothing at all, which reads as a broken take.
+
 ## Watching what a command spawned
 
 - **`pgrep -f "sleep 30"` matches the shell `pgrep` itself runs in.** Write the

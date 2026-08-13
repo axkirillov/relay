@@ -3,7 +3,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import type { Terminal } from "@xterm/xterm";
 
 import type { Target } from "./goto";
-import { decode, dragToResize, intoDocument, mac, terminal } from "./pane";
+import { decode, dragToResize, forceDrag, intoDocument, mac, terminal } from "./pane";
 import type { Pane } from "./terminal";
 
 const paneEl = document.getElementById("edit")!;
@@ -127,7 +127,7 @@ export function editorPane(view: EditorView, note: (text: string) => void, shell
   function take() {
     if (!term) return;
     if (!term.hasSelection()) {
-      return note("nothing selected — ⇧-drag over the lines you want, then take them");
+      return note(`nothing selected — ${forceDrag} over the lines you want, then take them`);
     }
     const rows = intoDocument(view, term.getSelection().split("\n"));
     if (rows === null) return note("nothing there to take");

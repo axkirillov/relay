@@ -42,8 +42,9 @@ and your cursor where you left them.
 
 It is your nvim on the real file, so you can change it and `:w`. Inside it every
 key is nvim's, except `⌃\`` to cross to the document and back, and `⌘Y` to take a
-⇧-dragged selection into your reply. If there is no such file nothing opens and
-the footer says what it looked for.
+selection into your reply — `⌥-drag` to select on a Mac, `⇧-drag` elsewhere,
+since a plain drag is nvim's own. If there is no such file nothing opens and the
+footer says what it looked for.
 
 ## The terminal
 

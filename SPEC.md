@@ -275,11 +275,13 @@ Two keys are kept back, the same two the shell pane keeps:
 - **`⌃\`` crosses to the document and back**, without disturbing nvim. The
   document is on screen the whole time — the pane leaves it room deliberately —
   so a reply can be typed with the file still up.
-- **`⌘Y` takes the selection into the document.** nvim usually has the mouse, so
-  ⇧-drag is what selects rows for the terminal rather than for nvim; those rows
-  land in the document as a fenced block, the same crossing the shell pane's take
-  is. There is no "last command" in an editor, so without a selection there is
-  nothing to take.
+- **`⌘Y` takes the selection into the document.** nvim has the mouse, so a plain
+  drag is nvim's own visual selection; the drag that selects rows for the
+  terminal instead is **`⌥-drag` on a Mac and `⇧-drag` everywhere else** — that
+  is xterm's own override and it is not the same key on both, which is why the
+  footer says whichever one is theirs. Those rows land in the document as a
+  fenced block, the same crossing the shell pane's take is. There is no "last
+  command" in an editor, so without a selection there is nothing to take.
 
 There is no third, and in particular no ✕ and no `:term`: **closing this pane is
 `:q`**, which is nvim's word for it and already in their hands. A pane that could
