@@ -41,6 +41,31 @@ Copy it, add your own checks at the bottom, delete it when you are done.
   to settle before capturing. The DOM reads are the assertions; the picture is only
   worth taking if it is the picture of now.
 
+## Driving the shared window, not one of your own
+
+The above builds its own `BrowserWindow`. To test the window itself — the frame
+every document goes through, the handover between two relays, the quit when the
+line runs dry — you want the real one. `require("<worktree>/dist/shell.cjs")`
+into your own Electron process: it runs the real shell in-process, so
+`BrowserWindow.getAllWindows()[0]` is the actual window and `capturePage` and
+`executeJavaScript` reach it.
+
+- **Do not set `RELAY_NO_OPEN` here.** It is right for the editor harness and
+  wrong for this one: with it there is no ticket, no line, and nothing to show.
+  The relays must queue for real.
+- **Nothing spawns a second window**, because requiring the shell makes *your*
+  process the one holding `window.json` — every relay reads a window as already
+  up and leaves it alone.
+- **Seed the line before requiring the shell**, or it quits on the grace timer
+  before your relays are up. Write a ticket named for a time well in the past
+  with your own PID: `line()` counts you as alive without a heartbeat (`alive`
+  short-circuits on `pid === process.pid`), and a ticket with no `url` is a head
+  the window waits on rather than shows. Delete it when you want the first real
+  document on screen.
+- **`RELAY_QUEUE_DIR` takes the whole relay somewhere private** — queue, window
+  file, tombstone, Electron's `userData` and its single-instance lock. Without
+  it you are fighting the human's own window for the lock.
+
 ## Spawn the relay from inside the harness
 
 ```js
@@ -117,6 +142,27 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
   key silently goes nowhere, which reads exactly like a broken feature. Scroll the
   target in (`zt`, else `scrollIntoView`) and assert it is inside the scroller
   before clicking.
+
+## Driving a pane with a program in it
+
+- **Never send a synthetic ⌃-key immediately before an ex command.** After a
+  `sendInputEvent` of ⌃↵, the very next `:` is swallowed and the command never
+  runs; one ordinary key in between clears it. This costs two whole runs if you
+  read it as what it looks like — `:q` not closing the pane — and it survives
+  swallowing the key in the page, which is how you can tell it is the synthetic
+  input pipeline and not the code under test.
+- **`.xterm-rows` reads empty while the screen plainly shows the text.** The row
+  divs are there and their `textContent` is not. Take a screenshot before
+  believing a terminal is blank — the picture is the assertion, and a "pane
+  never painted" conclusion off the DOM alone is worth nothing.
+- **A pane that failed to close poisons every check after it.** Keys meant for
+  the document go to the program instead, and later assertions pass and fail at
+  random. Assert the pane is down before starting the next round, and give each
+  question its own nvim rather than one long session.
+- **To select in a pane while a program holds the mouse, ⌥-drag on a Mac** —
+  xterm's force-selection modifier is ⇧ everywhere else, but on a Mac it is ⌥
+  and only with `macOptionClickForcesSelection` on. A ⇧-drag there selects
+  nothing at all, which reads as a broken take.
 
 ## Watching what a command spawned
 

@@ -1,24 +1,41 @@
-import { mkdirSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+// Named by the file that is really there, not by the `.js` the bundle would
+// emit: the tests run this module through node as it stands.
+import { alive, heartbeat } from "./live.ts";
+import { queueDir } from "./paths.ts";
+
 const pollMs = 250;
-const beatMs = 2000;
-const staleMs = 10_000;
 
 export type Turn = {
   /** Relays already in line when this one joined. */
   ahead: number;
+  /** When this relay joined the line. What a dismissal is measured against. */
+  since: number;
+  /** Say where this relay's document can be read, so the window can show it. */
+  serving(url: string): void;
   /** Resolves once every relay ahead of this one is done. */
   wait(): Promise<void>;
   leave(): void;
 };
 
+/** A relay in line, as everyone else sees it. */
+export type Waiting = {
+  name: string;
+  at: number;
+  pid: number;
+  id?: string;
+  source?: string;
+  /** Where its document is served. Absent for the moment before it is up. */
+  url?: string;
+};
+
 /**
- * There is one human and one screen, so only one window may be up at a time.
- * With no daemon to hold a queue, the queue is a directory: one ticket file per
- * waiting relay, named for its arrival, and the oldest live ticket has the
- * screen. Everyone polls; nobody holds a lock that could go stale.
+ * There is one human, one screen, and one window. With no daemon to hold a
+ * queue, the line is a directory: one ticket file per relay, named for its
+ * arrival, and the oldest live ticket is the one the window is showing.
+ * Everyone polls; nobody holds a lock that could go stale.
  */
 export function enter(id: string, source: string): Turn {
   const dir = queueDir();
@@ -27,20 +44,19 @@ export function enter(id: string, source: string): Turn {
   const since = Date.now();
   const name = `${since}-${process.pid}.json`;
   const mine = join(dir, name);
-  const ticket = JSON.stringify({ pid: process.pid, id, source, since }) + "\n";
+
+  // Rewritten once the server is up, so keep the current text: a ticket taken
+  // out from under us has to go back as it was, url and all.
+  let ticket = body({ id, source, since });
   writeFileSync(mine, ticket);
 
-  // A PID can be recycled onto an unrelated process, which would wedge the
-  // queue behind a relay that no longer exists. A ticket nobody is touching is
-  // how the others tell the difference.
-  const beat = setInterval(() => touch(mine), beatMs);
-  beat.unref();
+  const stop = heartbeat(mine);
 
   let gone = false;
   const leave = () => {
     if (gone) return;
     gone = true;
-    clearInterval(beat);
+    stop();
     try {
       rmSync(mine);
     } catch {}
@@ -56,7 +72,15 @@ export function enter(id: string, source: string): Turn {
 
   return {
     ahead: line(dir).filter((t) => t.name !== name).length,
+    since,
     leave,
+    serving(url) {
+      if (gone) return;
+      ticket = body({ id, source, since, url });
+      try {
+        writeFileSync(mine, ticket);
+      } catch {}
+    },
     async wait() {
       for (;;) {
         const waiting = line(dir);
@@ -69,12 +93,14 @@ export function enter(id: string, source: string): Turn {
       }
     },
   };
+
+  function body(fields: Record<string, unknown>): string {
+    return JSON.stringify({ pid: process.pid, ...fields }) + "\n";
+  }
 }
 
-type Ticket = { name: string; at: number; pid: number };
-
-/** Every live ticket, oldest first. Tickets of dead relays are swept as found. */
-function line(dir: string): Ticket[] {
+/** Every relay in line, oldest first. Tickets of relays that are gone are swept. */
+export function line(dir = queueDir()): Waiting[] {
   let names: string[];
   try {
     names = readdirSync(dir);
@@ -82,47 +108,34 @@ function line(dir: string): Ticket[] {
     return [];
   }
 
-  const live: Ticket[] = [];
+  const live: Waiting[] = [];
   for (const name of names) {
     const m = /^(\d+)-(\d+)\.json$/.exec(name);
     if (!m) continue;
-    const t = { name, at: Number(m[1]), pid: Number(m[2]) };
-    if (alive(dir, t)) live.push(t);
-    else
+    const file = join(dir, name);
+    const t: Waiting = { name, at: Number(m[1]), pid: Number(m[2]) };
+    if (!alive(file, t.pid)) {
       try {
-        rmSync(join(dir, name));
+        rmSync(file);
       } catch {}
+      continue;
+    }
+    // A ticket being written as it is read is a torn read, not a dead relay —
+    // it keeps its place and the next poll picks up the rest of it.
+    try {
+      const { id, source, url } = JSON.parse(readFileSync(file, "utf8"));
+      if (typeof id === "string") t.id = id;
+      if (typeof source === "string") t.source = source;
+      if (typeof url === "string") t.url = url;
+    } catch {}
+    live.push(t);
   }
 
   return live.sort((a, b) => a.at - b.at || a.pid - b.pid);
 }
 
-function alive(dir: string, t: Ticket): boolean {
-  if (t.pid === process.pid) return true;
-  try {
-    process.kill(t.pid, 0);
-  } catch (err) {
-    // EPERM means the PID is taken by someone we may not signal — alive enough.
-    if ((err as NodeJS.ErrnoException).code !== "EPERM") return false;
-  }
-  try {
-    return Date.now() - statSync(join(dir, t.name)).mtimeMs < staleMs;
-  } catch {
-    return false;
-  }
-}
-
-function touch(file: string) {
-  const now = new Date();
-  try {
-    utimesSync(file, now, now);
-  } catch {}
-}
-
-function queueDir(): string {
-  return process.env.RELAY_QUEUE_DIR || join(homedir(), ".relay", "queue");
-}
-
 function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+  // Unref'd: a poll should never be the reason a process is still running. A
+  // relay dismissed while still in line exits now, not at the end of a tick.
+  return new Promise((r) => void setTimeout(r, ms).unref());
 }
