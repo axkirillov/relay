@@ -15,6 +15,21 @@ await build({
   logLevel: "info",
 });
 
+// The window's own process. It reads the line to know what to show, so it is
+// built from the same source as the CLI rather than kept as a hand-written
+// script that has to be told the rules a second time.
+await build({
+  entryPoints: ["src/shell.ts"],
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  target: "node22",
+  outfile: "dist/shell.cjs",
+  external: ["electron"],
+  minify: !dev,
+  logLevel: "info",
+});
+
 await build({
   entryPoints: ["ui/src/main.ts"],
   bundle: true,

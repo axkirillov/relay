@@ -37,6 +37,31 @@ Copy it, add your own checks at the bottom, delete it when you are done.
   to settle before capturing. The DOM reads are the assertions; the picture is only
   worth taking if it is the picture of now.
 
+## Driving the shared window, not one of your own
+
+The above builds its own `BrowserWindow`. To test the window itself — the frame
+every document goes through, the handover between two relays, the quit when the
+line runs dry — you want the real one. `require("<worktree>/dist/shell.cjs")`
+into your own Electron process: it runs the real shell in-process, so
+`BrowserWindow.getAllWindows()[0]` is the actual window and `capturePage` and
+`executeJavaScript` reach it.
+
+- **Do not set `RELAY_NO_OPEN` here.** It is right for the editor harness and
+  wrong for this one: with it there is no ticket, no line, and nothing to show.
+  The relays must queue for real.
+- **Nothing spawns a second window**, because requiring the shell makes *your*
+  process the one holding `window.json` — every relay reads a window as already
+  up and leaves it alone.
+- **Seed the line before requiring the shell**, or it quits on the grace timer
+  before your relays are up. Write a ticket named for a time well in the past
+  with your own PID: `line()` counts you as alive without a heartbeat (`alive`
+  short-circuits on `pid === process.pid`), and a ticket with no `url` is a head
+  the window waits on rather than shows. Delete it when you want the first real
+  document on screen.
+- **`RELAY_QUEUE_DIR` takes the whole relay somewhere private** — queue, window
+  file, tombstone, Electron's `userData` and its single-instance lock. Without
+  it you are fighting the human's own window for the lock.
+
 ## Spawn the relay from inside the harness
 
 ```js
@@ -67,6 +92,11 @@ spawn("node", ["dist/relay.js", doc], {
   the ex and search panels drop the last character.
 - **Open an ex or search prompt as its own event first**, then wait ~250 ms before
   typing the body.
+- **An ex command that silently does nothing is usually a dropped keystroke, not a
+  broken binding.** The same `:fold` passed, failed, and passed again across three
+  runs. Read the mode indicator and the footer note straight after the prompt, so
+  the harness tells you whether the command ran at all before you go looking for
+  the bug in the feature.
 
 ## Read the document off the screen, not out of CodeMirror
 

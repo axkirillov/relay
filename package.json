@@ -14,6 +14,7 @@
     "smoke:pty": "bash scripts/pty.sh",
     "smoke:goto": "bash scripts/goto.sh",
     "smoke:queue": "bash scripts/queue.sh",
+    "smoke:dismiss": "bash scripts/dismiss.sh",
     "smoke:latch": "bash scripts/latch.sh"
   },
   "dependencies": {
