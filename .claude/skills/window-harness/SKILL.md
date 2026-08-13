@@ -119,6 +119,34 @@ spawn("node", ["dist/relay.js", doc], {
   the product being right about a harness mistake, not a feature that broke. Read
   the footer before suspecting the feature.
 
+## Asserting on colour, not on a class name
+
+A line's class says what relay thinks the line is. It says nothing about whether
+the line came out looking like code. For that, read the spans and their computed
+colours:
+
+```js
+Array.from(line.querySelectorAll("span"))
+  .filter((s) => !s.querySelector("span"))   // leaves only
+  .map((s) => ({ text: s.textContent, cls: s.className, color: getComputedStyle(s).color }));
+```
+
+- **Leaves only, or a nested span is counted twice.** A token span can hold
+  another, and the question is what a reader sees.
+- **A HighlightStyle's classes are opaque** — `ͼ14`, and the number moves when a
+  rule is added. So assert on the computed colour and take the expected value
+  from theme.ts's palette (`#bb9af7` reads back as `rgb(187, 154, 247)`). The
+  fixed `cm-…` classes are the ones worth naming.
+- **Count the distinct colours on the line.** "Three or more" is the one
+  assertion that says *code* rather than *a coloured line*, and it survives the
+  grammar tagging something differently than you guessed.
+- **A missing span is a token the grammar never tagged, not a bug in your paint.**
+  `@codemirror/lang-php` tags a class name where it is a type and nowhere else —
+  `Order::`, `new Order`, `instanceof Order` come back with no tag at all. Two
+  checks were written against a guess about this and failed. Before believing the
+  feature is wrong, parse the same line with the bare parser under node and dump
+  every range: if the gap is there too, it is upstream.
+
 ## Read the document off the screen, not out of CodeMirror
 
 ```js
@@ -151,6 +179,11 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
   feature broken in six different ways. Log the mode and the visible line range
   after each navigation; a nav that quietly went nowhere otherwise reads as a
   broken feature.
+- **Say what each screen is supposed to hold, rather than one rule for all of
+  them.** Over a 2,805-line review, "there is diff on this screen" is false at the
+  top, where the summary is, and "everything is painted" is false over a patch of
+  a `.md` file, which has no language on purpose. Three checks failed saying so,
+  and none of them was about the feature. Give every stop its own expectation.
 - **To measure anything about scrolling, the document must be taller than the
   window.** Two runs compared a gutter before and after scrolling to a diff that
   had been on screen the whole time, which is nothing measured twice. Assert that
