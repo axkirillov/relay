@@ -46,6 +46,17 @@ selection into your reply — `⌥-drag` to select on a Mac, `⇧-drag` elsewher
 since a plain drag is nvim's own. If there is no such file nothing opens and the
 footer says what it looked for.
 
+## gx opens the link
+
+Put the cursor on a link — `https://example.com/x`, `<https://example.com/x>`,
+`[the ticket](https://example.com/x)`, all the same — and press `gx`. It opens
+wherever your machine opens links. A link further along the line is still the one
+that opens, so the cursor does not have to be placed just so.
+
+`https`, `http`, `file` and `mailto` count, and a bare `www.example.com` goes out
+as https. Nothing else does: a `javascript:` in a document is text and stays
+text. If there is no link under the cursor the footer says so, and nothing opens.
+
 ## The terminal
 
 `⌃\`` opens a real shell at the bottom of the window, in the directory relay was
@@ -89,6 +100,7 @@ pnpm test         # the line arithmetic behind :res, the queue, the window's pre
 pnpm smoke        # end to end, no window
 pnpm smoke:pty    # a shell on demand, keys in, output out, gone with the relay
 pnpm smoke:goto   # a real nvim on the file under the cursor, gone when it quits
+pnpm smoke:open   # the link under the cursor out to the machine's opener, whole and as data
 pnpm smoke:queue  # two relays, one window, in turn — opens a real window briefly
 pnpm smoke:dismiss # closing the window dismisses the queued relay too
 ```

@@ -386,6 +386,51 @@ a few back would not be a terminal. The two exceptions are the ones that have to
 `⌃\`` to leave, and `⌘Y` (`⌃⇧Y` off a Mac) to take — chosen because they are keys
 a shell has no use for.
 
+## `gx` opens the link, wherever they open links
+
+A URL in a relay document was dead text. The address a paragraph is *about* — the
+ticket, the build, the page being asked about — had to be read off the screen and
+retyped into a browser by hand. `gx` is vim's own key for it and does what vim's
+does: hands the link under the cursor to whatever this machine opens links with.
+
+**The CLI opens it, not the window.** The page is sandboxed and the window has no
+handler for opening one either, so a link goes out over the same loopback bridge
+nvim comes back on. `open` on a Mac, `xdg-open` elsewhere — the machine's own
+default rather than a browser named here — spawned with the address as one
+argument. Nothing puts it near a shell: an address is data, and a `$(…)` in a
+query string is a character of it and not a command.
+
+**Four schemes, named rather than filtered.** `https`, `http`, `file` and
+`mailto`, plus the bare `www.` a browser's address bar would take, which leaves
+as https. An allow-list, because `javascript:` and `data:text/html` are what must
+never reach a machine's opener and naming what is wanted is the only way to be
+sure of that. The rule is in the page and again in the CLI: what arrives over the
+wire is not the page's word for anything.
+
+Nothing of this happens in the window — the browser is somewhere else entirely —
+so the footer is the whole of the feedback, and it waits until the opener has
+taken the link before it says it went. An opener that refuses says so there.
+
+### What counts as a link
+
+The same reading `gf` does of a path: the link under the cursor, or the next one
+along the line, with the wrapping the document put around it left behind — an
+autolink's `<>`, a markdown link's parentheses, backticks, a table cell, the
+sentence's full stop, the `**` of emphasis. Where an address ends is its own
+business, so a bracket it opened itself stays: `.../Fold_(higher-order_function)`
+comes out whole, while the `)` that closes `[fold](…)` does not. In visual mode
+the link is looked for *inside* the selection rather than demanded of it — what a
+hand selects around an address is as likely to be the sentence it sat in.
+
+**`gx` alone, where `gf` has `gF`.** That pair is vim's own and relay collapses
+it; `gX` is not a key any hand has learnt, and inventing one is not the same
+thing.
+
+**No link, nothing opened**: a line in the footer and no more, which is the
+answer `gf` gives to the same question. A link under `gf` is told it is one
+rather than looked for as a file — the two keys are a shift apart and the
+document has both kinds of thing in it.
+
 ## Window
 
 - Full display height, roughly 60% of display width, centred.
@@ -527,6 +572,9 @@ overridable on its own.
   session to reattach to. The pane exists to answer the question on screen.
 - **`gf` opens the human's real editor, not a preview of the file.** A viewer
   would have been cheaper and was turned down.
+- **`gx` hands the link to the machine**, rather than relay having any opinion
+  about which browser or opening one in the window. What it will hand over is an
+  allow-list of schemes, checked in the page and again in the CLI.
 
 ## Out of scope for v1
 

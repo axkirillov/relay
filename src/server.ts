@@ -1,10 +1,11 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { argv, locate, which } from "./edit.js";
 import { contentType, type Images, localImages } from "./images.js";
+import { launch, openable, opener } from "./open.js";
 import { page } from "./page.js";
 import * as pty from "./pty.js";
 import { type Running, start } from "./run.js";
@@ -92,6 +93,10 @@ export async function serve(
     if (req.method === "POST" && path === "/run") {
       return handleRun(req, res, running, join(logDir, `run-${++runs}.log`));
     }
+    // A link the human's cursor was on. Out to the machine from this side for the
+    // same reason nvim is: the page is sandboxed, and the window it is in has no
+    // handler for opening one either.
+    if (req.method === "POST" && path === "/open") return handleOpen(req, res);
 
     // The terminal pane. Output is a stream the page listens to; input is one
     // request per burst of typing. The page is sandboxed and could not spawn a
@@ -274,6 +279,36 @@ function handleEdit(req: IncomingMessage, res: ServerResponse, keep: (session: p
       send(res, 200, "application/json; charset=utf-8", JSON.stringify({ file }));
     },
     () => send(res, 413, "text/plain", "too long to be a path"),
+  );
+}
+
+/**
+ * Open the link the human's cursor was on.
+ *
+ * The scheme is checked here as well as in the page. Not because the page is
+ * suspected of anything, but because an address arriving over the wire is not
+ * the page's word for anything, and `javascript:` reaching a machine's opener is
+ * the one outcome worth making impossible in both places.
+ *
+ * The answer waits for the opener rather than for a browser: what "it opened"
+ * can honestly mean here is that the machine took it, and saying so before the
+ * program has had a chance to refuse would be a footer that lies.
+ */
+function handleOpen(req: IncomingMessage, res: ServerResponse) {
+  read(req, maxCommandBytes).then(
+    (body) => {
+      const url = openable(body);
+      if (!url) return send(res, 400, "text/plain", "not a link relay will open");
+
+      const program = opener();
+      if (!program) return send(res, 503, "text/plain", "nothing on this machine's PATH opens a link");
+
+      launch(program, url).then(
+        () => res.writeHead(204).end(),
+        (err: Error) => send(res, 502, "text/plain", `${basename(program)} refused it — ${err.message}`),
+      );
+    },
+    () => send(res, 413, "text/plain", "too long to be a link"),
   );
 }
 
