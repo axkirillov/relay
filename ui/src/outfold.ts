@@ -66,16 +66,78 @@ class Earlier extends WidgetType {
 }
 
 const expand = StateEffect.define<number>();
+const collapse = StateEffect.define<null>();
+
+/** Whether a transaction is the human opening a fold. */
+export function opened(tr: { effects: readonly StateEffect<unknown>[] }): boolean {
+  return tr.effects.some((e) => e.is(expand));
+}
+
+/**
+ * Put every opened output block back behind its notice.
+ *
+ * All of them rather than the one at the caret, because that is the whole of what
+ * the human asked for — the document as it was before they went looking. Nothing
+ * distinguishes the folds from each other to make a choice between them worth
+ * making on the command line.
+ */
+export function refold(view: EditorView): boolean {
+  const state = view.state;
+  if (!state.field(expanded).length) return false;
+
+  const head = state.selection.main.head;
+  let anchor: number | null = null;
+  for (const fence of openFolds(state)) {
+    // A notice never stands over the caret, so a caret in the stretch going back
+    // behind one has to come out with it — to the top of its own block, where the
+    // notice will be.
+    if (head >= fence.range.from && head <= fence.range.to) anchor = fence.node.from;
+  }
+
+  view.dispatch({
+    effects: collapse.of(null),
+    ...(anchor === null ? {} : { selection: { anchor } }),
+  });
+  return true;
+}
 
 /** Which output blocks the human has opened, by a position inside each. */
 const expanded = StateField.define<number[]>({
   create: () => [],
   update(list, tr) {
+    if (tr.effects.some((e) => e.is(collapse))) return [];
     const mapped = tr.changes.empty ? list : list.map((p) => tr.changes.mapPos(p, 1));
     const added = tr.effects.filter((e) => e.is(expand)).map((e) => e.value as number);
     return added.length ? [...mapped, ...added] : mapped;
   },
 });
+
+/** The stretch of an output block a notice would stand in for, if one would. */
+function foldable(state: EditorState, fence: SyntaxNode) {
+  const body = child(fence, "CodeText");
+  if (!body) return null;
+
+  const first = state.doc.lineAt(body.from).number;
+  const last = state.doc.lineAt(body.to).number;
+  if (last - first + 1 < worthFolding) return null;
+
+  return {
+    from: state.doc.line(first).from,
+    to: state.doc.line(last - tailLines).to,
+    lines: last - tailLines - first + 1,
+  };
+}
+
+function openFolds(state: EditorState) {
+  const open = state.field(expanded);
+  const found: { node: SyntaxNode; range: NonNullable<ReturnType<typeof foldable>> }[] = [];
+  for (const fence of outputFences(state)) {
+    if (!open.some((p) => p >= fence.from && p <= fence.to)) continue;
+    const range = foldable(state, fence);
+    if (range) found.push({ node: fence, range });
+  }
+  return found;
+}
 
 function build(state: EditorState): DecorationSet {
   if (!isRendering(state)) return Decoration.none;
@@ -85,29 +147,23 @@ function build(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = [];
 
   for (const fence of outputFences(state)) {
-    const body = child(fence, "CodeText");
-    if (!body) continue;
     if (open.some((p) => p >= fence.from && p <= fence.to)) continue;
 
-    const first = state.doc.lineAt(body.from).number;
-    const last = state.doc.lineAt(body.to).number;
-    if (last - first + 1 < worthFolding) continue;
-
-    const from = state.doc.line(first).from;
-    const to = state.doc.line(last - tailLines).to;
+    const range = foldable(state, fence);
+    if (!range) continue;
     // Never fold the caret out of sight — the same rule that puts a rendered
     // block back to source while it is being worked on.
-    if (sel.from <= to && sel.to >= from) continue;
+    if (sel.from <= range.to && sel.to >= range.from) continue;
 
     ranges.push(
       Decoration.replace({
         widget: new Earlier(
-          last - tailLines - first + 1,
+          range.lines,
           fence.from,
-          spillPath(state.doc.sliceString(from, to)),
+          spillPath(state.doc.sliceString(range.from, range.to)),
         ),
         block: true,
-      }).range(from, to),
+      }).range(range.from, range.to),
     );
   }
 

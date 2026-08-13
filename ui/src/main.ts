@@ -11,13 +11,17 @@ import {
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { diffReview, reviewNumber } from "./diffview";
+import { type Editor, editorPane } from "./editor";
 import { fenceBackground } from "./fence";
+import { pathAt, target } from "./goto";
 import { codeLanguage } from "./languages";
 import { liveDiff, type Stats } from "./livediff";
-import { foldOutput } from "./outfold";
+import { foldOutput, opened, refold } from "./outfold";
+import { inPane } from "./pane";
 import { type Images, isRendering, renderBlocks, setRendering } from "./render";
 import { restore } from "./restore";
 import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
+import { type Pane, terminalPane } from "./terminal";
 import { markdownHighlight, theme } from "./theme";
 
 const mount = document.getElementById("editor")!;
@@ -27,6 +31,8 @@ const noteEl = document.getElementById("note")!;
 const overlayEl = document.getElementById("overlay")!;
 
 let view: EditorView;
+let pane: Pane;
+let editor: Editor;
 let sending = false;
 
 function overlay(mark: string, title: string, note: string, tone: "ok" | "error" = "ok") {
@@ -175,6 +181,24 @@ function append(text: string): boolean {
   return true;
 }
 
+/**
+ * `gf` — follow the path under the cursor into the human's own nvim.
+ *
+ * A relay document is full of `src/cli.ts:42`, and until now every one of them
+ * was a thing to go and look at somewhere else. In visual mode the selection is
+ * the path, which is the way out of a name this cannot pick out of prose.
+ */
+function gotoFile() {
+  const { state } = view;
+  const at = state.selection.main;
+  const line = state.doc.lineAt(at.head);
+  const found = at.empty
+    ? pathAt(line.text, at.head - line.from)
+    : target(state.sliceDoc(at.from, at.to).trim());
+  if (!found) return note("no path under the cursor");
+  editor.open(found);
+}
+
 function bindVim(original: string) {
   Vim.defineEx("accept", "acc", () => void accept());
   Vim.defineEx("write", "w", () => void accept());
@@ -201,11 +225,31 @@ function bindVim(original: string) {
     note(on ? "rendered" : "source");
   });
 
+  Vim.defineEx("terminal", "term", () => pane.toggle());
+  Vim.defineEx("take", "take", () => pane.take());
+
   // `:run` rather than `:r`, which is vim's own read.
   Vim.defineEx("run", "run", () => void runAtCursor());
 
+  // Opening a fold is a click; closing it again has to be said, so it is said
+  // both ways — `:fold` next to `:raw` and `:res`, and `zc`, which is what a vim
+  // user's fingers will try first.
+  const foldBack = () => note(refold(view) ? "folded" : "nothing to fold");
+  Vim.defineEx("fold", "fo", foldBack);
+  Vim.defineAction("relayFold", foldBack);
+  Vim.mapCommand("zc", "action", "relayFold", {}, { context: "normal" });
+
+
   Vim.defineAction("relayAccept", () => void accept());
   Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
+
+  // `gF` alongside `gf`: vim splits the line off between the two, this does not,
+  // and a hand that has learnt either should not have to remember which.
+  Vim.defineAction("relayGotoFile", () => gotoFile());
+  for (const keys of ["gf", "gF"]) {
+    Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "normal" });
+    Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "visual" });
+  }
 
   copyToClipboard();
 }
@@ -276,12 +320,19 @@ async function boot() {
         foldOutput(),
         sink,
         liveDiff(original, showStats),
+        // The way back is not on screen once the notice is gone, so it is said at
+        // the one moment it is wanted.
+        EditorView.updateListener.of((u) => {
+          if (u.transactions.some(opened)) note("opened — :fold, or zc, puts it back");
+        }),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
     }),
   });
 
   view.focus();
+  pane = terminalPane(view, note);
+  editor = editorPane(view, note, pane);
   getCM(view)?.on("vim-mode-change", (e: { mode: string; subMode?: string }) =>
     showMode(e.mode, e.subMode),
   );
@@ -294,6 +345,11 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
+      // ⌃X and ⌃↵ are keys a shell has its own uses for, and nvim has uses for
+      // more of them still. Inside either pane every key belongs to the child
+      // process — accepting or running from there would be relay reaching over
+      // the human's hands.
+      if (inPane(e.target)) return;
       if (!e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
 
