@@ -5,7 +5,7 @@ import { join } from "node:path";
 const dir = mkdtempSync(join(tmpdir(), "relay-queue-"));
 process.env.RELAY_QUEUE_DIR = dir;
 
-const { enter } = await import("./queue.ts");
+const { enter, line } = await import("./queue.ts");
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -107,6 +107,45 @@ const live = process.ppid; // whoever ran the test
   check("stolen ticket: put back", tickets().length, 1);
   t.leave();
   check("stolen ticket: leaves clean", tickets(), []);
+}
+
+// --- what the window reads off the line --------------------------------------
+{
+  const t = enter("serving", "/tmp/g.md");
+  check("url: none until the server is up", line()[0]?.url, undefined);
+  check("url: but the ticket says whose it is", [line()[0]?.id, line()[0]?.source], [
+    "serving",
+    "/tmp/g.md",
+  ]);
+
+  t.serving("http://127.0.0.1:1234/");
+  check("url: on the ticket once it is", line()[0]?.url, "http://127.0.0.1:1234/");
+  t.leave();
+  check("url: and gone with the relay", line(), []);
+}
+
+{
+  // The window would otherwise show a document out of turn, or lose the one on
+  // screen, on nothing worse than a ticket being taken.
+  const t = enter("robbed-serving", "/tmp/h.md");
+  t.serving("http://127.0.0.1:5678/");
+  rmSync(join(dir, tickets()[0]!));
+  check("stolen ticket: turn still comes", await turnComes(t), true);
+  check("stolen ticket: put back with its url", line()[0]?.url, "http://127.0.0.1:5678/");
+  t.leave();
+}
+
+{
+  // A relay already serving does not get the screen ahead of an older one that
+  // is still coming up: the line is by arrival, url or no url.
+  ticket(1, live);
+  const t = enter("younger", "/tmp/i.md");
+  t.serving("http://127.0.0.1:9999/");
+  check("order: the one still coming up is still first", line()[0]?.url, undefined);
+  check("order: and the one serving waits", await turnComes(t, 600), false);
+  rmSync(join(dir, `1-${live}.json`));
+  check("order: then it is shown", (await turnComes(t)) && line()[0]?.url, "http://127.0.0.1:9999/");
+  t.leave();
 }
 
 rmSync(dir, { recursive: true, force: true });
