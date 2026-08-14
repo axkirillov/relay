@@ -578,12 +578,14 @@ one thing this feature exists to make obvious. A blank is the exception, and the
 only one: it is loaded like anything else and shown without being surfaced,
 because nothing has arrived.
 
-When the line has been empty for half a second, the window starts a blank rather
-than quitting. It spawns it the way anything else starts a relay — the command,
-detached, from the human's home directory — and then waits for it in the line
-like any other document. Five seconds without one appearing means it is not
-coming, and the window quits after all; that is the old behaviour kept as the
-failure path rather than a second design.
+The first poll that finds the line empty starts a blank rather than quitting, and
+then no other for three seconds — a relay takes a moment to write its ticket, and
+every tick until it has still reads as an empty line. It spawns it the way
+anything else starts a relay — the command, detached, from the human's home
+directory — and then waits for it in the line like any other document. Five
+seconds without one appearing means it is not coming, and the window quits after
+all; that is the old behaviour kept as the failure path rather than a second
+design.
 
 Whichever relay is at the head starts a window if none is up; `~/.relay/window.json`
 is the window saying it is here, kept fresh by a heartbeat, and the head relay
