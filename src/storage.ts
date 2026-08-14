@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import { relayHome } from "./paths.ts";
 
 export type Store = {
   id: string;
@@ -28,9 +28,7 @@ export type Store = {
  * somewhere it can be re-read.
  */
 export function open(source: string, sent: string): Store {
-  const id = `${stamp()}-${slug(source)}`;
-  const dir = join(homedir(), ".relay", id);
-  mkdirSync(dir, { recursive: true });
+  const { id, dir } = claim(`${stamp()}-${slug(source)}`);
   writeFileSync(join(dir, "sent.md"), sent);
 
   const meta: Record<string, unknown> = {
@@ -71,6 +69,36 @@ export function open(source: string, sent: string): Store {
       } catch {}
     },
   };
+}
+
+/**
+ * A directory this round alone owns. The stamp is only good to the second, and
+ * two relays really can start inside one: the window puts up a blank the moment
+ * the line drains, and the key that makes a task fires whenever he presses it.
+ * Sharing a directory is not a cosmetic clash — the second round overwrites the
+ * first's `sent.md`, and a discard by either takes the other away with it.
+ *
+ * `mkdir` without `recursive` is the whole mechanism: it refuses a directory
+ * that already exists, and it refuses atomically, so of two processes asking for
+ * one name exactly one is told yes. The loser tries the next name. Names stay
+ * readable — the collision costs a `-2`, not a random suffix on every round.
+ *
+ * Exported because it is the rule, and a test that went through `open()` could
+ * only watch for the collision to happen rather than ask for one.
+ */
+export function claim(base: string): { id: string; dir: string } {
+  const home = relayHome();
+  mkdirSync(home, { recursive: true });
+  for (let n = 1; ; n++) {
+    const id = n === 1 ? base : `${base}-${n}`;
+    const dir = join(home, id);
+    try {
+      mkdirSync(dir);
+      return { id, dir };
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+    }
+  }
 }
 
 function stamp(): string {
