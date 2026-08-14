@@ -92,21 +92,22 @@ const store = storage.open(path, sent);
 // run. With no window there is nothing to line up for.
 const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path, rank());
 
-// Whether the human has typed into this document and had it saved. A blank they
-// never touched is worth nothing when the window is closed on it; one they wrote
-// in is worth saying where it went.
+// Whether there is anything of theirs in this document, as last saved. A blank
+// they never touched — or emptied again — is worth nothing when the window is
+// closed on it; one with words still in it is worth saying where they went.
 let drafted = false;
 
 // The round's own directory holds what a long command wrote, beside the document
 // it was run from.
 const relay = await serve(path, sent, prefill, store.dir, {
   onDraft(text) {
-    drafted = true;
+    drafted = !!text.trim();
     store.draft(text);
     // Their words are in it now, so it is a task they meant to write rather than
     // the blank they were offered — and it keeps the screen against anything that
-    // arrives next.
-    if (task) turn?.promote();
+    // arrives next. Deleted again, it goes back where it came in: an empty task is
+    // one relay throws away on accept, so it has nothing to hold the screen with.
+    if (task) text.trim() ? turn?.promote() : turn?.demote();
   },
   onNew: newTask,
   behind: () => turn?.behind() ?? 0,
@@ -147,8 +148,9 @@ screen?.stop();
 relay.close();
 
 if (outcome === null) {
-  // A blank nobody ever typed in leaves nothing behind: there was no document
-  // here, and a directory saying so is just litter.
+  // A blank with nothing in it leaves nothing behind, whether they never typed or
+  // took it all back out: there was no document here, and a directory saying so is
+  // just litter. The same judgement accepting an empty one makes.
   if (task && !drafted) store.discard();
   else store.abandon();
   process.stderr.write(

@@ -188,8 +188,28 @@ const live = process.ppid; // whoever ran the test
   t.promote();
   check("promote: the typed-in blank is back in front", line()[0]?.id, "blank");
   check("promote: and the agent waits", line()[1]?.id, undefined);
+
+  // And they deleted it all again, so it is the blank they were offered once
+  // more: nothing of theirs is in it to keep the screen with.
+  t.demote();
+  check("demote: the emptied blank yields again", line()[0]?.id, undefined);
+  check("demote: it is behind the agent as it was", line()[1]?.id, "blank");
+  check("demote: at the rank it entered with", line()[1]?.rank, "idle");
   t.leave();
   rmSync(join(dir, tickets()[0]!));
+}
+
+{
+  // A task they asked for outright does not hold the screen on the strength of
+  // its text, so emptying one changes nothing about where it stands.
+  ticket(1, live);
+  const t = enter("a-task", "new task", "top");
+  t.promote();
+  t.demote();
+  check("demote: an emptied task is still in front", line()[0]?.id, "a-task");
+  check("demote: still the rank it entered with", line()[0]?.rank, "top");
+  t.leave();
+  rmSync(join(dir, `1-${live}.json`));
 }
 
 // --- what is still in line behind the document on screen ---------------------

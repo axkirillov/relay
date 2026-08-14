@@ -16,6 +16,26 @@ one of these cost a failed run to learn.
 `reference/harness.cjs` is a working scaffold with the helpers already correct.
 Copy it, add your own checks at the bottom, delete it when you are done.
 
+## First check whether the question needs a window at all
+
+A window run costs minutes and can lose a round to a dropped keystroke. Two
+things a plain node script can ask instead, in seconds:
+
+- **The human closing the window is a file.** `attend()` decides a dismissal from
+  the tombstone alone — `~/.relay/closed`, `{at, url}`, dismissing every relay
+  whose `since` is older than `at`. So writing that file with `Date.now()` is
+  exactly what closing the window looks like to a queued relay, and the whole
+  `outcome === null` half of `cli.ts` — what is discarded, what is kept, what the
+  agent is told, the exit code — is testable with no Electron in the room. Set
+  `RELAY_QUEUE_DIR` and the tombstone moves with everything else.
+- **What a relay is holding is an HTTP route.** `GET /prefill` answers with the
+  current draft, so you can ask the relay what it thinks the document says without
+  reading the screen. That is also the only way to ask after the page is gone.
+
+Drive a window when the question is whether something reaches a human — a
+keystroke, a decoration, what is on screen when two documents contend. Not when
+the question is what a relay does with what it was told.
+
 ## Run it
 
 ```sh
@@ -65,7 +85,24 @@ into your own Electron process: it runs the real shell in-process, so
 - **`RELAY_QUEUE_DIR` takes the whole relay somewhere private** — queue, window
   file, tombstone, Electron's `userData` and its single-instance lock, and the
   round directories. Without it you are fighting the human's own window for the
-  lock.
+  lock. It also puts the **task hook** out of reach, which is what stops an
+  accepted blank spawning a real session.
+- **To time an arrival to the millisecond, write the ticket yourself.** The window
+  only ever reads the queue directory, so a hand-written `{pid, since, rank, url}`
+  under `<ms>-<pid>.json` *is* an arrival — use your own pid and `alive()` counts
+  it without a heartbeat. Point its `url` at a relay started with
+  `RELAY_NO_OPEN=1`, which serves a real document without joining the line. This
+  is the only way to land an arrival inside a debounce window; spawning a real
+  relay costs an unpredictable second.
+- **Which document is on screen is `location.href`, not a DOM guess.** Compare it
+  against the urls the relays printed. An empty blank's `.cm-line` text is
+  legitimately `""`, so "the page has booted" must be
+  `!!document.querySelector(".cm-content")` — a non-empty-text probe waits forever
+  on a blank.
+- **Ask the relay what it is holding, over HTTP.** `GET <url>/prefill` returns the
+  draft it has saved, from outside the page entirely. It is the only way to tell
+  "the beacon never fired" from "the keystroke never landed" once the page that
+  had the words is gone.
 - **`executeJavaScript` never settles if the page navigates while it is in
   flight.** Two runs sat at exactly that await until the deadline fired, and both
   times it was a *failure-detail* read — `document.getElementById("note")
@@ -79,6 +116,37 @@ into your own Electron process: it runs the real shell in-process, so
   correct. Patch the window's own `focus` / `show` / `showInactive` and
   `app.focus` and count the calls instead — requiring the shell in-process is
   what makes that reachable.
+- **Run it invisibly, and swallow the focus rather than passing it on.** Driving
+  the real shell means the real `surface()` fires, which drags the run in front of
+  whatever the human is doing — they asked for it to stop. Three things together,
+  and the whole suite still passed unchanged:
+  - `app.on("browser-window-created", (_e, w) => w.setOpacity(0))`. Invisible, not
+    hidden: an opacity-0 window still composites, so the DOM updates and keys
+    land. Never showing it risks the renderer being throttled as a background
+    window.
+  - Count `focus` and `app.focus` **without calling through**. Counting was always
+    the assertion; calling through is only what raises the app.
+  - Keep `show` / `showInactive` / `loadURL` calling through — the page has to
+    actually render.
+- **Taking the OS focus was never what made the keys land; the caret being in the
+  editor is.** Two rounds' keystrokes went nowhere after a document loaded over
+  another, and `win.focus()` + `app.focus({steal:true})` appeared to fix it. What
+  fixes it without touching the human's screen is
+  `document.querySelector(".cm-content").focus()` plus a beat to settle. Do that
+  after every navigation, before believing a key went missing.
+- **Keys still go missing sometimes, and a dropped keystroke is indistinguishable
+  from a regression.** Across four runs of the same suite: one round reached
+  `INSERT` and typed nothing, another landed 5 of 30 keys, a third never reached
+  `INSERT` at all — 13 and 10 downstream checks failed, every one of them reading
+  like the feature was broken, when the code had behaved correctly for the empty
+  document that actually existed. Two habits make that legible instead of
+  alarming: assert what landed as its own check right where you typed it, and
+  print the DOM text in the failure detail of every check that depends on it. Then
+  a bad run is one glance rather than a re-investigation. Judge a feature on the
+  rounds whose keys arrived, and say how many that was.
+- **Drop the screenshots in an invisible run.** There is no picture worth taking,
+  and `capturePage` on a window that does not own the screen stalls — which costs
+  the round, since the window's heartbeat goes stale while it does.
 - **`capturePage()` can stall for minutes, and the window's heartbeat goes stale
   while it does.** Every waiting relay then concludes the window died and exits,
   so the picture costs you the round. One run lost 212 seconds and its agent

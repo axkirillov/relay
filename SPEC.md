@@ -295,7 +295,22 @@ forward** — nothing has happened, so taking the screen would be a lie — and 
 is replaced the instant anything else is queued. Unless they have typed in it:
 one character promotes it to a task they made, and from then on it holds the
 screen and waits its turn like any other. That promotion is why the draft is
-saved *while* they type rather than when the document leaves.
+saved *while* they type rather than when the document leaves — and why the very
+first edit is saved at once rather than after the usual pause. The pause is a
+trailing one and never elapses while they are still typing, so a blank waiting
+for it would spend a whole typing burst still yielding the screen; the first save
+goes immediately and the rest wait, because promotion only has to happen once.
+
+Promotion is not permanent, because what earned it can be taken back. Delete
+every character and the document stands where it entered the line again: the
+window's own blank goes behind everything, and a blank the human asked for stays
+in front, since they asked for it a moment ago and its being empty is no reason
+to make them wait. That is the same judgement made on accept, where a task
+submitted empty is thrown away rather than acted on — and the same one made when
+the window is closed on it: a blank that is empty at that moment, whether they
+never typed in it or took it all back out, leaves nothing behind at all. Its
+round directory goes with it, rather than standing there holding an empty
+`draft.md`.
 
 The old quit survives as the failure path. If the blank cannot be put up — the
 one relay that was going to hold it never started — the window gives it five
@@ -562,7 +577,8 @@ knobs: a **task** the human wrote is ahead of everything, newest first; an
 agent's document is next, oldest first; a **blank** the window put up on its own
 is behind everything and is replaced the moment anything else is queued. A blank
 that has been typed in stops being one — its relay rewrites its own ticket as a
-task — which is the whole mechanism behind promotion.
+task — which is the whole mechanism behind promotion, and emptying it again
+rewrites the ticket back to the standing it entered with.
 
 The line is per-human, not per-repo: relays from four worktrees share it. No
 timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to contend
@@ -616,12 +632,14 @@ one thing this feature exists to make obvious. A blank is the exception, and the
 only one: it is loaded like anything else and shown without being surfaced,
 because nothing has arrived.
 
-When the line has been empty for half a second, the window starts a blank rather
-than quitting. It spawns it the way anything else starts a relay — the command,
-detached, from the human's home directory — and then waits for it in the line
-like any other document. Five seconds without one appearing means it is not
-coming, and the window quits after all; that is the old behaviour kept as the
-failure path rather than a second design.
+The first poll that finds the line empty starts a blank rather than quitting, and
+then no other for three seconds — a relay takes a moment to write its ticket, and
+every tick until it has still reads as an empty line. It spawns it the way
+anything else starts a relay — the command, detached, from the human's home
+directory — and then waits for it in the line like any other document. Five
+seconds without one appearing means it is not coming, and the window quits after
+all; that is the old behaviour kept as the failure path rather than a second
+design.
 
 Whichever relay is at the head starts a window if none is up; `~/.relay/window.json`
 is the window saying it is here, kept fresh by a heartbeat, and the head relay
