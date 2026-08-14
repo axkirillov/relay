@@ -216,6 +216,13 @@ export const theme = EditorView.theme(
       overflowX: "auto",
       font: '14px/1.55 ui-sans-serif, -apple-system, system-ui, sans-serif',
       color: fg,
+      // The editor keeps every space and newline of the source, which is right
+      // for the document and wrong for what has been rendered out of it: the
+      // newlines between pretty-printed tags became blank lines on screen, so a
+      // diagram written to be read in the source came out half again as tall,
+      // with gaps nothing in its CSS asked for. Inside the box the markup is
+      // markup again.
+      whiteSpace: "normal",
     },
     ".cm-relay-box > :first-child": { marginTop: 0 },
     ".cm-relay-box > :last-child": { marginBottom: 0 },
