@@ -9,6 +9,7 @@ import { createTwoFilesPatch, structuredPatch } from "diff";
 
 import { commentReport } from "./diff.js";
 import { unlatchOnExit } from "./latch.js";
+import { taskDoc } from "./page.js";
 import { taskHook } from "./paths.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
@@ -72,10 +73,8 @@ if (!shaped || help) {
   process.exit(help ? 0 : 2);
 }
 
-// `new task` is not a file and is never read from or written to. It is what the
-// window puts in its title bar and what names the round on disk, in the one place
-// a document has no path of its own.
-const path = task ? "new task" : resolve(args[0]!);
+// In the one place a document has no path of its own, it has a name instead.
+const path = task ? taskDoc : resolve(args[0]!);
 let sent = "";
 if (!task) {
   try {

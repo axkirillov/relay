@@ -17,7 +17,7 @@ import { pathAt, target } from "./goto";
 import { codeLanguage } from "./languages";
 import { liveDiff, type Stats } from "./livediff";
 import { foldOutput, opened, refold } from "./outfold";
-import { inPane } from "./pane";
+import { inPane, mac } from "./pane";
 import { type Images, isRendering, renderBlocks, setRendering } from "./render";
 import { restore } from "./restore";
 import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
@@ -105,6 +105,82 @@ async function accept() {
     sending = false;
     overlay("!", "Could not send", `${err}. Click to go back and try again.`, "error");
     overlayEl.addEventListener("click", hideOverlay, { once: true });
+  }
+}
+
+/**
+ * What the relay is already holding for this document — the prefill it opened
+ * with, and after that whatever was last saved. Text that equals it is a draft
+ * already made, and posting it again would say nothing.
+ */
+let saved = "";
+let draftTimer = 0;
+
+/**
+ * Keep what the human has typed on the relay's side of the wire.
+ *
+ * This page is destroyed the moment the window loads another document, and their
+ * words would go with it — so the relay holds them instead, and `/prefill` hands
+ * them back when this document returns. It is also how a blank stops being one:
+ * a document nobody has typed in yields the screen to whatever arrives next, and
+ * a document with their words in it does not.
+ */
+async function saveDraft(): Promise<void> {
+  window.clearTimeout(draftTimer);
+  const text = view.state.doc.toString();
+  if (text === saved) return;
+  const res = await fetch("/draft", {
+    method: "POST",
+    headers: { "Content-Type": "text/markdown" },
+    body: text,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  saved = text;
+}
+
+/**
+ * After the typing stops rather than on every keystroke — and it has to be while
+ * they type, not only on the way out: a blank that only promoted itself as the
+ * screen was taken from it would promote itself too late to keep the screen.
+ */
+function saveSoon() {
+  window.clearTimeout(draftTimer);
+  // A draft that will not save is not worth interrupting them over. The two
+  // moments it actually matters — ⌘N and the page going — say so themselves.
+  draftTimer = window.setTimeout(() => void saveDraft().catch(() => {}), 400);
+}
+
+/** Whether a task has been asked for. Never let go of again — see below. */
+let starting = false;
+
+/**
+ * ⌘N — a document of the human's own, in front of whatever they were reading.
+ *
+ * Their document is saved before the task is asked for rather than alongside it:
+ * the relay serving this page is the one holding their words, and the window is
+ * about to load somebody else's page over this one. Sequenced, not raced, which
+ * is the whole reason `/draft` is awaited here.
+ *
+ * The flag is not cleared when it works. This page has seconds to live, and a
+ * second press in the meantime would leave a second task in the line for them to
+ * find later and wonder about.
+ */
+async function newTask() {
+  if (sending || starting) return;
+  starting = true;
+  try {
+    await saveDraft();
+  } catch (err) {
+    starting = false;
+    return note(`this document would not save (${err}) — so nothing was opened`);
+  }
+  try {
+    const res = await fetch("/new", { method: "POST" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    note("a blank is coming — this document will be back");
+  } catch (err) {
+    starting = false;
+    note(`could not start a task: ${err}`);
   }
 }
 
@@ -231,6 +307,11 @@ function bindVim(original: string) {
   // `:run` rather than `:r`, which is vim's own read.
   Vim.defineEx("run", "run", () => void runAtCursor());
 
+  // vim's own `:new` opens a split, which this window has no notion of; the word
+  // is free and it is the right word. No abbreviation — `:n` is vim's next file,
+  // and a hand that meant that should not get a task instead.
+  Vim.defineEx("new", "new", () => void newTask());
+
   // Opening a fold is a click; closing it again has to be said, so it is said
   // both ways — `:fold` next to `:raw` and `:res`, and `zc`, which is what a vim
   // user's fingers will try first.
@@ -298,6 +379,9 @@ async function boot() {
     fetch("/local").then((r) => (r.ok ? (r.json() as Promise<Images>) : {})),
   ]);
   bindVim(original);
+  // What the relay already has. On a document that has been on screen before,
+  // this is the human's own draft coming back rather than what the agent sent.
+  saved = start;
 
   view = new EditorView({
     parent: mount,
@@ -324,6 +408,7 @@ async function boot() {
         // the one moment it is wanted.
         EditorView.updateListener.of((u) => {
           if (u.transactions.some(opened)) note("opened — :fold, or zc, puts it back");
+          if (u.docChanged) saveSoon();
         }),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
@@ -345,6 +430,18 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
+      // Asking for a task is not this document's business, so it is answered
+      // from anywhere — including a pane, the way ⌘Y already is. A ⌘ chord
+      // cannot reach a program in a terminal at all, so there is nothing here to
+      // take out of the child process's hands.
+      if (mac ? e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "n"
+              : e.ctrlKey && e.shiftKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        e.stopPropagation();
+        void newTask();
+        return;
+      }
+
       // ⌃X and ⌃↵ are keys a shell has its own uses for, and nvim has uses for
       // more of them still. Inside either pane every key belongs to the child
       // process — accepting or running from there would be relay reaching over
@@ -375,6 +472,22 @@ async function boot() {
     },
     true,
   );
+
+  document.getElementById("new-keys")!.textContent = mac ? "⌘N" : "⌃⇧N";
+
+  // A document can lose the screen for reasons nobody asked for: the window
+  // loading the next one, a reload, the page dying. Whatever the reason, the
+  // last thing typed should be there when it comes back — so this is the catch
+  // for everything the debounce above had not got to yet. A beacon rather than a
+  // fetch, because a request started by a page that is already going is not
+  // guaranteed to leave; and not after an accept, where the reply is the answer
+  // and the relay is closing anyway.
+  window.addEventListener("pagehide", () => {
+    if (sending) return;
+    const text = view.state.doc.toString();
+    if (text === saved) return;
+    navigator.sendBeacon("/draft", new Blob([text], { type: "text/markdown" }));
+  });
 }
 
 void boot();
