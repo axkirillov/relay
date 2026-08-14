@@ -16,6 +16,26 @@ one of these cost a failed run to learn.
 `reference/harness.cjs` is a working scaffold with the helpers already correct.
 Copy it, add your own checks at the bottom, delete it when you are done.
 
+## First check whether the question needs a window at all
+
+A window run costs minutes and can lose a round to a dropped keystroke. Two
+things a plain node script can ask instead, in seconds:
+
+- **The human closing the window is a file.** `attend()` decides a dismissal from
+  the tombstone alone — `~/.relay/closed`, `{at, url}`, dismissing every relay
+  whose `since` is older than `at`. So writing that file with `Date.now()` is
+  exactly what closing the window looks like to a queued relay, and the whole
+  `outcome === null` half of `cli.ts` — what is discarded, what is kept, what the
+  agent is told, the exit code — is testable with no Electron in the room. Set
+  `RELAY_QUEUE_DIR` and the tombstone moves with everything else.
+- **What a relay is holding is an HTTP route.** `GET /prefill` answers with the
+  current draft, so you can ask the relay what it thinks the document says without
+  reading the screen. That is also the only way to ask after the page is gone.
+
+Drive a window when the question is whether something reaches a human — a
+keystroke, a decoration, what is on screen when two documents contend. Not when
+the question is what a relay does with what it was told.
+
 ## Run it
 
 ```sh
