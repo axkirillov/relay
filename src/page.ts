@@ -223,6 +223,7 @@ export function page(source: string): string {
     <span><kbd>⌃\`</kbd> terminal</span>
     <span><kbd>⌃↵</kbd> run a command</span>
     <span><kbd>gf</kbd> open the file</span>
+    <span><kbd>gx</kbd> open the link</span>
     <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>:raw</kbd> render on/off</span>
     <span><kbd id="new-keys">⌘N</kbd> new task</span>

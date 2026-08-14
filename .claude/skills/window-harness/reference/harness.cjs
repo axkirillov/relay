@@ -19,6 +19,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const DOC = `Array.from(document.querySelectorAll(".cm-line")).map(l => l.textContent).join("\\n")`;
 const MODE = `document.getElementById("mode").textContent`;
 const NOTE = `document.getElementById("note").textContent`;
+const PANEL = `document.querySelector(".cm-vim-panel input")?.value ?? null`;
+/** Which line the caret is on — off the native selection, never off `.cm-cursor`. */
+const CARET = `(() => {
+  let n = window.getSelection()?.focusNode;
+  while (n && !(n.nodeType === 1 && n.classList?.contains("cm-line"))) n = n.parentNode;
+  return n ? n.textContent : null;
+})()`;
 
 let failures = 0;
 let checks = 0;
@@ -112,14 +119,20 @@ app.whenReady().then(async () => {
   const text = () => js(DOC);
   const shot = async (name) => writeFileSync(join(shots, name), (await win.webContents.capturePage()).toPNG());
 
-  /** The caret onto the first match from the top, by a real `/` search. */
+  /**
+   * The caret onto the first match from the top, by a real `/` search, and the
+   * line it landed on — the opener is the key that goes missing, so a nav that
+   * went nowhere has to be visible as that rather than as a broken feature.
+   */
   const goto = async (pattern) => {
     await nkeys(win, "gg");
     await prompt(win, "/", pattern);
+    return js(CARET);
   };
 
   // --- your checks go here ----------------------------------------------------
-  await goto("something in the document");
+  const line = await goto("something in the document");
+  ok("the caret got there", (line ?? "").includes("something in the document"), line);
   ok("it is on screen", (await text()).includes("something in the document"));
   await shot("state.png");
 

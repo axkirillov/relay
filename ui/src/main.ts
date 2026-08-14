@@ -15,6 +15,7 @@ import { type Editor, editorPane } from "./editor";
 import { fenceBackground } from "./fence";
 import { pathAt, target } from "./goto";
 import { codeLanguage } from "./languages";
+import { url, urlAt } from "./link";
 import { liveDiff, type Stats } from "./livediff";
 import { foldOutput, opened, refold } from "./outfold";
 import { inPane, mac } from "./pane";
@@ -272,7 +273,44 @@ function gotoFile() {
     ? pathAt(line.text, at.head - line.from)
     : target(state.sliceDoc(at.from, at.to).trim());
   if (!found) return note("no path under the cursor");
+  // A link is path-shaped enough to reach here, and looking for one under the
+  // cwd only to report that it is not there is no longer the best answer
+  // available.
+  if (url(found.path)) return note("that is a link — gx opens it");
   editor.open(found);
+}
+
+/**
+ * `gx` — open the link under the cursor, wherever the machine opens links.
+ *
+ * A URL in a relay document was dead text: the address the paragraph was about
+ * had to be retyped by hand into a browser. This is vim's own key for it, and
+ * the way out is the CLI, because the page can no more open a browser than it
+ * can spawn nvim.
+ *
+ * Nothing happens in the window — nothing here can, the browser is somewhere
+ * else entirely — so the footer is the whole of what the human gets back, and it
+ * says what left rather than that something did.
+ */
+async function openLink() {
+  const { state } = view;
+  const at = state.selection.main;
+  const line = state.doc.lineAt(at.head);
+  // In visual mode the link is looked for inside the selection rather than
+  // demanded of it: what is selected around an address is as likely to be the
+  // sentence it was in as the address itself.
+  const found = at.empty
+    ? urlAt(line.text, at.head - line.from)
+    : urlAt(state.sliceDoc(at.from, at.to), 0);
+  if (!found) return note("no link under the cursor");
+
+  try {
+    const answer = await fetch("/open", { method: "POST", body: found });
+    if (!answer.ok) return note(await answer.text());
+  } catch {
+    return note("relay is not there any more");
+  }
+  note(`opened ${found}`);
 }
 
 function bindVim(original: string) {
@@ -331,6 +369,13 @@ function bindVim(original: string) {
     Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "normal" });
     Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "visual" });
   }
+
+  // `gx` alone, unlike `gf` above: the pair there is vim's own, and collapsing
+  // two keys a hand already knows is not the same as inventing a `gX` for it to
+  // learn.
+  Vim.defineAction("relayOpenLink", () => void openLink());
+  Vim.mapCommand("gx", "action", "relayOpenLink", {}, { context: "normal" });
+  Vim.mapCommand("gx", "action", "relayOpenLink", {}, { context: "visual" });
 
   copyToClipboard();
 }
