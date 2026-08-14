@@ -306,7 +306,11 @@ every character and the document stands where it entered the line again: the
 window's own blank goes behind everything, and a blank the human asked for stays
 in front, since they asked for it a moment ago and its being empty is no reason
 to make them wait. That is the same judgement made on accept, where a task
-submitted empty is thrown away rather than acted on.
+submitted empty is thrown away rather than acted on — and the same one made when
+the window is closed on it: a blank that is empty at that moment, whether they
+never typed in it or took it all back out, leaves nothing behind at all. Its
+round directory goes with it, rather than standing there holding an empty
+`draft.md`.
 
 The old quit survives as the failure path. If the blank cannot be put up — the
 one relay that was going to hold it never started — the window gives it five
