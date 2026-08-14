@@ -105,8 +105,9 @@ const relay = await serve(path, sent, prefill, store.dir, {
     store.draft(text);
     // Their words are in it now, so it is a task they meant to write rather than
     // the blank they were offered — and it keeps the screen against anything that
-    // arrives next.
-    if (task) turn?.promote();
+    // arrives next. Deleted again, it goes back where it came in: an empty task is
+    // one relay throws away on accept, so it has nothing to hold the screen with.
+    if (task) text.trim() ? turn?.promote() : turn?.demote();
   },
   onNew: newTask,
 });

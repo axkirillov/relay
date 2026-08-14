@@ -114,6 +114,16 @@ into your own Electron process: it runs the real shell in-process, so
   fixes it without touching the human's screen is
   `document.querySelector(".cm-content").focus()` plus a beat to settle. Do that
   after every navigation, before believing a key went missing.
+- **Keys still go missing sometimes, and a dropped keystroke is indistinguishable
+  from a regression.** Across four runs of the same suite: one round reached
+  `INSERT` and typed nothing, another landed 5 of 30 keys, a third never reached
+  `INSERT` at all — 13 and 10 downstream checks failed, every one of them reading
+  like the feature was broken, when the code had behaved correctly for the empty
+  document that actually existed. Two habits make that legible instead of
+  alarming: assert what landed as its own check right where you typed it, and
+  print the DOM text in the failure detail of every check that depends on it. Then
+  a bad run is one glance rather than a re-investigation. Judge a feature on the
+  rounds whose keys arrived, and say how many that was.
 - **Drop the screenshots in an invisible run.** There is no picture worth taking,
   and `capturePage` on a window that does not own the screen stalls — which costs
   the round, since the window's heartbeat goes stale while it does.

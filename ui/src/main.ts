@@ -116,6 +116,7 @@ async function accept() {
  */
 let saved = "";
 let draftTimer = 0;
+let everSaved = false;
 
 /**
  * Keep what the human has typed on the relay's side of the wire.
@@ -146,6 +147,16 @@ async function saveDraft(): Promise<void> {
  */
 function saveSoon() {
   window.clearTimeout(draftTimer);
+  // The first edit is the one that promotes a blank, and a trailing debounce
+  // never fires while they are still typing — so a burst of typing would leave
+  // the document yielding the screen for as long as the burst lasted. That one
+  // goes now; the rest still wait for a pause, since promotion only has to
+  // happen once.
+  if (!everSaved) {
+    everSaved = true;
+    void saveDraft().catch(() => {});
+    return;
+  }
   // A draft that will not save is not worth interrupting them over. The two
   // moments it actually matters — ⌘N and the page going — say so themselves.
   draftTimer = window.setTimeout(() => void saveDraft().catch(() => {}), 400);

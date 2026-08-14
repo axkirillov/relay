@@ -40,6 +40,13 @@ export type Turn = {
    * lose the screen to a document that has just arrived.
    */
   promote(): void;
+  /**
+   * Undo a `promote()` once the words that earned it are deleted. Restores the
+   * rank this relay entered with rather than `idle`: only the window's own blank
+   * entered behind everything, and a task the human asked for outright should
+   * not fall to the back of the line for being empty.
+   */
+  demote(): void;
   /** Resolves once every relay ahead of this one is done. */
   wait(): Promise<void>;
   leave(): void;
@@ -112,6 +119,10 @@ export function enter(id: string, source: string, rank: Rank = "normal"): Turn {
     },
     promote() {
       fields.rank = "top";
+      rewrite();
+    },
+    demote() {
+      fields.rank = rank;
       rewrite();
     },
     async wait() {
