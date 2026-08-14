@@ -21,14 +21,17 @@ relay <file.md>  ──> stdout: a unified diff
   the line ──head──> one Electron window
 ```
 
-The window belongs to no relay. Whichever one finds none up starts it, it shows
-whoever is at the head of the line, and it quits itself once the line is empty.
+The window belongs to no relay. Whichever one finds none up starts it, and it
+shows whoever is at the head of the line. When the line runs dry it puts up a
+blank of its own rather than quitting, so the key that starts a task always has
+a window to be pressed in.
 
 **Not an MCP server.** One process per relay, alive for exactly as long as the
-human takes, then gone; the window outlives the relay that started it, but only
-while there is something to show. Nothing to register, nothing running between
-calls, and any agent that can run a command can use it — as can a person, by
-hand.
+human takes, then gone; the window outlives the relay that started it. What runs
+between calls is one relay holding a blank document, which is the same process
+every other document arrives in rather than a daemon of a second kind — there is
+still nothing to register, and any agent that can run a command can use it, as
+can a person, by hand.
 
 The cost is that an agent must run it as a background command rather than a
 foreground one, because harnesses cap how long a foreground command may take
@@ -51,15 +54,17 @@ stays possible if that ever becomes the wrong trade.
 
 ## Exit
 
-- **0** — accepted. stdout is the diff, or a line saying nothing changed.
-- **1** — the window was closed without a reply. stdout is empty.
+- **0** — accepted. stdout is the diff, or a line saying nothing changed — or,
+  for a document the human started themselves, the text they wrote.
+- **1** — the window was closed without a reply, or a blank was accepted empty.
+  stdout is empty.
 - **2** — bad usage, or the file could not be read.
 
 ## Accepting is unmistakable
 
-The document goes. Either the next one is there in its place or the window
-itself goes; either way what was on screen is gone, and that is the
-confirmation — there is nothing to notice and nothing to miss.
+The document goes. Either the next one is there in its place or a blank is;
+either way what was on screen is gone, and that is the confirmation — there is
+nothing to notice and nothing to miss.
 
 Ordering matters here, and an earlier build got it wrong: it printed its result
 and exited the instant the reply arrived, killing the HTTP server before the
@@ -229,6 +234,87 @@ the headers above it say which file and which line it is against.
 
 No widgets, no schema. The agent asks in ordinary text; the human answers by
 editing. They are never boxed into options the agent thought of.
+
+## A task the human starts
+
+Every relay above came from an agent: it wrote a file, ran the command, and a
+human answered. This is that arrow reversed. **`⌘N`** — `⌃⇧N` off a Mac, the way
+`⌘Y` already has a twin — or **`:new`** puts up a document nobody sent, and what
+the human writes in it starts a session that was not running. A sentence, a
+paragraph, a pasted Slack or Jira link: whatever is enough for an agent to work
+from, in their own words, with nobody to be brief for.
+
+**The gesture is in the window, not in tmux.** A key binding somewhere else
+would mean leaving the window to use it, and the window is what is in front of
+them at the moment the thought arrives — they are already reading a document
+when they remember the other thing. (A command palette is the obvious home for
+this and for `:run`, `:res` and the rest; it is a feature of its own and not
+this one.)
+
+**Accepting it hands the text to a command.** There is no diff, because nobody
+wrote an original to diff against: every character is theirs, so the whole
+document is the answer and stdout is the text itself. Then relay runs
+`~/.relay/task` — `$RELAY_TASK` overrides — with the round's directory as its
+one argument, where `accepted.md` is what was written.
+
+**relay knows nothing about repos, worktrees or tntcs, and must not.** Which
+repository a task belongs to, whether it needs a worktree, how a session is
+opened on it — those are one person's conventions, and a document editor that
+knew them would be the wrong tool holding them. The hook is where they live. It
+is also the second reversal this feature asks for: relay runs a command of the
+human's on their behalf, which nothing in the design did before. It is a
+one-line contract in both directions, and relay does not wait for it.
+
+**An empty accept costs nothing.** No command, no session, and no round left on
+disk — pressing the key and changing your mind has to be free, or the key
+becomes a thing to be careful with.
+
+### A task jumps the line
+
+The line is FIFO among agents, and stays that way: four agents that asked in an
+order are answered in it. A task the human wrote is not one of those. It goes
+to the front, because they made it a second ago and it is what they are thinking
+about — waiting behind an agent's document for their own would be the tool
+arguing with them.
+
+Among tasks the **newest** wins, which is what makes pressing the key twice do
+the obvious thing: hand them a fresh blank rather than the one they half-wrote
+and set aside. The one they set aside is still there, one place behind.
+
+### The window stops leaving
+
+When the line runs dry the window no longer quits — it puts up a blank of its
+own instead. This reverses *"the window is not permanent"*, and it follows from
+the gesture: a key that starts a task is worth nothing if the window it lives in
+has just disappeared, and the moment the line empties is exactly when the next
+thing to ask for comes to mind.
+
+An automatic blank and a blank the human asked for are the same document and
+differ only in standing. The automatic one is **shown without being brought
+forward** — nothing has happened, so taking the screen would be a lie — and it
+is replaced the instant anything else is queued. Unless they have typed in it:
+one character promotes it to a task they made, and from then on it holds the
+screen and waits its turn like any other. That promotion is why the draft is
+saved *while* they type rather than when the document leaves.
+
+The old quit survives as the failure path. If the blank cannot be put up — the
+one relay that was going to hold it never started — the window gives it five
+seconds and then goes, rather than sitting on an empty screen forever.
+
+### Half-written text survives being set aside
+
+A document that loses the screen keeps what was typed in it and opens on it
+again when it comes back. This was not free and it was worth it: without it,
+`⌘N` over a half-written reply would silently spend it, and a key that can
+destroy what you were writing is a key you use carefully rather than freely.
+
+`⌘N` saves before it asks — the save is awaited, then the new document is
+requested, so the order is sequenced rather than raced. A document leaving for
+any other reason saves as it goes, which is best-effort by nature: the page is
+being destroyed, and what the browser will still send at that point is a beacon,
+not a promise. Between the two there is the save while typing, which the blank's
+promotion needs anyway, so the window a best-effort save could lose is the
+typing of the last moment rather than the paragraph.
 
 ## A terminal in the window
 
@@ -407,32 +493,47 @@ stack — which one needs to be reviewed first."* Four relays should be four
 documents in a row, not four windows to sort through. There is no ordering
 problem left to have: what is on the screen is what to read.
 
-The window is not permanent. It appears with the first document, stays as long
-as documents keep arriving, and goes once the last one is answered and nobody is
-waiting — so relay keeps its "nothing running between calls" property.
+The window appears with the first document and stays. It used to go once the
+last one was answered; it now holds a blank instead, for the reasons under
+*The window stops leaving*.
 
 ### The line
 
 With no daemon to hold a queue, the queue is a directory. Each relay writes a
 ticket named for its arrival, `~/.relay/queue/<ms>-<pid>.json`, holding the URL
-its document is served at. The oldest live ticket is the one on screen; everyone
-polls. There is no lock to go stale, and a relay that dies is swept from the line
-by whoever notices — its PID no longer answers, or its ticket has stopped being
-touched (which is how a PID recycled onto an unrelated process is told from a
-relay).
+its document is served at and what standing it has. The head live ticket is the
+one on screen; everyone polls. There is no lock to go stale, and a relay that
+dies is swept from the line by whoever notices — its PID no longer answers, or
+its ticket has stopped being touched (which is how a PID recycled onto an
+unrelated process is told from a relay).
 
-The line is per-human, not per-repo: relays from four worktrees share it. FIFO,
-no timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to
-contend for. The HTTP server comes up immediately either way, so a queued relay
-is serving its document and printing its URL while it waits.
+Three standings, and they are an ordering rather than a priority scheme with
+knobs: a **task** the human wrote is ahead of everything, newest first; an
+agent's document is next, oldest first; a **blank** the window put up on its own
+is behind everything and is replaced the moment anything else is queued. A blank
+that has been typed in stops being one — its relay rewrites its own ticket as a
+task — which is the whole mechanism behind promotion.
+
+The line is per-human, not per-repo: relays from four worktrees share it. No
+timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to contend
+for. The HTTP server comes up immediately either way, so a queued relay is
+serving its document and printing its URL while it waits.
 
 ### Nobody owns the window
 
 The window follows the line rather than being handed a document. It reads the
 line eight times a second, loads whatever is at the head, and surfaces itself
 every time that changes — a document arriving in a window already open is the
-one thing this feature exists to make obvious. When the line has been empty for
-half a second, it quits.
+one thing this feature exists to make obvious. A blank is the exception, and the
+only one: it is loaded like anything else and shown without being surfaced,
+because nothing has arrived.
+
+When the line has been empty for half a second, the window starts a blank rather
+than quitting. It spawns it the way anything else starts a relay — the command,
+detached, from the human's home directory — and then waits for it in the line
+like any other document. Five seconds without one appearing means it is not
+coming, and the window quits after all; that is the old behaviour kept as the
+failure path rather than a second design.
 
 Whichever relay is at the head starts a window if none is up; `~/.relay/window.json`
 is the window saying it is here, kept fresh by a heartbeat, and the head relay
@@ -486,20 +587,30 @@ is no gate there is no file, and nothing to remove.
 
 ```
 ~/.relay/<timestamp>-<slug>/
-  meta.json       # id, source path, opened/accepted times, cwd
+  meta.json       # id, source path, opened/accepted/drafted times, cwd
   sent.md         # exactly what the agent showed
-  accepted.md     # what the human accepted
+  accepted.md     # what the human accepted — for a task, the whole of it
+  draft.md        # what they had typed when the document left the screen
   diff.patch      # the patch the agent was told, and only the patch
 
 ~/.relay/queue/   # a ticket per relay waiting for the screen
 ~/.relay/window.json  # the window, while it is up: pid, and a heartbeat
 ~/.relay/closed   # the last close: when, and what was on screen
+~/.relay/task     # what to run when the human wrote the document themselves
 ~/.relay/window/  # Electron's userData, including its single-instance lock
 ```
 
 Comments left in a diff are not stored beside it: they are lines of
 `accepted.md`, and reading them back out of it later is the same parse that put
 them in the answer.
+
+The timestamp counts seconds, which used to be enough to tell two rounds apart
+and no longer is: the window puts up a blank the moment the line drains, and the
+key that starts a task fires whenever it is pressed. So the directory is claimed
+rather than assumed — `mkdir` without `recursive`, which refuses an existing
+name and refuses it atomically, and the loser of a tie takes `-2`. The stakes
+are higher than a clash of names: a shared directory means one round's document
+lands on the other's, and either one being discarded takes both away.
 
 `RELAY_QUEUE_DIR` moves all of it, the window included — the one handle a test
 needs to put a whole relay somewhere private, rather than each path being
@@ -512,8 +623,14 @@ overridable on its own.
 - **A blocked call waits forever.** No timeout.
 - **Always one window.** Not one at a time — one. Every document goes through
   it, and a second relay never puts a second window on the screen.
-- **The window is not permanent.** It comes with the first document and goes
-  with the last, rather than running always and waiting for work.
+- **The window stays.** It comes with the first document and then holds a blank
+  when the line runs dry, because a key that starts a task needs a window to be
+  pressed in. This reverses *"the window is not permanent"*, which stood here
+  until the human asked for that key.
+- **relay may run a command of the human's.** An accepted task is handed to
+  `~/.relay/task`. Nothing else in the design has relay acting on its own
+  behalf, and this is the deliberate exception: the alternative was teaching a
+  document editor about repositories.
 - **One document at a time.** The next appears the moment the current one is
   answered. No tabs, no list of what is waiting.
 - **Closing the window dismisses everything**, not only the document on screen.
@@ -538,6 +655,10 @@ overridable on its own.
   fold is a replace decoration, and replacing lines inside the one block whose
   whole point is that its lines stay editable text is the wrong direction to
   push this in for a patch of reviewable size.
+- A command palette. `:new`, `:run`, `:res`, `:raw` and the rest have earned one
+  between them, and it is the natural way to find a key you have not learnt yet
+  — but it is a feature about all of them rather than part of any one, so it
+  waits.
 - Structured JSON return
 - Widgets (radio, checkbox, text field)
 - Live-preview markdown rendering

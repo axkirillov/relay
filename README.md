@@ -11,7 +11,8 @@ edits it anywhere they like; their edits are highlighted live against what the
 agent sent. On accept the document leaves the screen and the unified diff of
 their edits is printed to stdout.
 
-- exit **0** — accepted; stdout is the diff
+- exit **0** — accepted; stdout is the diff (or, for a document the human
+  started themselves, the text they wrote)
 - exit **1** — the window was closed without a reply; stdout is empty
 - exit **2** — bad usage, or the file could not be read
 
@@ -31,6 +32,24 @@ normal mode, the selection in visual mode, or a range like `:12,18res`. Lines
 are numbered so they can be pointed at in a reply. Whatever a yank or a delete
 takes reaches the system clipboard as well as vim's own register — vim's
 `clipboard=unnamed` — so what `y` picks up leaves the window with you.
+
+## Starting a task from the window
+
+`⌘N` (`⌃⇧N` off a Mac), or `:new`, puts up an empty document that no agent sent.
+Write what you want done — a sentence, a paragraph, a pasted Slack or Jira link
+— and accept it: the text goes to stdout, and relay runs `~/.relay/task` with
+the round's directory, where `accepted.md` is what you wrote. That script is
+yours; relay knows nothing about repositories or sessions and only hands over
+the text. Set `$RELAY_TASK` to point somewhere else. Accepting an empty one
+costs nothing at all — no script, no round on disk.
+
+It jumps whatever is on screen, and pressing it again gives you another blank
+rather than the one you half-wrote; that one is a place behind, with every
+character you typed still in it. The same goes for the document it interrupted.
+
+When nothing is queued the window puts up a blank of its own instead of closing,
+without taking the focus. It is replaced the moment anything is queued — unless
+you have typed in it, which makes it a task like any other.
 
 ## gf opens the file
 
@@ -74,10 +93,10 @@ never a doubt about which one to read first. Closing the window dismisses them
 all: it is the gesture for clearing the screen, not for skipping one document.
 
 The window is nobody's in particular. Whichever relay finds none up starts it,
-it stays for the ones behind, and it quits itself once the line is empty — so no
-MCP server, no daemon, no registration, and nothing left running between calls.
-One process per relay, for as long as the human takes. Any agent that can run a
-command can use it.
+and it stays for the ones behind — so no MCP server, no daemon and no
+registration. One process per relay, for as long as the human takes; what is
+left running between calls is a relay holding a blank, which is the same process
+every other document arrives in. Any agent that can run a command can use it.
 
 ## Build
 

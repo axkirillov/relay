@@ -44,8 +44,8 @@ Copy it, add your own checks at the bottom, delete it when you are done.
 ## Driving the shared window, not one of your own
 
 The above builds its own `BrowserWindow`. To test the window itself — the frame
-every document goes through, the handover between two relays, the quit when the
-line runs dry — you want the real one. `require("<worktree>/dist/shell.cjs")`
+every document goes through, the handover between two relays, what it does when
+the line runs dry — you want the real one. `require("<worktree>/dist/shell.cjs")`
 into your own Electron process: it runs the real shell in-process, so
 `BrowserWindow.getAllWindows()[0]` is the actual window and `capturePage` and
 `executeJavaScript` reach it.
@@ -63,8 +63,27 @@ into your own Electron process: it runs the real shell in-process, so
   the window waits on rather than shows. Delete it when you want the first real
   document on screen.
 - **`RELAY_QUEUE_DIR` takes the whole relay somewhere private** — queue, window
-  file, tombstone, Electron's `userData` and its single-instance lock. Without
-  it you are fighting the human's own window for the lock.
+  file, tombstone, Electron's `userData` and its single-instance lock, and the
+  round directories. Without it you are fighting the human's own window for the
+  lock.
+- **`executeJavaScript` never settles if the page navigates while it is in
+  flight.** Two runs sat at exactly that await until the deadline fired, and both
+  times it was a *failure-detail* read — `document.getElementById("note")
+  .textContent` — taken right after the key that loads the next document, so the
+  harness hung while explaining itself rather than while testing anything. Race
+  every DOM read against a timeout, especially the ones that only run when a
+  check has already failed.
+- **`isFocused()` is worthless in a harness that never owns the screen.** Every
+  window reads back unfocused whatever the shell did, so "it did not steal the
+  focus" and "it announced itself" both failed while both behaviours were
+  correct. Patch the window's own `focus` / `show` / `showInactive` and
+  `app.focus` and count the calls instead — requiring the shell in-process is
+  what makes that reachable.
+- **`capturePage()` can stall for minutes, and the window's heartbeat goes stale
+  while it does.** Every waiting relay then concludes the window died and exits,
+  so the picture costs you the round. One run lost 212 seconds and its agent
+  relay that way. Race the screenshot against a short timeout and treat a missed
+  picture as nothing — the DOM reads are the assertions.
 
 ## Spawn the relay from inside the harness
 
@@ -224,6 +243,11 @@ page — there is no way to ask the editor for its state. The DOM is what you ha
   directory, an env var, the document's own path.
 - **`pgrep -f "sleep 30"` matches the shell `pgrep` itself runs in.** Write the
   pattern so it cannot match itself: `sleep 3[0]`.
+- **A harness that dies without sweeping leaves an Electron holding the
+  single-instance lock**, and the next run exits 0 with an empty log — which
+  reads as a run that did nothing rather than one that never started. Sweep on
+  every exit path, the deadline included, and kill by the pids on your own
+  private queue's tickets: they are the relays you spawned and nobody else's.
 - **zsh execs into the last command of `sh -c "a; b"`**, so the wrapper's argv
   loses the earlier text. To find the wrapper later, do not put the long-running
   command last.
