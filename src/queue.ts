@@ -30,6 +30,13 @@ function ranked(r: unknown): Rank {
 export type Turn = {
   /** Relays ahead of this one in line when it joined. */
   ahead: number;
+  /**
+   * How many relays are waiting behind this one, as of now. Read while the
+   * human is looking at the document, so it is counted afresh every time rather
+   * than remembered from when this relay joined: the line grows and shrinks
+   * under them while they read.
+   */
+  behind(): number;
   /** When this relay joined the line. What a dismissal is measured against. */
   since: number;
   /** Say where this relay's document can be read, so the window can show it. */
@@ -106,6 +113,18 @@ export function enter(id: string, source: string, rank: Rank = "normal"): Turn {
     ahead: Math.max(0, line(dir).findIndex((t) => t.name === name)),
     since,
     leave,
+    behind() {
+      const waiting = line(dir);
+      const mine = waiting.findIndex((t) => t.name === name);
+      // Somebody has taken our ticket and `wait` has not put it back yet. There
+      // is no place to count from, and a number counted from nowhere is worse
+      // than no number at all.
+      if (mine < 0) return 0;
+      // The blank is never one of them: it holds the screen for want of anyone
+      // else and yields the moment it is wanted, so it is not something the
+      // human has left to answer.
+      return waiting.slice(mine + 1).filter((t) => t.rank !== "idle").length;
+    },
     serving(url) {
       fields.url = url;
       rewrite();

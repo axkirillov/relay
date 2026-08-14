@@ -109,6 +109,7 @@ const relay = await serve(path, sent, prefill, store.dir, {
     if (task) turn?.promote();
   },
   onNew: newTask,
+  behind: () => turn?.behind() ?? 0,
 });
 // The window reads this off the ticket. Until it is there the window waits,
 // rather than skipping ahead to someone who is already serving.

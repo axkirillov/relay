@@ -192,6 +192,33 @@ const live = process.ppid; // whoever ran the test
   rmSync(join(dir, tickets()[0]!));
 }
 
+// --- what is still in line behind the document on screen ---------------------
+{
+  // None of these tickets has a url: a relay whose server is not up yet is in
+  // the line and will be shown, so it counts from the moment it arrives.
+  const t = enter("head", "/tmp/j.md");
+  check("waiting: nothing at first", t.behind(), 0);
+
+  const at = Date.now() + 1000;
+  ticket(at, live);
+  ticket(at + 1, live);
+  check("waiting: two agents in line", t.behind(), 2);
+
+  ticket(at + 2, live, 0, "idle");
+  check("waiting: the blank is not one of them", t.behind(), 2);
+
+  rmSync(join(dir, `${at}-${live}.json`));
+  check("waiting: one fewer as they leave", t.behind(), 1);
+
+  // A task the human just wrote goes in front of what they are reading, so it
+  // is never something they have left to answer.
+  ticket(at + 3, live, 0, "top");
+  check("waiting: a task is ahead, not behind", t.behind(), 1);
+
+  t.leave();
+  for (const n of [at + 1, at + 2, at + 3]) rmSync(join(dir, `${n}-${live}.json`));
+}
+
 check("nothing left behind", tickets(), []);
 
 rmSync(dir, { recursive: true, force: true });

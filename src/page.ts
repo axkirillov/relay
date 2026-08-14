@@ -149,6 +149,9 @@ export function page(source: string): string {
   #mode.visual { color: #ff9e64; }
   #stats .add { color: var(--add); }
   #stats .del { color: var(--del); }
+  /* The footer's own colour rather than the accent: what is in line is a
+     standing fact about the screen, not something that just happened. */
+  #queue { color: var(--fg); }
   #note { color: var(--accent); }
   #accept {
     -webkit-app-region: no-drag;
@@ -218,6 +221,7 @@ export function page(source: string): string {
   <footer>
     <span id="mode">NORMAL</span>
     <span id="stats">unchanged</span>
+    <span id="queue"></span>
     <span id="note"></span>
     <span class="spacer"></span>
     <span><kbd>⌃\`</kbd> terminal</span>

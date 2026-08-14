@@ -569,6 +569,44 @@ timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to contend
 for. The HTTP server comes up immediately either way, so a queued relay is
 serving its document and printing its URL while it waits.
 
+### How much is left
+
+The footer says how many documents are still in line behind the one on screen —
+`3 more waiting`, after the edit count, in the footer's own colour rather than
+the accent, which is for things that have just happened. It answers the question
+the human has while they are reading: *is this the last one, or am I ten deep?*
+So it counts what is behind this document rather than how long the line is, and
+it is not a position — `1 of 4` would be a lie by the time they read it, since a
+task they write goes to the front.
+
+It is live. The line grows and shrinks while they read: an agent finishing a run
+queues a document behind them, a relay that was given up on leaves. So the number
+is asked for again every second rather than being the one that was true when this
+relay joined. It is also the only place on screen that says what closing the
+window would cost — a close dismisses every relay in line, not only the document
+being read, and until now their number was nowhere.
+
+The page cannot read the queue directory. It is sandboxed, and the only thing it
+can talk to is its own relay — but its own relay is by definition the one at the
+head of the line, so it is the process that knows. The page asks it over `GET
+/queue`, once a second. A poll rather than a stream: the whole queue is polled
+already, by every relay four times a second and by the window eight, and one
+small integer is not worth being the one thing in relay that pushes. A read that
+fails leaves the count silent rather than showing the last number it knew.
+
+Silent is also what nothing waiting looks like. A permanent `0 waiting` would be
+a fact the footer states forever to say nothing at all.
+
+The blank is never counted. It holds the screen for want of anyone else and
+yields the instant something arrives, so it is not something the human has left
+to answer. One they have typed in is a task, and counts like anything else from
+then on.
+
+The agent's own `relay: queued behind 3` on stderr stays exactly as it is. It is
+a different number for a different reader — where that relay stood when it
+joined, which is what an agent deciding whether to wait wants to know — and
+making the two agree would mean making one of them wrong.
+
 ### Nobody owns the window
 
 The window follows the line rather than being handed a document. It reads the

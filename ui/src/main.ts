@@ -28,6 +28,7 @@ import { markdownHighlight, theme } from "./theme";
 const mount = document.getElementById("editor")!;
 const statsEl = document.getElementById("stats")!;
 const modeEl = document.getElementById("mode")!;
+const queueEl = document.getElementById("queue")!;
 const noteEl = document.getElementById("note")!;
 const overlayEl = document.getElementById("overlay")!;
 
@@ -83,6 +84,29 @@ function showStats(s: Stats) {
   statsEl.innerHTML =
     `<span class="add">+${s.added}</span> <span class="del">−${s.removed}</span> ` +
     `<span>edit${s.added + s.removed === 1 ? "" : "s"}</span>`;
+}
+
+/**
+ * How much is left after this one — and, since closing the window dismisses
+ * every relay in line, what closing it would take with it.
+ *
+ * A poll rather than something pushed. The whole of the queue is already polled
+ * — the relays four times a second, the window eight — and one small integer is
+ * not worth being the one thing in relay that holds a stream open. A failed
+ * read says nothing rather than something out of date: the count is only ever
+ * news while it is true.
+ */
+function watchQueue() {
+  const read = async () => {
+    try {
+      const { waiting } = (await fetch("/queue").then((r) => r.json())) as { waiting: number };
+      queueEl.textContent = waiting > 0 ? `${waiting} more waiting` : "";
+    } catch {
+      queueEl.textContent = "";
+    }
+  };
+  void read();
+  window.setInterval(() => void read(), 1000);
 }
 
 async function accept() {
@@ -519,6 +543,7 @@ async function boot() {
   );
 
   document.getElementById("new-keys")!.textContent = mac ? "⌘N" : "⌃⇧N";
+  watchQueue();
 
   // A document can lose the screen for reasons nobody asked for: the window
   // loading the next one, a reload, the page dying. Whatever the reason, the

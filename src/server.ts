@@ -36,6 +36,13 @@ export type Hooks = {
    * words would go with it.
    */
   onDraft?: (text: string) => void;
+  /**
+   * How many documents are still in line behind this one. The page cannot read
+   * the queue itself — it is sandboxed, and the only thing it can talk to is
+   * its own relay. Its own relay is by definition the one at the head of the
+   * line, which is the one process that knows.
+   */
+  behind?: () => number;
 };
 
 /**
@@ -106,6 +113,13 @@ export async function serve(
       return send(res, 200, "application/json; charset=utf-8", JSON.stringify(images.map));
     }
     if (req.method === "GET" && path.startsWith("/local/")) return sendLocal(res, images, path.slice(7));
+    // What is still waiting behind this document, asked again every second the
+    // human spends reading it. Answering 0 rather than refusing is what makes
+    // this safe to ask of a relay that is in no line at all — RELAY_NO_OPEN.
+    if (req.method === "GET" && path === "/queue") {
+      const waiting = hooks.behind?.() ?? 0;
+      return send(res, 200, "application/json; charset=utf-8", JSON.stringify({ waiting }));
+    }
     if (req.method === "POST" && path === "/accept") return handleAccept(req, res, settle);
     // A document losing the screen must not take the human's words with it.
     // Nothing here is a reply — the baseline is untouched, so what comes back
