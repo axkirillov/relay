@@ -60,6 +60,11 @@ the question is what a relay does with what it was told.
   had already left. `win.focus()`, `app.focus({ steal: true })`, and about a second
   to settle before capturing. The DOM reads are the assertions; the picture is only
   worth taking if it is the picture of now.
+- **Print what the DOM said beside each shot you take.** A stale frame is a
+  perfectly ordinary-looking picture — one came back showing a footer two checks
+  old, and nothing in the file says so. One line of log per capture, holding the
+  same value the check just asserted on, is what makes a picture that lies say so
+  in the log rather than in the report you sent the human.
 
 ## Driving the shared window, not one of your own
 
