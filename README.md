@@ -137,9 +137,10 @@ pnpm smoke:goto   # a real nvim on the file under the cursor, gone when it quits
 pnpm smoke:open   # the link under the cursor out to the machine's opener, whole and as data
 pnpm smoke:queue  # two relays, one window, in turn — opens a real window briefly
 pnpm smoke:dismiss # closing the window dismisses the queued relay too
+pnpm smoke:latch  # the agent's gate latch lifts on every way out of a relay
 ```
 
-The last two put a real window on the screen for a few seconds and take the
+The last three put a real window on the screen for a few seconds and take the
 focus. They also outlast most command timeouts — run them in the background.
 
 `RELAY_NO_OPEN=1` serves the document without opening a window, and skips the

@@ -371,3 +371,20 @@ stand-in of the same name first on the relay's `PATH` and assert what it recorde
 - **zsh execs into the last command of `sh -c "a; b"`**, so the wrapper's argv
   loses the earlier text. To find the wrapper later, do not put the long-running
   command last.
+- **A child of relay's is not a window.** `pgrep -P <relay>` answers about 255 ms
+  after the spawn and `window.json` appears at about 420 ms, so anything that
+  waits for the child and then closes "the window" is killing one on the way up.
+  `scripts/latch.sh` did exactly that and hung on every run for as long as anyone
+  let it. A window on the screen is `window.json` naming a live pid — wait for
+  that, and kill the pid it names, the way `dismiss.sh` and `queue.sh` do.
+- **A SIGTERM to a window still coming up is a coin toss.** The shell installs its
+  signal handlers as it is evaluated, a couple of hundred milliseconds before it
+  has a window, so the same kill either writes a tombstone — every relay in line
+  dismissed, the agent told the human closed a window they never saw — or writes
+  nothing and the relay puts another window up. When you mean a death nobody saw,
+  `kill -9`: it cannot write a tombstone at any stage, which is what SPEC promises
+  about a window that dies violently.
+- **Bound every wait in a smoke script.** A bare `wait $PID` on a relay that never
+  exits is a test that reports nothing at all — no pass, no fail, no output to
+  read. Poll `kill -0` for a fixed number of ticks and turn running out into a
+  FAIL, so a regression comes back as a line rather than as silence.
