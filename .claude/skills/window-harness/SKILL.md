@@ -55,6 +55,17 @@ the question is what a relay does with what it was told.
   way — Electron alive, log empty, nothing to read. One harness sat like that for
   eighty minutes before anyone looked. A `setTimeout` that prints and calls
   `app.exit(1)` turns that into a line you can act on.
+- **A window you do not need to photograph must never take the keyboard.**
+  `new BrowserWindow({ show: true })` focuses on creation, and an invisible window
+  holding the human's focus swallows what they type: two rounds came back with
+  their own vim keys inside the document — `AkkkkkkA document an agent sent.` —
+  and both read exactly like the feature under test corrupting the text. Build it
+  `show: false`, then `setOpacity(0)` and `showInactive()`. Keys still land,
+  because what makes them land is the caret being in `.cm-content`.
+- **`window-all-closed` quits the app, so the first `win.destroy()` ends the
+  run.** A multi-round harness that closes each round's window exits **0** after
+  round one with every later round unrun — a pass that tested a third of what it
+  claimed. `app.on("window-all-closed", () => {})` and nothing else is needed.
 - **`capturePage` hands back a stale frame when the window has lost the screen.**
   Two shots taken seconds apart came back byte-identical, showing a state the DOM
   had already left. `win.focus()`, `app.focus({ steal: true })`, and about a second
@@ -210,6 +221,17 @@ spawn("node", ["dist/relay.js", doc], {
 - **Relay says so when the caret is wrong.** A footer reading `no command here …` is
   the product being right about a harness mistake, not a feature that broke. Read
   the footer before suspecting the feature.
+- **CodeMirror's state trails its DOM, and accept sends the state.** Type, press
+  the accept key a beat later, and stdout comes back short of what the screen
+  plainly showed — `ship the ctrl-j cha` for a document reading
+  `ship the ctrl-j change`. It is the input not yet flushed in a window nobody is
+  looking at, not the key. Sleep ~900 ms between the last character and the
+  accept, and read the screen at that moment so the assertion compares stdout
+  against what was there rather than against what you meant to type.
+- **Test a new key beside one that already works.** The same round run with `⌃X`
+  is what turns "the key is broken" into "the harness is slow": if the control
+  truncates identically, nothing is wrong with the key. Cheaper than a second
+  investigation, and it belongs in the run rather than in your reasoning.
 
 ## Asserting on colour, not on a class name
 

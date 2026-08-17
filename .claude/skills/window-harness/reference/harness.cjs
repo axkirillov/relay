@@ -98,26 +98,46 @@ async function prompt(win, open, body) {
 }
 
 app.whenReady().then(async () => {
+  // Without this, the first `win.destroy()` quits Electron and every round after
+  // it is skipped — with an exit code of 0.
+  app.on("window-all-closed", () => {});
+
   const server = startRelay();
   const url = await server.url;
   console.log(`relay: ${url}\n`);
 
+  // Invisible and unfocused. `show: true` would take the keyboard on creation and
+  // the human's own keys would land in here. Add `win.setOpacity(1); win.focus();
+  // app.focus({ steal: true })` only for a run whose screenshots have to be of
+  // now — it drags the window in front of whatever they are doing.
   const win = new BrowserWindow({
-    show: true,
+    show: false,
     width: 1000,
     height: 1200,
     backgroundColor: "#16161e",
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
+  win.setOpacity(0);
+  win.showInactive();
   await win.loadURL(url);
-  win.show();
-  win.focus();
-  app.focus({ steal: true });
   await sleep(1300);
+  // What makes keys land is the caret being in the editor, not the OS focus.
+  await win.webContents.executeJavaScript(`document.querySelector(".cm-content").focus()`);
+  await sleep(300);
 
   const js = (code) => win.webContents.executeJavaScript(code);
   const text = () => js(DOC);
-  const shot = async (name) => writeFileSync(join(shots, name), (await win.webContents.capturePage()).toPNG());
+  /**
+   * A picture, if one arrives. `capturePage` on a window that does not own the
+   * screen can stall for minutes, and the relay's heartbeat goes stale while it
+   * does — which costs the round. So it is raced, a miss is nothing, and the DOM
+   * reads stay the assertions.
+   */
+  const shot = async (name) => {
+    const png = await Promise.race([win.webContents.capturePage(), sleep(3000).then(() => null)]);
+    if (png) writeFileSync(join(shots, name), png.toPNG());
+    else console.log(`      (no picture: ${name})`);
+  };
 
   /**
    * The caret onto the first match from the top, by a real `/` search, and the
