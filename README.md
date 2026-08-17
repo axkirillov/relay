@@ -109,6 +109,24 @@ registration. One process per relay, for as long as the human takes; what is
 left running between calls is a relay holding a blank, which is the same process
 every other document arrives in. Any agent that can run a command can use it.
 
+## Install
+
+Node 22 or newer, and pnpm. Then a clone, a build, and a link from anywhere on
+your PATH:
+
+```sh
+git clone https://github.com/axkirillov/relay
+cd relay
+pnpm install
+pnpm build
+ln -s "$PWD/dist/relay.js" ~/.local/bin/relay
+```
+
+`relay <file.md>` from anywhere after that. The build leaves `dist/` beside the
+source and the link points into it, so the clone stays where it is and
+`git pull && pnpm build` is the upgrade. macOS and Linux; the window is Electron
+and the shell is a real pty, so neither is a Windows story.
+
 ## Build
 
 ```

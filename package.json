@@ -2,9 +2,21 @@
   "name": "relay",
   "version": "0.2.0",
   "private": true,
+  "description": "A CLI that hands a markdown document to a human and blocks until they answer.",
+  "license": "MIT",
+  "author": "Aleksandr Kirillov",
+  "homepage": "https://github.com/axkirillov/relay#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/axkirillov/relay.git"
+  },
+  "bugs": "https://github.com/axkirillov/relay/issues",
   "type": "module",
   "bin": {
     "relay": "dist/relay.js"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "scripts": {
     "build": "node build.mjs",
