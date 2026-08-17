@@ -18,7 +18,7 @@ import { codeLanguage } from "./languages";
 import { url, urlAt } from "./link";
 import { liveDiff, type Stats } from "./livediff";
 import { foldOutput, opened, refold } from "./outfold";
-import { inPane, mac } from "./pane";
+import { inPane } from "./pane";
 import { type Images, isRendering, renderBlocks, setRendering } from "./render";
 import { restore } from "./restore";
 import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
@@ -140,16 +140,13 @@ async function accept() {
  */
 let saved = "";
 let draftTimer = 0;
-let everSaved = false;
 
 /**
  * Keep what the human has typed on the relay's side of the wire.
  *
- * This page is destroyed the moment the window loads another document, and their
- * words would go with it — so the relay holds them instead, and `/prefill` hands
- * them back when this document returns. It is also how a blank stops being one:
- * a document nobody has typed in yields the screen to whatever arrives next, and
- * a document with their words in it does not.
+ * This page is destroyed the moment the window loads another document or is
+ * reloaded, and their words would go with it — so the relay holds them instead,
+ * and `/prefill` hands them back when this document returns.
  */
 async function saveDraft(): Promise<void> {
   window.clearTimeout(draftTimer);
@@ -164,60 +161,12 @@ async function saveDraft(): Promise<void> {
   saved = text;
 }
 
-/**
- * After the typing stops rather than on every keystroke — and it has to be while
- * they type, not only on the way out: a blank that only promoted itself as the
- * screen was taken from it would promote itself too late to keep the screen.
- */
+/** After the typing stops rather than on every keystroke. */
 function saveSoon() {
   window.clearTimeout(draftTimer);
-  // The first edit is the one that promotes a blank, and a trailing debounce
-  // never fires while they are still typing — so a burst of typing would leave
-  // the document yielding the screen for as long as the burst lasted. That one
-  // goes now; the rest still wait for a pause, since promotion only has to
-  // happen once.
-  if (!everSaved) {
-    everSaved = true;
-    void saveDraft().catch(() => {});
-    return;
-  }
-  // A draft that will not save is not worth interrupting them over. The two
-  // moments it actually matters — ⌘N and the page going — say so themselves.
+  // A draft that will not save is not worth interrupting them over. The moment
+  // it actually matters — the page going — says so itself.
   draftTimer = window.setTimeout(() => void saveDraft().catch(() => {}), 400);
-}
-
-/** Whether a task has been asked for. Never let go of again — see below. */
-let starting = false;
-
-/**
- * ⌘N — a document of the human's own, in front of whatever they were reading.
- *
- * Their document is saved before the task is asked for rather than alongside it:
- * the relay serving this page is the one holding their words, and the window is
- * about to load somebody else's page over this one. Sequenced, not raced, which
- * is the whole reason `/draft` is awaited here.
- *
- * The flag is not cleared when it works. This page has seconds to live, and a
- * second press in the meantime would leave a second task in the line for them to
- * find later and wonder about.
- */
-async function newTask() {
-  if (sending || starting) return;
-  starting = true;
-  try {
-    await saveDraft();
-  } catch (err) {
-    starting = false;
-    return note(`this document would not save (${err}) — so nothing was opened`);
-  }
-  try {
-    const res = await fetch("/new", { method: "POST" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    note("a blank is coming — this document will be back");
-  } catch (err) {
-    starting = false;
-    note(`could not start a task: ${err}`);
-  }
 }
 
 /** The command in flight, if there is one; aborting it is the human's ⌃C. */
@@ -380,11 +329,6 @@ function bindVim(original: string) {
   // `:run` rather than `:r`, which is vim's own read.
   Vim.defineEx("run", "run", () => void runAtCursor());
 
-  // vim's own `:new` opens a split, which this window has no notion of; the word
-  // is free and it is the right word. No abbreviation — `:n` is vim's next file,
-  // and a hand that meant that should not get a task instead.
-  Vim.defineEx("new", "new", () => void newTask());
-
   // Opening a fold is a click; closing it again has to be said, so it is said
   // both ways — `:fold` next to `:raw` and `:res`, and `zc`, which is what a vim
   // user's fingers will try first.
@@ -510,18 +454,6 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
-      // Asking for a task is not this document's business, so it is answered
-      // from anywhere — including a pane, the way ⌘Y already is. A ⌘ chord
-      // cannot reach a program in a terminal at all, so there is nothing here to
-      // take out of the child process's hands.
-      if (mac ? e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "n"
-              : e.ctrlKey && e.shiftKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        e.stopPropagation();
-        void newTask();
-        return;
-      }
-
       // ⌃X and ⌃↵ are keys a shell has its own uses for, and nvim has uses for
       // more of them still. Inside either pane every key belongs to the child
       // process — accepting or running from there would be relay reaching over
@@ -553,7 +485,6 @@ async function boot() {
     true,
   );
 
-  document.getElementById("new-keys")!.textContent = mac ? "⌘N" : "⌃⇧N";
   watchQueue();
 
   // A document can lose the screen for reasons nobody asked for: the window

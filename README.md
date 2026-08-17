@@ -11,10 +11,15 @@ edits it anywhere they like; their edits are highlighted live against what the
 agent sent. On accept the document leaves the screen and the unified diff of
 their edits is printed to stdout.
 
-- exit **0** — accepted; stdout is the diff (or, for a document the human
-  started themselves, the text they wrote)
+- exit **0** — accepted; stdout is the diff, or `no changes — the human accepted
+  the document as written` when they changed nothing
 - exit **1** — the window was closed without a reply; stdout is empty
 - exit **2** — bad usage, or the file could not be read
+
+The document is rendered, not shown as source: markdown tables, HTML and inline
+SVG are drawn in place, so a diagram or a chart written into the document arrives
+as a picture. Images do too — `![](shot.png)` beside the document, or an `https:`
+one. `:raw` toggles the whole thing back to source and out again.
 
 A command the agent wants run can be run in the window. Put the cursor in any
 shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
@@ -22,40 +27,32 @@ shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
 block, so the diff carries it back. `⌃C` stops it, running the block again
 replaces its last output, and `:res` takes an output you would rather not send
 back out. Long output is folded to its last twenty lines — every line is still
-there, and `:raw` shows them all. Output longer than a document should hold goes
-to `~/.relay/<round>/run-N.log` instead, and the block keeps its first hundred
-lines, a pointer to that file, and its last twenty.
+there. Clicking the `… N earlier lines` notice opens the fold, `zc` or `:fold`
+closes it again, and `:raw` shows the lot. Output longer than a document should
+hold goes to `~/.relay/<round>/run-N.log` instead, and the block keeps its first
+hundred lines, a pointer to that file, and its last twenty.
 
-In the window: `⌃X` or `ZZ` accepts, `:q` closes without replying, and `:res`
-puts a stretch of the document back the way it arrived — the cursor line in
-normal mode, the selection in visual mode, or a range like `:12,18res`. Lines
-are numbered so they can be pointed at in a reply. Whatever a yank or a delete
-takes reaches the system clipboard as well as vim's own register — vim's
-`clipboard=unnamed` — so what `y` picks up leaves the window with you.
+In the window: `⌃X` or `ZZ` accepts — `:w`, `:wq`, `:x` and `:acc` do too — `:q`
+closes without replying, and `:res` puts a stretch of the document back the way
+it arrived: the cursor line in normal mode, the selection in visual mode, or a
+range like `:12,18res`. Lines are numbered so they can be pointed at in a reply.
+Whatever a yank or a delete takes reaches the system clipboard as well as vim's
+own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
+with you.
 
-## Starting a task from the window
+## Reviewing a diff
 
-`⌘N` (`⌃⇧N` off a Mac), or `:new`, puts up an empty document that no agent sent.
-Write what you want done — a sentence, a paragraph, a pasted Slack or Jira link
-— and accept it: the text goes to stdout, and relay runs `~/.relay/task` with
-the round's directory, where `accepted.md` is what you wrote. That script is
-yours; relay knows nothing about repositories or sessions and only hands over
-the text. Set `$RELAY_TASK` to point somewhere else. Accepting an empty one
-costs nothing at all — no script, no round on disk.
-
-It jumps whatever is on screen, and pressing it again gives you another blank
-rather than the one you half-wrote; that one is a place behind, with every
-character you typed still in it. The same goes for the document it interrupted.
-
-When nothing is queued the window puts up a blank of its own instead of closing,
-without taking the focus. It is replaced the moment anything is queued — unless
-you have typed in it, which makes it a task like any other.
+A ```` ```diff ```` block is a review you can write in. Edit the patch where it
+stands, and any line you write that does not open with a diff marker is a
+comment — those come back to the agent under the diff, each one located as
+`file:line`, so a remark beside a hunk arrives knowing which line it is about.
 
 ## gf opens the file
 
 Put the cursor on a path in the document — `src/cli.ts`, `` `src/cli.ts` ``,
-`[cli](src/cli.ts)`, all the same — and press `gf`. Your own neovim opens in the
-window on that file, with your config, and `src/cli.ts:42` lands on line 42.
+`[cli](src/cli.ts)`, all the same — and press `gf` (`gF` does the same thing).
+Your own neovim opens in the window on that file, with your config, and
+`src/cli.ts:42` lands on line 42.
 `:q` and it is gone; the document is underneath the whole time with your edits
 and your cursor where you left them.
 
@@ -87,9 +84,9 @@ to the shell, so `⌃X` does not accept and `⌃↵` does not run from there.
 The point of it is getting what happened back to the agent, which only ever sees
 the diff:
 
-- **`⌘Y`** (`⌃⇧Y` off a Mac) puts the last command and its output into the
-  document as a fenced block, at the cursor. With something selected in the
-  terminal it takes the selection instead.
+- **`⌘Y`** (`⌃⇧Y` off a Mac, or `:take`) puts the last command and its output
+  into the document as a fenced block, at the cursor. With something selected in
+  the terminal it takes the selection instead.
 - **Selecting in the terminal is a yank** — vim's register and the system
   clipboard both — so `p` pastes it into the document.
 
@@ -104,10 +101,10 @@ never a doubt about which one to read first. Closing the window dismisses them
 all: it is the gesture for clearing the screen, not for skipping one document.
 
 The window is nobody's in particular. Whichever relay finds none up starts it,
-and it stays for the ones behind — so no MCP server, no daemon and no
-registration. One process per relay, for as long as the human takes; what is
-left running between calls is a relay holding a blank, which is the same process
-every other document arrives in. Any agent that can run a command can use it.
+and it stays for the ones behind, then goes on its own once the line is empty —
+so no MCP server, no daemon and no registration. One process per relay, for as
+long as the human takes, and nothing left running between calls. Any agent that
+can run a command can use it.
 
 ## Install
 

@@ -17,9 +17,9 @@ function check(name: string, got: unknown, want: unknown) {
 }
 
 /** A ticket for a relay that is not this process. `at` is its arrival. */
-function ticket(at: number, pid: number, ageMs = 0, rank?: string) {
+function ticket(at: number, pid: number, ageMs = 0) {
   const file = join(dir, `${at}-${pid}.json`);
-  writeFileSync(file, JSON.stringify({ pid, at, rank }) + "\n");
+  writeFileSync(file, JSON.stringify({ pid, at }) + "\n");
   if (ageMs) {
     const then = new Date(Date.now() - ageMs);
     utimesSync(file, then, then);
@@ -148,70 +148,6 @@ const live = process.ppid; // whoever ran the test
   t.leave();
 }
 
-// --- rank: a task the human wrote, and the blank they were offered ------------
-{
-  // They pressed the key while reading someone else's document, so what they
-  // asked for just now is what they see.
-  ticket(1, live);
-  ticket(2, live);
-  const t = enter("a-task", "new task", "top");
-  check("top: nobody ahead of a task", t.ahead, 0);
-  check("top: turn is now, with two agents in line", await turnComes(t), true);
-  t.leave();
-  check("top: and the oldest agent is next", line()[0]?.at, 1);
-  rmSync(join(dir, `1-${live}.json`));
-  rmSync(join(dir, `2-${live}.json`));
-}
-
-{
-  // Pressing it again asks for a fresh document, not the one already half
-  // written — so among tasks it is the newest that is on screen.
-  ticket(10, live, 0, "top");
-  const t = enter("newer-task", "new task", "top");
-  check("top: the newest task is first", line()[0]?.id, "newer-task");
-  check("top: and the older one waits", line()[1]?.at, 10);
-  check("top: it is shown at once", await turnComes(t), true);
-  t.leave();
-  rmSync(join(dir, `10-${live}.json`));
-}
-
-{
-  // The blank holds the screen for want of anyone else and yields the instant
-  // somebody wants it — however long it has been sitting there.
-  const t = enter("blank", "new task", "idle");
-  check("idle: shown while the line is otherwise empty", await turnComes(t), true);
-  ticket(Date.now() + 1000, live);
-  check("idle: an agent arriving takes the screen", line()[0]?.id, undefined);
-  check("idle: even though the blank was here first", line()[1]?.id, "blank");
-
-  // Their words are in it now, so it is theirs and it keeps the screen.
-  t.promote();
-  check("promote: the typed-in blank is back in front", line()[0]?.id, "blank");
-  check("promote: and the agent waits", line()[1]?.id, undefined);
-
-  // And they deleted it all again, so it is the blank they were offered once
-  // more: nothing of theirs is in it to keep the screen with.
-  t.demote();
-  check("demote: the emptied blank yields again", line()[0]?.id, undefined);
-  check("demote: it is behind the agent as it was", line()[1]?.id, "blank");
-  check("demote: at the rank it entered with", line()[1]?.rank, "idle");
-  t.leave();
-  rmSync(join(dir, tickets()[0]!));
-}
-
-{
-  // A task they asked for outright does not hold the screen on the strength of
-  // its text, so emptying one changes nothing about where it stands.
-  ticket(1, live);
-  const t = enter("a-task", "new task", "top");
-  t.promote();
-  t.demote();
-  check("demote: an emptied task is still in front", line()[0]?.id, "a-task");
-  check("demote: still the rank it entered with", line()[0]?.rank, "top");
-  t.leave();
-  rmSync(join(dir, `1-${live}.json`));
-}
-
 // --- what is still in line behind the document on screen ---------------------
 {
   // None of these tickets has a url: a relay whose server is not up yet is in
@@ -224,19 +160,11 @@ const live = process.ppid; // whoever ran the test
   ticket(at + 1, live);
   check("waiting: two agents in line", t.behind(), 2);
 
-  ticket(at + 2, live, 0, "idle");
-  check("waiting: the blank is not one of them", t.behind(), 2);
-
   rmSync(join(dir, `${at}-${live}.json`));
   check("waiting: one fewer as they leave", t.behind(), 1);
 
-  // A task the human just wrote goes in front of what they are reading, so it
-  // is never something they have left to answer.
-  ticket(at + 3, live, 0, "top");
-  check("waiting: a task is ahead, not behind", t.behind(), 1);
-
   t.leave();
-  for (const n of [at + 1, at + 2, at + 3]) rmSync(join(dir, `${n}-${live}.json`));
+  rmSync(join(dir, `${at + 1}-${live}.json`));
 }
 
 check("nothing left behind", tickets(), []);

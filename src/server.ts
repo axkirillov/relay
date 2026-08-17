@@ -26,11 +26,6 @@ export type Relay = {
 
 export type Hooks = {
   /**
-   * The human asked for a new task document. Their own document is about to lose
-   * the screen to it, which is why the page saves before it asks.
-   */
-  onNew?: () => void;
-  /**
    * What they have typed, sent because this document is about to leave the
    * screen — the page is destroyed when the window loads the next one, and their
    * words would go with it.
@@ -133,12 +128,6 @@ export async function serve(
         },
         () => send(res, 413, "text/plain", "document too large"),
       );
-    }
-    // They want to write a task. Whatever is on screen makes way for it, which
-    // is why the page saves this document before asking.
-    if (req.method === "POST" && path === "/new") {
-      hooks.onNew?.();
-      return res.writeHead(204).end();
     }
     // A shell block the human asked for. The body is the command, the response
     // is its output as it happens, and hanging up is how the human stops it.

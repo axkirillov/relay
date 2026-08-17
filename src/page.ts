@@ -1,14 +1,6 @@
 import { basename } from "node:path";
 
-/**
- * What a document nobody sent is called. It is not a file and is never read from
- * or written to: it names the round on disk, titles the window, and is how this
- * page knows there is no agent on the other end of it.
- */
-export const taskDoc = "new task";
-
 export function page(source: string): string {
-  const task = source === taskDoc;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -187,7 +179,7 @@ export function page(source: string): string {
 <body>
   <header>
     <span class="name">${escape(basename(source))}</span>
-    <span>· ${task ? "write it here — accepting hands it to an agent" : "the agent is waiting"}</span>
+    <span>· the agent is waiting</span>
   </header>
 
   <div id="split">
@@ -230,7 +222,6 @@ export function page(source: string): string {
     <span><kbd>gx</kbd> open the link</span>
     <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>:raw</kbd> render on/off</span>
-    <span><kbd id="new-keys">⌘N</kbd> new task</span>
     <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
     <span><kbd>:q</kbd> close without replying</span>
     <button id="accept">Accept</button>

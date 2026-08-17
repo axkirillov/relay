@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { relayHome } from "./paths.ts";
 
@@ -12,14 +12,7 @@ export type Store = {
    * the prefill when the document returns.
    */
   draft(text: string): void;
-  /**
-   * A task the human wrote. There is no patch: nobody wrote the original, so
-   * every character of it is theirs and the whole document is the answer.
-   */
-  task(text: string): void;
   abandon(): void;
-  /** They accepted a blank. There was never anything here to keep. */
-  discard(): void;
 };
 
 /**
@@ -54,29 +47,19 @@ export function open(source: string, sent: string): Store {
       meta.drafted = new Date().toISOString();
       writeMeta();
     },
-    task(text) {
-      writeFileSync(join(dir, "accepted.md"), text);
-      meta.accepted = new Date().toISOString();
-      writeMeta();
-    },
     abandon() {
       meta.abandoned = new Date().toISOString();
       writeMeta();
-    },
-    discard() {
-      try {
-        rmSync(dir, { recursive: true, force: true });
-      } catch {}
     },
   };
 }
 
 /**
  * A directory this round alone owns. The stamp is only good to the second, and
- * two relays really can start inside one: the window puts up a blank the moment
- * the line drains, and the key that makes a task fires whenever he presses it.
- * Sharing a directory is not a cosmetic clash — the second round overwrites the
- * first's `sent.md`, and a discard by either takes the other away with it.
+ * two relays on the same document really can start inside one — an agent that
+ * relays twice in a row, or two of them at once. Sharing a directory is not a
+ * cosmetic clash: the second round would overwrite the first's `sent.md`, which
+ * is the one copy of what the first agent was diffed against.
  *
  * `mkdir` without `recursive` is the whole mechanism: it refuses a directory
  * that already exists, and it refuses atomically, so of two processes asking for
