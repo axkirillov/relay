@@ -5,7 +5,7 @@ import { join, sep } from "node:path";
 import { name, note, taskDir } from "./task.ts";
 
 /**
- * What the task is, and where it has got to, under every document.
+ * What the task is, and where it has got to, above every document.
  *
  * The spec's first rule is that the human knows *nothing* about the task except
  * what relay has shown them, and the hardest part of that is not the question —
@@ -20,7 +20,7 @@ import { name, note, taskDir } from "./task.ts";
  * nothing about what is still to do, and a document's own first line is a poor
  * summary of why it exists. So this is written rather than derived: the agent puts
  * a short overview and a to-do list in the task's `plan.md` at the start, keeps
- * the list ticked as it goes, and relay carries whatever is in that file under
+ * the list ticked as it goes, and relay carries whatever is in that file above
  * every document of the task.
  *
  * relay owns the path and the agent owns the file. There is one copy, in a
@@ -39,7 +39,7 @@ const heading = "## The task";
 /**
  * How many lines of a plan a document carries. A plan is meant to be a paragraph
  * and a list; this is the backstop against one that grew into a document of its
- * own and buried the question it was pasted under.
+ * own and pushed the question it stands over off the bottom of the screen.
  */
 export const shown = 40;
 
@@ -156,41 +156,99 @@ export function render(task: string, plan: Plan | null, past: Date[], now: Date)
 }
 
 /**
- * The document as it goes on screen: what the agent wrote, then a rule, then the
- * plan.
+ * The document as it goes on screen: the plan, then a rule, then what the agent
+ * wrote.
  *
- * Under, not over. The question is what the human opened the window for and keeps
- * the top of the document; the ground it stands on is what they read next, if
- * they need it.
+ * Above, not under. It was under the document first, on the argument that the
+ * question is what the human opened the window for and should keep the top — but
+ * the window opens hours after the last one closed, and a question read cold is
+ * read twice: once to find out what it is about, and again to answer it. The work
+ * comes first and the question is asked of someone who already has it in mind.
  */
-export function append(doc: string, section: string): string {
+export function prepend(doc: string, section: string): string {
   const body = strip(doc);
   if (!section) return body;
-  return `${body.replace(/\n*$/, "")}\n\n---\n\n${section}`;
+  return `${section.replace(/\n*$/, "")}\n\n---\n\n${body.replace(/^\n*/, "")}`;
 }
 
 /**
- * An earlier copy of this, and the rule relay put above it, cut back out — so
+ * An earlier copy of this, and the rule relay set against it, cut back out — so
  * that a document which has been through relay once and is being sent again does
- * not go up with a round-old plan under a current one.
+ * not go up with a round-old plan against a current one.
  *
- * Two things have to be true of a heading before the rest of the document is cut
- * off after it, because a document *about* this feature quotes the section and
- * relay eating the rest of SPEC.md would be worse than any duplicate. It must be
- * the last such heading with nothing but its own section after it — a quotation
- * has the document it is explaining underneath it — and it must not be inside a
- * fenced code block, which is where both SPEC.md and README.md show one.
+ * Both places relay has ever put it. The section is above the document now and was
+ * under it until today, and documents from then are still in `~/.relay` waiting to
+ * be sent a second time; a plan that was true this morning is exactly the kind of
+ * thing nobody rereads.
  */
 export function strip(doc: string): string {
+  return under(over(doc));
+}
+
+/** Whether this line is relay's heading — named for its task, or nameless. */
+function heads(line: string): boolean {
+  return line === heading || line.startsWith(`${heading} — `);
+}
+
+/**
+ * relay's own last line of the section: which round this is, and where the file
+ * lives. It is what says where the plan ends and the agent's document begins,
+ * rather than the rule itself, because everything above this line is the agent's
+ * own prose and a to-do list is allowed a rule of its own in it.
+ */
+const closes = /^\d+(?:st|nd|rd|th) round of this task\./;
+
+/**
+ * The section at the top of the document, and the rule under it, cut off.
+ *
+ * Only from the very first line: a document *about* this feature quotes the
+ * heading — SPEC.md and README.md both do — and relay eating a document it was
+ * asked to show would be worse than any duplicate. Nothing relay writes puts the
+ * heading anywhere but line one, so nothing else is relay's to cut.
+ */
+function over(doc: string): string {
+  const lines = doc.split("\n");
+  if (!heads(lines[0] ?? "")) return doc;
+
+  let fenced = false;
+  let closed = false;
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (/^\s{0,3}(```|~~~)/.test(line)) fenced = !fenced;
+    else if (fenced) continue;
+    else if (closes.test(line)) closed = true;
+    else if (closed && line.trim() === "---") {
+      let at = i + 1;
+      while (at < lines.length && lines[at]!.trim() === "") at++;
+      return lines.slice(at).join("\n");
+    }
+  }
+  // A heading and no section under it is not something relay wrote. Left alone.
+  return doc;
+}
+
+/**
+ * The same section where it used to go, under the document, cut off with the rule
+ * above it.
+ *
+ * Two things have to be true of a heading here, since this one really is looking
+ * into the middle of a document. It must be the last such heading with nothing but
+ * its own section after it — a quotation has the document it is explaining
+ * underneath it — and it must not be inside a fenced code block, which is where
+ * both SPEC.md and README.md show one.
+ */
+function under(doc: string): string {
   const lines = doc.split("\n");
   let at = -1;
   let fenced = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     if (/^\s{0,3}(```|~~~)/.test(line)) fenced = !fenced;
-    else if (!fenced && (line === heading || line.startsWith(`${heading} — `))) at = i;
+    else if (!fenced && heads(line)) at = i;
   }
-  if (at < 0) return doc;
+  // At the top it is not this one's business, and a section under the document has
+  // a document above it to be under.
+  if (at <= 0) return doc;
 
   let end = at;
   const blank = () => end > 0 && lines[end - 1]!.trim() === "";

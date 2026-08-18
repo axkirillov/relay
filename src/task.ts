@@ -13,7 +13,7 @@ import { filledFile, relayHome, tasksDir } from "./paths.ts";
  * someone who answered four others hours ago, in a window that closed each time,
  * with a black box in between.
  *
- * What relay puts under the document to answer that is the task's plan — the
+ * What relay puts above the document to answer that is the task's plan — the
  * agent's own overview and to-do list, in `plan.ts`. This half is the ground it
  * stands on: which task a directory belongs to, where that task keeps its things,
  * and when each of its rounds went up. The plan is written; this is counted.

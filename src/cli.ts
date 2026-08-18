@@ -26,7 +26,7 @@ A \`\`\`diff block is shown as a review the human can write in. They edit the pa
 where it stands, and any line they write that does not open with a diff marker is
 a comment — those come back under the diff, each one located as file:line.
 
-Under the document relay adds the task's plan: a short overview of the work and a
+Above the document relay puts the task's plan: a short overview of the work and a
 to-do list, ticked off as it goes. \`relay --plan\` prints the file to write it in —
 one per worktree, yours to keep current. The human is assumed to know nothing about
 the task but what relay has shown them, and hours pass between windows: this is
@@ -87,11 +87,11 @@ try {
   process.exit(2);
 }
 
-// The document goes up with the task's plan under it. The human is assumed to
+// The document goes up with the task's plan over it. The human is assumed to
 // know nothing about the task except what relay has shown them, and they read
 // this one hours after the last one, so what the work is and how far along it
-// has got is relay's to say rather than something the agent has to remember to
-// repeat. From here on `sent` is the document as it goes on screen: what is
+// has got is what the page opens with — relay's to say rather than something the
+// agent has to remember to repeat. From here on `sent` is the document as it goes on screen: what is
 // diffed against, what is kept, and what the editor opens with.
 const task = tasks.taskOf(process.cwd());
 // Once ever, and before the first read of the ledger: the rounds that were
@@ -102,10 +102,10 @@ const past = tasks.rounds(task);
 const wrote = plan.read(task);
 const now = new Date();
 
-// A plan already under the document — this is a document that came back out of
+// A plan already on the document — this is a document that came back out of
 // `~/.relay` and is being sent again — comes off before the current one goes on.
 // Two of them, one of them a round out of date, is worse than either.
-sent = plan.append(sent, plan.render(task, wrote, past, now));
+sent = plan.prepend(sent, plan.render(task, wrote, past, now));
 
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
@@ -138,8 +138,8 @@ process.stderr.write(
 // the one place worth saying it: a plan nobody knows the path of does not get
 // written, and one nobody is reminded of stops being true halfway through a day.
 // When it has already stopped being true, the line says that instead — the human
-// is being told the same thing under the document, and the agent should not learn
-// it from their reply.
+// is being told the same thing at the top of the document, and the agent should
+// not learn it from their reply.
 const behind = wrote ? plan.stale(wrote, past) : 0;
 // How many rounds went up after it was last written, this one not counted: it is
 // going up now, and it is the one being complained about.
@@ -149,8 +149,8 @@ process.stderr.write(
   !wrote
     ? `relay: this task has no plan — write one at ${where} and every document carries it\n`
     : behind
-      ? `relay: the plan under this document has not been touched in ${missed} round${missed === 1 ? "" : "s"} — the human is being told so; update ${where}\n`
-      : `relay: the plan under this document is ${where} — keep it current\n`,
+      ? `relay: the plan over this document has not been touched in ${missed} round${missed === 1 ? "" : "s"} — the human is being told so; update ${where}\n`
+      : `relay: the plan over this document is ${where} — keep it current\n`,
 );
 
 if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);

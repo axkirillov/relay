@@ -40,10 +40,11 @@ Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
 
-## The task under every document
+## The task above every document
 
-Under the document is what the task is and where it has got to — a short overview
-and a to-do list, written once at the start and kept ticked as the work moves:
+Every document opens with what the task is and where it has got to — a short
+overview and a to-do list, written once at the start and kept ticked as the work
+moves:
 
 ```
 ## The task — relay/task-timeline
@@ -57,15 +58,20 @@ cap is a symptom; the query behind it is the thing.
 - [ ] Put the cap back down once it is not load-bearing
 
 7th round of this task. The agent keeps this in `~/.relay/tasks/relay-task-timeline-e01e2c/plan.md`, last written 09:41.
+
+---
+
+# Which cap to raise
 ```
 
 You are meant to know nothing about a task but what relay has shown you, and what
 goes missing between one window and the next is not the last question — it is what
 the whole thing was for. That cannot be worked out from what relay keeps, so the
 agent writes it: `relay --plan` prints the one file per worktree it goes in, and
-relay puts whatever is in that file under every document of the task.
+relay puts whatever is in that file above every document of the task — the
+question is under it, and you reach it already knowing what it is about.
 
-The bottom line is relay's own. Which question of this task you are on, where the
+The last line of the section is relay's own. Which question of this task you are on, where the
 file is — `gf` opens it, and the directory it is in holds every round of the task
 besides — and when the agent last wrote it, because a to-do list nobody has
 touched since breakfast is worse than none. When a whole round has gone by without

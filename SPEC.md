@@ -244,12 +244,10 @@ record of what was asked is a record of the conversation and not of the work: it
 says nothing about what is still to do, and a document's own first line is a poor
 account of why it exists. That list is gone; this is what replaced it. The agent
 puts a short overview and a to-do list in the task's own `plan.md` at the start,
-keeps the list ticked as the work moves, and relay carries that file under every
+keeps the list ticked as the work moves, and relay carries that file above every
 document of the task:
 
 ```
----
-
 ## The task — relay/task-timeline
 
 Cutting what the refresh job costs, which is the 100k cap it hits every run. The
@@ -261,6 +259,10 @@ cap is a symptom; the query behind it is the thing.
 - [ ] Put the cap back down once it is not load-bearing
 
 7th round of this task. The agent keeps this in `~/.relay/tasks/relay-task-timeline-e01e2c/plan.md`, last written 09:41.
+
+---
+
+# Which cap to raise
 ```
 
 - **relay owns the path, the agent owns the file.** `relay --plan` prints it and
@@ -271,9 +273,13 @@ cap is a symptom; the query behind it is the thing.
 - **The plan is beside the rounds, not in the repository.** In the worktree it
   would be an untracked file in every checkout the human works in, asking to be
   committed or ignored.
-- **Under the document, not over it.** The question is what the human opened the
-  window for and keeps the top. The ground it stands on is what they read next, if
-  they need it.
+- **Above the document, not under it.** It went under the document first, on the
+  argument that the question is what the human opened the window for and should
+  keep the top. That argument holds for a document read in the flow of the work
+  and this one never is: it is opened hours after the last one closed, and a
+  question read cold is read twice — once to find out what it is about, and again
+  to answer it. The work comes first, and then the question, of someone who has it
+  in mind by the time they reach it.
 - **Which round this is.** One line of orientation the ledger already holds, and
   what gives the line beside it a scale.
 - **When it was last written is said out loud.** A to-do list that stopped being
@@ -282,7 +288,7 @@ cap is a symptom; the query behind it is the thing.
 - **A task with no plan gets no heading.** A document from a tool that keeps none
   looks exactly as it did before this existed.
 - **Forty lines, then a count.** A plan that grew into a document of its own would
-  bury the question it is pasted under.
+  push the question it stands over off the bottom of the screen.
 - **It is text in the document**, not a panel beside it. So it renders, `gf` opens
   what it names, and a line of it can be struck out or written in. Nothing new to
   learn, and nothing protected.
@@ -354,7 +360,7 @@ the plan:
 
 ```
 ~/.relay/tasks/relay-task-timeline-e01e2c/
-  plan.md                       # what the agent wrote, under every document
+  plan.md                       # what the agent wrote, above every document
   task                          # the worktree this stands for, in full
   20260818-093042-question ->  ~/.relay/20260818-093042-question
 ```
@@ -842,7 +848,7 @@ overridable on its own.
   the window that holds the documents — composer — not to the document.
 - **Every document says what the task is and how far it has got.** Not a walk
   back on the line above: *starting* a task is a gesture and belongs to the
-  window, while carrying the task's plan under every document is relay's — the
+  window, while carrying the task's plan above every document is relay's — the
   agent is not asked to remember to repeat it, because an obligation every
   document carries cannot rest on an agent remembering. Writing the plan is the
   agent's; relay says which round this is and when the file was last touched.

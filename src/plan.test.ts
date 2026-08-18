@@ -5,7 +5,7 @@ import { join } from "node:path";
 const home = mkdtempSync(join(tmpdir(), "relay-plan-"));
 process.env.RELAY_QUEUE_DIR = join(home, "queue");
 
-const { append, clock, file, open, read, render, rooted, shown, stale, strip, tilde } = await import("./plan.ts");
+const { clock, file, open, prepend, read, render, rooted, shown, stale, strip, tilde } = await import("./plan.ts");
 const { taskDir } = await import("./task.ts");
 
 let fails = 0;
@@ -53,7 +53,7 @@ check("and neither has one that was opened and never written", read(repo), null)
 const text = `Every relay document should say what task it belongs to.
 
 - [x] A ledger of the rounds of each task
-- [ ] **A plan under every document**`;
+- [ ] **A plan above every document**`;
 wrote(repo, text + "\n");
 check("what the agent wrote is what is read back", read(repo)!.text, text);
 check("with when they last wrote it", read(repo)!.written.getHours(), 9);
@@ -118,42 +118,50 @@ check("with no checkout above it the heading names nothing", render(loose, read(
 check("the plan under it is unchanged", render(loose, read(loose), kept(1), noon).includes("- [ ] Reproduce it"), true);
 
 // --- the document as it goes up -------------------------------------------------
+// The plan opens the page. The window is opened hours after the last one closed,
+// so what the human meets first is the work, and the question is asked of someone
+// who already has it in mind.
 const doc = "# Which cap to raise\n\nThe refresh job.\n";
-const up = append(doc, section);
-check("the agent's document keeps the top", up.startsWith(doc), true);
-check("a rule between the two", up.slice(doc.length), "\n---\n\n" + section);
-check("nothing is added when there is nothing to add", append(doc, ""), doc);
-check("a document with no trailing newline still gets one", append("# Ask", section).startsWith("# Ask\n\n---\n"), true);
+const up = prepend(doc, section);
+check("the plan keeps the top", up.startsWith(section.trimEnd() + "\n\n---\n"), true);
+check("a rule between the two, and the agent's document whole under it", up.endsWith("\n---\n\n" + doc), true);
+check("nothing is added when there is nothing to add", prepend(doc, ""), doc);
+check("a document with no trailing newline is not given one", prepend("# Ask", section).endsWith("\n---\n\n# Ask"), true);
 
-// A document relayed back out of ~/.relay arrives with a plan already under it.
+// A document relayed back out of ~/.relay arrives with a plan already on it.
 // Two of them, one a round out of date, is worse than either.
-const again = append(up, section);
+const again = prepend(up, section);
 check("an earlier plan is replaced, not joined", again, up);
-check("and the rule above it is not left behind", (again.match(/\n---\n/g) ?? []).length, 1);
-check("a plan is dropped even when there is none to put back", append(up, ""), doc);
+check("and the rule under it is not left behind", (again.match(/\n---\n/g) ?? []).length, 1);
+check("a plan is dropped even when there is none to put back", prepend(up, ""), doc);
 
 // The human strikes an item out in the window and the agent sends the accepted
 // document again. Their edit is in the diff and belongs in the file; what goes up
 // is the file as it stands now.
 const struck = up.replace("- [x] A ledger of the rounds of each task", "- [x] ~~A ledger~~ done");
-check("what they wrote in it does not survive into the next document", append(struck, section), up);
+check("what they wrote in it does not survive into the next document", prepend(struck, section), up);
 
 // A document that talks about this feature quotes the heading, in a fence, the way
-// SPEC.md and README.md do. Cutting the rest of the file off after it would be
-// relay eating a document it was asked to show.
+// SPEC.md and README.md do. Cutting the file up at a quotation would be relay
+// eating a document it was asked to show.
 const about = `# What relay writes\n\n\`\`\`\n${section}\`\`\`\n\nEvery part of that it already knew.\n`;
-check("a document quoting the heading in a fence keeps everything under it", append(about, ""), about);
-check("and still gets its own plan", append(about, section), about.replace(/\n$/, "") + "\n\n---\n\n" + section);
+check("a document quoting the heading in a fence keeps all of itself", prepend(about, ""), about);
+check("and still gets its own plan", prepend(about, section), section.trimEnd() + "\n\n---\n\n" + about);
 
-// relay listed the rounds of the task under the plan for a day, and documents
-// with both sections in them are still in `~/.relay`. The plan's heading is above
-// the older one, so a document sent again loses the list with it.
-const both = up + "\n---\n\n## The task so far — relay/task-timeline\n\n- **09:17** Something — answered\n";
-check("a document from before the list was dropped loses the list too", strip(both), doc);
+// A plan is a paragraph and a list, and a list is allowed a rule in it. Where the
+// section ends is relay's own last line, not the first rule after the heading.
+const ruled = section.replace("- [x] A ledger of the rounds of each task", "---\n\n- [x] A ledger of the rounds of each task");
+check("a rule inside the plan does not end it early", prepend(prepend(doc, ruled), ""), doc);
+
+// The section was under the document until today, and documents from then are
+// still in `~/.relay` waiting to be sent a second time. relay listed the rounds
+// of the task under the plan for a day before that; both come off together.
+const older = doc.replace(/\n$/, "") + "\n\n---\n\n" + section + "\n---\n\n## The task so far — relay/task-timeline\n\n- **09:17** Something — answered\n";
+check("a document from when the plan sat underneath loses it there too", strip(older), doc);
 
 // A nameless heading — the scratchpad case — is still relay's own.
-const nameless = append("# Which index\n", render(loose, read(loose), kept(1), noon));
-check("a nameless heading is still recognised as one", append(nameless, ""), "# Which index\n");
+const nameless = prepend("# Which index\n", render(loose, read(loose), kept(1), noon));
+check("a nameless heading is still recognised as one", prepend(nameless, ""), "# Which index\n");
 
 function exists(path: string): boolean {
   try {
