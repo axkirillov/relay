@@ -40,10 +40,42 @@ Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
 
-## The task so far
+## The task under every document
 
-Under the document is a timeline of the task — the earlier relays from this
-worktree, when each went up and what became of it:
+Under the document is what the task is and where it has got to — a short overview
+and a to-do list, written once at the start and kept ticked as the work moves:
+
+```
+## The task — relay/task-timeline
+
+Cutting what the refresh job costs, which is the 100k cap it hits every run. The
+cap is a symptom; the query behind it is the thing.
+
+- [x] Find out what the cap is really for
+- [x] Reproduce the run that hits it
+- [ ] **Fix the query** — an index on (job_id, created_at)
+- [ ] Put the cap back down once it is not load-bearing
+
+7th round of this task. The agent keeps this in `~/.relay/tasks/relay-task-timeline-e01e2c/plan.md`, last written 09:41.
+```
+
+You are meant to know nothing about a task but what relay has shown you, and what
+goes missing between one window and the next is not the last question — it is what
+the whole thing was for. That cannot be worked out from what relay keeps, so the
+agent writes it: `relay --plan` prints the one file per worktree it goes in, and
+relay puts whatever is in that file under every document of the task. When it was
+last written is on the line at the bottom, because a to-do list nobody has touched
+since breakfast is worse than none.
+
+Strike an item out or write a new one beside it and it comes back to the agent in
+the diff like any other edit, to fold into the file. A task whose agent keeps no
+plan gets no heading, and a plan longer than forty lines is cut with the rest
+counted.
+
+## The rounds so far
+
+Under the plan, the earlier relays from this worktree — when each went up and what
+became of it:
 
 ```
 ## The task so far — relay/task-timeline
@@ -56,11 +88,10 @@ worktree, when each went up and what became of it:
 Each round is a directory in `~/.relay/tasks/relay-task-timeline-e01e2c/`.
 ```
 
-You are meant to know nothing about a task but what relay has shown you, and this
-is what it has shown you: the fifth question of a morning arrives with the four
-before it under it, each named by its own first line, *answered* where you wrote
-something back and *accepted as written* where you did not. `gf` on that last path
-opens the task as a directory, a round in each.
+The fifth question of a morning arrives with the four before it under it, each
+named by its own first line, *answered* where you wrote something back and
+*accepted as written* where you did not. `gf` on that last path opens the task as
+a directory, a round in each — the plan among them.
 
 It is ordinary text in the document, so a line of it can be struck out or written
 in like any other — and relay adds it for the agent, which does not have to

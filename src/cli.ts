@@ -5,6 +5,7 @@ import { createTwoFilesPatch, structuredPatch } from "diff";
 
 import { commentReport } from "./diff.js";
 import { unlatchOnExit } from "./latch.js";
+import * as plan from "./plan.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
@@ -12,6 +13,7 @@ import * as timeline from "./timeline.js";
 import { attend } from "./window.js";
 
 const usage = `relay <file.md>
+relay --plan
 
 Show a markdown document to the human and wait — for as long as it takes — for
 their reply. They can edit anywhere in it; their edits are highlighted live
@@ -24,11 +26,13 @@ A \`\`\`diff block is shown as a review the human can write in. They edit the pa
 where it stands, and any line they write that does not open with a diff marker is
 a comment — those come back under the diff, each one located as file:line.
 
-Under the document relay adds a timeline of the task: the earlier relays from this
-worktree, when each went up and what became of it. The human is assumed to know
-nothing about the task but what relay has shown them, and it has shown them those.
-It is part of the baseline, so it costs you nothing in the diff unless they write
-in it.
+Under the document relay adds the task's plan: a short overview of the work and a
+to-do list, ticked off as it goes. \`relay --plan\` prints the file to write it in —
+one per worktree, yours to keep current. The human is assumed to know nothing about
+the task but what relay has shown them, and hours pass between windows: this is
+what says what the question is about and how far along the work is. It is part of
+the baseline, so it costs you nothing in the diff unless they write in it — and if
+they do write in it, fold what they said back into the file.
 
 There is one relay window. Documents go through it one at a time, in the order
 their relays started, so this one appears once those ahead of it are done —
@@ -54,6 +58,17 @@ unlatchOnExit();
 delete process.env.ELECTRON_RUN_AS_NODE;
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
+
+// Where this task's plan goes. relay owns the path — it is derived from the
+// worktree, so a second agent or a session that started this morning finds the
+// same file without being told — and the agent owns what is in it. There is one
+// copy and nothing is passed on a command line, which is what lets the list be
+// ticked off between documents rather than only when one goes up.
+if (args.length === 1 && args[0] === "--plan") {
+  process.stdout.write(plan.open(timeline.taskOf(process.cwd())) + "\n");
+  process.exit(0);
+}
+
 const help = args.includes("-h") || args.includes("--help");
 if (help || args.length !== 1) {
   process.stderr.write(usage);
@@ -69,26 +84,36 @@ try {
   process.exit(2);
 }
 
-// The document goes up with an account of the task under it. The human is
-// assumed to know nothing about the task except what relay has shown them, and
-// they read this one hours after the last one, so what led here is relay's to
-// say rather than something the agent has to remember to repeat. From here on
-// `sent` is the document as it goes on screen: what is diffed against, what is
-// kept, and what the editor opens with.
+// The document goes up with the task's plan under it. The human is assumed to
+// know nothing about the task except what relay has shown them, and they read
+// this one hours after the last one, so what the work is and how far along it
+// has got is relay's to say rather than something the agent has to remember to
+// repeat. From here on `sent` is the document as it goes on screen: what is
+// diffed against, what is kept, and what the editor opens with.
 const task = timeline.taskOf(process.cwd());
 // Once ever, and before the first read of the ledger: the rounds that were
 // relayed before relay kept one, filed under the tasks they came from. Without it
-// the feature would be blind to everything behind it on the day it shipped.
+// every task in flight would be counting from its next round.
 timeline.fill();
 const past = timeline.before(task);
-sent = timeline.append(sent, timeline.render(task, past.rounds, past.total, new Date()));
+const wrote = plan.read(task);
+const now = new Date();
+
+// Both sections are stripped before either is added, and in the reverse of the
+// order they go back in: a document that has been through relay once ends with
+// the rounds, so the rounds come off first and the plan is at the end again for
+// its own strip to recognise. Adding without that would leave a round-old plan
+// under the current one.
+sent = plan.append(timeline.append(sent, ""), "");
+sent = plan.append(sent, plan.render(task, wrote, past.total + 1, now));
+sent = timeline.append(sent, timeline.render(task, past.rounds, past.total, now));
 
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
 const store = storage.open(path, sent);
-// After its own timeline was read, so this round is not in it: the document is
-// the current round, and saying so under it would be telling the human where
-// they already are.
+// After the count was taken, so that this round is the one it counted up to:
+// the document on screen is the task's Nth, and the ledger says N once this
+// round is in it.
 timeline.note(task, store.id);
 // Joined before the server comes up, so the line is in the order the relays were
 // run. With no window there is nothing to line up for.
@@ -108,6 +133,15 @@ process.stderr.write(`relay: waiting for the human — ${relay.url}\n`);
 // The one line every caller sees, and the one a timed-out caller is handed.
 process.stderr.write(
   "relay: this blocks until they answer — if a command timeout can fire first, run relay in the background\n",
+);
+
+// The one place the agent is already reading when it thinks about this task, so
+// the one place worth saying it: a plan nobody knows the path of does not get
+// written, and one nobody is reminded of stops being true halfway through a day.
+process.stderr.write(
+  wrote
+    ? `relay: the plan under this document is ${timeline.tilde(plan.file(task))} — keep it current\n`
+    : `relay: this task has no plan — write one at ${timeline.tilde(plan.file(task))} and every document carries it\n`,
 );
 
 if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);

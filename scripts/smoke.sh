@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # End to end, with no window: run the CLI, fetch what it serves, POST an edit as
-# the page would, and check the diff that comes back out of stdout. Then a second
-# relay from the same directory, which is the same task — so the round just
-# answered is in the timeline under its document, and the human's one line is
-# still the only thing in the diff.
+# the page would, and check the diff that comes back out of stdout. Then a plan
+# for the task, and a second relay from the same directory — which is the same
+# task, so that plan is under its document, and the human's one line is still the
+# only thing in the diff.
 set -euo pipefail
 
 WT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -11,9 +11,9 @@ TMP="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$TMP"' EXIT
 
 # A smoke run is not something to leave in the human's own ~/.relay. This moves
-# the whole layout — the line, the window, every round's record and the timeline's
-# ledger — into the temp directory, which is also what makes the first relay below
-# the first relay of its task.
+# the whole layout — the line, the window, every round's record, the ledger and
+# the plans — into the temp directory, which is also what makes the first relay
+# below the first relay of its task.
 export RELAY_QUEUE_DIR="$TMP/relay/queue"
 HOME_RELAY="$TMP/relay"
 
@@ -56,6 +56,8 @@ EOF
 serve "$TMP/finding.md"
 
 curl -sf "$URL" | grep -q '/assets/relay.js' || fail "page does not load the editor bundle"
+# Byte for byte the agent's document: this task has no plan yet, and a heading
+# over an absence would be worse than the silence.
 curl -sf "${URL}doc" | diff -q - "$TMP/finding.md" >/dev/null || fail "/doc is not the document"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "${URL}assets/relay.js")" = 200 ] || fail "bundle not served"
 
@@ -73,9 +75,21 @@ for f in meta.json sent.md accepted.md diff.patch; do
   [ -s "$DIR/$f" ] || fail "the round is missing $f"
 done
 
+# --- the plan ------------------------------------------------------------------
+# The agent asks relay where the plan goes and writes it. One file per worktree,
+# found from the worktree, so nothing has to be passed along between documents.
+PLAN=$(node "$WT/dist/relay.js" --plan) || fail "--plan did not print a path"
+case "$PLAN" in "$HOME_RELAY"/tasks/*/plan.md) ;; *) fail "--plan points outside the ledger: $PLAN" ;; esac
+cat >"$PLAN" <<'EOF'
+Cutting the refresh job's cost, which is the 100k cap it hits every run.
+
+- [x] Find out what the cap is really for
+- [ ] **Fix the query** — the cap is a symptom
+EOF
+
 # --- the second relay of the same task ----------------------------------------
 # The human answered the first one and the window closed on it. This is what they
-# are handed next, and it has to say what led here.
+# are handed next, and it has to say what work it belongs to.
 cat >"$TMP/next.md" <<'EOF'
 # The query
 
@@ -87,10 +101,16 @@ curl -sf "${URL}doc" >"$TMP/shown" || fail "the second document is not served"
 
 head -c "$(wc -c <"$TMP/next.md")" "$TMP/shown" | diff -q - "$TMP/next.md" >/dev/null \
   || fail "the agent's document is not the top of what is served"
+grep -q '^## The task — ' "$TMP/shown" || fail "no plan under the second document"
+grep -q '^Cutting the refresh job' "$TMP/shown" || fail "the section is missing the overview"
+grep -q '^- \[ \] \*\*Fix the query\*\*' "$TMP/shown" || fail "the section is missing the to-do list"
+grep -q '^2nd round of this task\. The agent keeps this in ' "$TMP/shown" \
+  || fail "the section does not say which round this is and where the plan lives"
+# And under the plan, the rounds themselves.
 grep -q '^## The task so far — ' "$TMP/shown" || fail "no timeline under the second document"
 grep -q 'Refresh job — answered$' "$TMP/shown" || fail "the timeline does not say what became of the first round"
 grep -q 'Each round is a directory in' "$TMP/shown" || fail "the timeline does not say where the rounds are"
-# And that directory is the task, walkable: a round of it is the round itself.
+# And the task's directory is walkable: a round of it is the round itself.
 [ -f "$HOME_RELAY/tasks/"*/"$(basename "$DIR")/accepted.md" ] \
   || fail "the task's directory does not lead to the round it holds"
 
@@ -100,19 +120,37 @@ awk '{ print } /^Which index is it missing\?$/ { print "The (job_id, created_at)
 reply "$TMP/answer.md"
 
 grep -q '^+The (job_id, created_at) one\.' "$TMP/out" || fail "the human's line is not in the diff"
+DIR2=$(ls -dt "$HOME_RELAY"/*-next 2>/dev/null | head -1 || true)
+[ -n "$DIR2" ] || fail "the second round left no directory"
 CHANGED=$(grep -c '^[+-][^+-]' "$TMP/out" || true)
-[ "$CHANGED" = 1 ] || fail "the timeline turned up in the diff as $CHANGED changed lines, not 1"
+[ "$CHANGED" = 1 ] || fail "the plan turned up in the diff as $CHANGED changed lines, not 1"
 
 TASKS=$(ls "$HOME_RELAY/tasks" | wc -l | tr -d ' ')
 [ "$TASKS" = 1 ] || fail "$TASKS task directories, not 1 — the two relays are not one task"
 ROUNDS=$(ls "$HOME_RELAY"/tasks/*/ | grep -c '^2' || true)
 [ "$ROUNDS" = 2 ] || fail "$ROUNDS rounds in the task's ledger, not 2"
 
+# --- a document that has already been through the window -----------------------
+# The agent sends back what came out of ~/.relay and both sections are already in
+# it. Two of either, one of them a round out of date, is worse than none.
+serve "$DIR2/accepted.md"
+curl -sf "${URL}doc" >"$TMP/twice" || fail "the reused document is not served"
+kill "$PID" 2>/dev/null || true
+wait "$PID" 2>/dev/null || true
+PLANS=$(grep -c '^## The task — ' "$TMP/twice" || true)
+[ "$PLANS" = 1 ] || fail "$PLANS plans under the reused document, not 1"
+TIMES=$(grep -c '^## The task so far — ' "$TMP/twice" || true)
+[ "$TIMES" = 1 ] || fail "$TIMES timelines under the reused document, not 1"
+grep -q '^The (job_id, created_at) one\.$' "$TMP/twice" || fail "the reused document lost the human's line"
+[ "$(grep -c '^---$' "$TMP/twice")" = 2 ] || fail "the rules between the sections did not survive a second pass"
+
+
 # --- the rounds that came before the ledger did --------------------------------
 # The ledger is written a round at a time, so on the day it ships it is empty and
 # every task in flight has its whole history outside it. A round records the
-# directory it was relayed from, so it can be filed afterwards. Its own home, so
-# that what is planted here is the only history there is.
+# directory it was relayed from, so it can be filed afterwards, and the count of
+# rounds under a document is only right if it was. Its own home, so that what is
+# planted here is the only history there is.
 export RELAY_QUEUE_DIR="$TMP/before/queue"
 HOME_BEFORE="$TMP/before"
 OLD="$HOME_BEFORE/20260810-090000-earlier"
@@ -122,15 +160,17 @@ printf '{"id":"20260810-090000-earlier","cwd":"%s","accepted":"2026-08-10T09:10:
   >"$OLD/meta.json"
 printf -- '--- a\n+++ b\n@@ -1 +1 @@\n-a\n+b\n' >"$OLD/diff.patch"
 
+echo "Still the refresh job." >"$(node "$WT/dist/relay.js" --plan)"
+
 serve "$TMP/next.md"
 curl -sf "${URL}doc" >"$TMP/filled" || fail "the document is not served with a filled-in ledger"
 kill "$PID" 2>/dev/null || true
 wait "$PID" 2>/dev/null || true
 
-grep -q 'The question from last week — answered$' "$TMP/filled" \
-  || fail "a round relayed before the ledger existed is not in the timeline"
+grep -q '^2nd round of this task\.' "$TMP/filled" \
+  || fail "a round relayed before the ledger existed is not counted under the document"
 [ -s "$HOME_BEFORE/tasks.filled" ] || fail "the ledger does not record that it was filled in"
 [ -f "$HOME_BEFORE/tasks/"*/"20260810-090000-earlier/sent.md" ] \
   || fail "the filled-in ledger does not lead to the round it filed"
 
-echo "ok — blocked, served, accepted, diffed, stored, the next one carries the timeline, and what came before is in it ($DIR)"
+echo "ok — blocked, served, accepted, diffed, stored, the next one carries the plan, and what came before is counted ($DIR)"

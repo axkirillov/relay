@@ -229,18 +229,64 @@ the headers above it say which file and which line it is against.
 No widgets, no schema. The agent asks in ordinary text; the human answers by
 editing. They are never boxed into options the agent thought of.
 
-## Every document carries the task so far
+## Every document carries the task it belongs to
 
 The first rule of this spec is that the human knows **nothing** about the task
 except what relay has shown them. That is an obligation on every document, not
 just the first one. The fifth question of a task reaches someone who answered
 four others across a morning, each in a window that closed behind them, with an
-agent that was a black box in between — so under the document relay writes the
-account itself:
+agent that was a black box in between — and what they have lost by then is not
+the last document. It is what the work was for, and how far along it is.
+
+Neither of those can be worked out from what relay keeps. A record of what was
+asked is a record of the conversation and not of the work: it says nothing about
+what is still to do, and a document's own first line is a poor account of why it
+exists. So this half is written rather than derived. The agent puts a short
+overview and a to-do list in the task's own `plan.md` at the start, keeps the list
+ticked as the work moves, and relay carries that file under every document of the
+task:
 
 ```
 ---
 
+## The task — relay/task-timeline
+
+Cutting what the refresh job costs, which is the 100k cap it hits every run. The
+cap is a symptom; the query behind it is the thing.
+
+- [x] Find out what the cap is really for
+- [x] Reproduce the run that hits it
+- [ ] **Fix the query** — an index on (job_id, created_at)
+- [ ] Put the cap back down once it is not load-bearing
+
+7th round of this task. The agent keeps this in `~/.relay/tasks/relay-task-timeline-e01e2c/plan.md`, last written 09:41.
+```
+
+- **relay owns the path, the agent owns the file.** `relay --plan` prints it and
+  makes somewhere to write it; nothing is passed on a command line and there is no
+  second copy. The path comes from the worktree, so a handoff, a restart or a
+  second agent finds the same plan without being told where it is — and the list
+  can be ticked between documents rather than only when one goes up.
+- **The plan is beside the rounds, not in the repository.** In the worktree it
+  would be an untracked file in every checkout the human works in, asking to be
+  committed or ignored.
+- **When it was last written is said out loud.** A to-do list that stopped being
+  true an hour into a day's work is worse than none, and the only way to see that
+  from the document is to be told.
+- **Which round this is.** One line of orientation the rounds already know: the
+  ledger below counts them.
+- **A task with no plan gets no heading.** A document from a tool that keeps none
+  looks exactly as it did before this existed.
+- **Forty lines, then a count.** A plan that grew into a document of its own would
+  bury the question it is pasted under.
+- **What the human writes in it comes back in the diff**, like every other edit,
+  and belongs in the file — the agent folds it in. relay does not write the plan.
+
+### And the rounds it took
+
+Under the plan, what has already been asked:
+
+```
 ## The task so far — relay/task-timeline
 
 - **Aug 17 16:12** Which cap is the real one — answered
@@ -260,13 +306,13 @@ whether its patch has a hunk in it — the difference between *answered* and
 - **Under the document, not over it.** The question is what the human opened the
   window for and keeps the top. The account of how they got here is what they read
   next, if they need it.
-- **It is text in the document**, not a panel beside it. So it renders, `gf`
-  opens what it names, and a line of it can be struck out or written in — and what
-  they write there comes back in the diff like every other edit. Nothing new to
+- **Both are text in the document**, not a panel beside it. So they render, `gf`
+  opens what they name, and a line can be struck out or written in — and what is
+  written there comes back in the diff like every other edit. Nothing new to
   learn, and nothing protected.
-- **It is part of the baseline.** `sent.md` is the document as it went on screen,
-  timeline included, so an untouched timeline is not in the diff at all and the
-  agent's answer is unchanged by the feature.
+- **Both are part of the baseline.** `sent.md` is the document as it went on
+  screen, plan and timeline included, so an untouched section is not in the diff
+  at all and the agent's answer is unchanged by the feature.
 - **A dozen rounds, then a count.** A long task would otherwise put thirty lines
   under every question. What is not listed is said to exist rather than dropped in
   silence.

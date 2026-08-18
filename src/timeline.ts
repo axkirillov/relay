@@ -442,7 +442,7 @@ export function clock(when: Date, now: Date): string {
  * Whether there is a checkout at this path, which is the same question as whether
  * `taskOf` found one or fell through to the directory it was given.
  */
-function rooted(task: string): boolean {
+export function rooted(task: string): boolean {
   try {
     statSync(join(task, ".git"));
     return true;
@@ -457,7 +457,7 @@ export function name(task: string): string {
 }
 
 /** `~` for the human's home, since that is how the rest of the document spells it. */
-function tilde(path: string): string {
+export function tilde(path: string): string {
   const home = homedir();
   return path === home || path.startsWith(home + sep) ? "~" + path.slice(home.length) : path;
 }
