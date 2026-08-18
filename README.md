@@ -63,49 +63,31 @@ You are meant to know nothing about a task but what relay has shown you, and wha
 goes missing between one window and the next is not the last question — it is what
 the whole thing was for. That cannot be worked out from what relay keeps, so the
 agent writes it: `relay --plan` prints the one file per worktree it goes in, and
-relay puts whatever is in that file under every document of the task. When it was
-last written is on the line at the bottom, because a to-do list nobody has touched
-since breakfast is worse than none.
+relay puts whatever is in that file under every document of the task.
+
+The bottom line is relay's own. Which question of this task you are on, where the
+file is — `gf` opens it, and the directory it is in holds every round of the task
+besides — and when the agent last wrote it, because a to-do list nobody has
+touched since breakfast is worse than none. When a whole round has gone by without
+it being touched, that is said outright:
+
+```
+7th round of this task. The agent keeps this in `~/.relay/tasks/relay-task-timeline-e01e2c/plan.md`, last written Aug 17 18:22.
+**Not touched since before the 5th round — it may be behind the work.**
+```
+
+Agents are told to update the plan before every relay. That line is how you can
+tell whether this one did, without having to take its word for it — and the agent
+is told the same thing on its way out, so it is not something you have to raise.
 
 Strike an item out or write a new one beside it and it comes back to the agent in
 the diff like any other edit, to fold into the file. A task whose agent keeps no
 plan gets no heading, and a plan longer than forty lines is cut with the rest
 counted.
 
-## The rounds so far
-
-Under the plan, the earlier relays from this worktree — when each went up and what
-became of it:
-
-```
-## The task so far — relay/task-timeline
-
-- **Aug 17 16:12** Which cap is the real one — answered
-- **Aug 17 16:37** A hold on the migration until the index lands — accepted as written
-- **09:17** The run that failed on staging — closed without a reply
-- **09:22** Closing out the reconcile job — answered
-
-Each round is a directory in `~/.relay/tasks/relay-task-timeline-e01e2c/`.
-```
-
-The fifth question of a morning arrives with the four before it under it, each
-named by its own first line, *answered* where you wrote something back and
-*accepted as written* where you did not. `gf` on that last path opens the task as
-a directory, a round in each — the plan among them.
-
-It is ordinary text in the document, so a line of it can be struck out or written
-in like any other — and relay adds it for the agent, which does not have to
-remember to. A dozen rounds, then a count; the first relay of a task has none and
-gets none.
-
 A relay from a directory with no worktree above it — an agent that ran it from its
 own scratchpad — has no task to name, and the heading leaves the name off rather
 than heading your document with a session's UUID.
-
-The rounds you answered before any of this existed are in it too. A round records
-the directory it was relayed from, so relay files every round already in
-`~/.relay` under the task it came from — once, on the first relay after this
-lands, which is about half a second and never again.
 
 ## Reviewing a diff
 
@@ -219,7 +201,8 @@ the document — so the diff view can be looked at without typing into it.
 Every relay is kept in `~/.relay/<timestamp>-<slug>/` — the agent only gets a
 diff back, so what it was diffed against has to live somewhere. Beside it,
 `~/.relay/tasks/<task>-<hash>/` says which of those rounds are one task, a symlink
-each, `~/.relay/queue/` holds a ticket per relay waiting for the screen,
+each, and holds that task's `plan.md`, `~/.relay/queue/` holds a ticket per relay
+waiting for the screen,
 `~/.relay/window.json` is the window saying it is up, and `~/.relay/closed`
 records the last time the human closed it. `RELAY_QUEUE_DIR` moves the lot — a
 test pointed at a temp directory takes the window with it.

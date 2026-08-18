@@ -5,8 +5,8 @@ import { join } from "node:path";
 const home = mkdtempSync(join(tmpdir(), "relay-plan-"));
 process.env.RELAY_QUEUE_DIR = join(home, "queue");
 
-const { append, file, open, read, render, shown, strip } = await import("./plan.ts");
-const { taskDir } = await import("./timeline.ts");
+const { append, file, open, read, render, shown, stale, strip } = await import("./plan.ts");
+const { taskDir } = await import("./task.ts");
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -18,6 +18,11 @@ function check(name: string, got: unknown, want: unknown) {
 }
 
 const noon = new Date(2026, 7, 18, 12, 0, 0);
+
+/** N rounds of a task, as the times they went up — all of them before 09:41. */
+function kept(n: number): Date[] {
+  return Array.from({ length: n }, (_, i) => new Date(2026, 7, 18, 8, i));
+}
 
 /** Write the task's plan, and say when it was last written. */
 function wrote(task: string, text: string, when = new Date(2026, 7, 18, 9, 41, 0)) {
@@ -54,7 +59,7 @@ check("what the agent wrote is what is read back", read(repo)!.text, text);
 check("with when they last wrote it", read(repo)!.written.getHours(), 9);
 
 // --- the section ----------------------------------------------------------------
-const section = render(repo, read(repo), 9, noon);
+const section = render(repo, read(repo), kept(8), noon);
 check("the heading names the task the way the human does", section.split("\n")[0], "## The task — relay/task-timeline");
 check("the agent's own text is under it, untouched", section.includes(text), true);
 check(
@@ -62,17 +67,33 @@ check(
   section.trimEnd().split("\n").pop(),
   `9th round of this task. The agent keeps this in \`${file(repo)}\`, last written 09:41.`,
 );
-check("a first round says so", render(repo, read(repo), 1, noon).includes("1st round of this task."), true);
-check("and a third", render(repo, read(repo), 3, noon).includes("3rd round of this task."), true);
-check("the teens are not second and third", render(repo, read(repo), 13, noon).includes("13th round"), true);
-check("a plan written on another day carries the date", render(repo, read(repo), 9, new Date(2026, 7, 20, 12, 0, 0)).includes("last written Aug 18 09:41"), true);
-check("no plan, no section at all", render(repo, null, 9, noon), "");
+check("a first round says so", render(repo, read(repo), [], noon).includes("1st round of this task."), true);
+check("and a third", render(repo, read(repo), kept(2), noon).includes("3rd round of this task."), true);
+check("the teens are not second and third", render(repo, read(repo), kept(12), noon).includes("13th round"), true);
+check("a plan written on another day carries the date", render(repo, read(repo), kept(8), new Date(2026, 7, 20, 12, 0, 0)).includes("last written Aug 18 09:41"), true);
+check("no plan, no section at all", render(repo, null, kept(8), noon), "");
+
+// --- a plan the agent stopped updating ------------------------------------------
+// The agent is told to update this before every relay. Whether it did is not a
+// matter of opinion — a round went up and the file was not touched — and the human
+// is the one being asked to trust the list, so the document is where it is said.
+const dropped = [...kept(2), new Date(2026, 7, 18, 10, 30), new Date(2026, 7, 18, 11, 15)];
+check("a round that went up after the plan was written leaves it behind", stale(read(repo)!, dropped), 3);
+check("a plan nothing has gone up since is not behind", stale(read(repo)!, kept(4)), 0);
+check("a round in the same second as the write does not accuse", stale(read(repo)!, [new Date(2026, 7, 18, 9, 41, 0)]), 0);
+check("the first round of a task cannot be behind anything", stale(read(repo)!, []), 0);
+check(
+  "and the document says which round it stopped short of",
+  render(repo, read(repo), dropped, noon).trimEnd().split("\n").pop(),
+  "**Not touched since before the 3rd round — it may be behind the work.**",
+);
+check("a current plan says nothing of the kind", section.includes("Not touched"), false);
 
 // A plan that grew into a document of its own would bury the question it is pasted
 // under, so what is past the cap is counted rather than shown.
 const long = Array.from({ length: shown + 6 }, (_, i) => `- [ ] item ${i + 1}`).join("\n");
 wrote(repo, long + "\n");
-const capped = render(repo, read(repo), 2, noon);
+const capped = render(repo, read(repo), kept(1), noon);
 check("a runaway plan is cut to the cap", capped.includes(`- [ ] item ${shown}`), true);
 check("and what is past it is not shown", capped.includes(`- [ ] item ${shown + 1}`), false);
 check("but is said to exist", capped.includes("… and 6 more lines of it."), true);
@@ -84,8 +105,8 @@ wrote(repo, text + "\n");
 const loose = join(home, "b00dd24a-1f3e-4a77-9c21-8e6a2f0d5b17", "scratchpad");
 mkdirSync(loose, { recursive: true });
 wrote(loose, "Chasing a flaky test.\n\n- [ ] Reproduce it\n");
-check("with no checkout above it the heading names nothing", render(loose, read(loose), 2, noon).split("\n")[0], "## The task");
-check("the plan under it is unchanged", render(loose, read(loose), 2, noon).includes("- [ ] Reproduce it"), true);
+check("with no checkout above it the heading names nothing", render(loose, read(loose), kept(1), noon).split("\n")[0], "## The task");
+check("the plan under it is unchanged", render(loose, read(loose), kept(1), noon).includes("- [ ] Reproduce it"), true);
 
 // --- the document as it goes up -------------------------------------------------
 const doc = "# Which cap to raise\n\nThe refresh job.\n";
@@ -115,13 +136,14 @@ const about = `# What relay writes\n\n\`\`\`\n${section}\`\`\`\n\nEvery part of 
 check("a document quoting the heading in a fence keeps everything under it", append(about, ""), about);
 check("and still gets its own plan", append(about, section), about.replace(/\n$/, "") + "\n\n---\n\n" + section);
 
-// The other heading relay writes starts with the same three words. Neither may eat
-// the other.
-const so = "# Ask\n\n---\n\n## The task so far — relay/task-timeline\n\n- **09:17** Something — answered\n";
-check("`## The task so far` is a different heading", strip(so), so);
+// relay listed the rounds of the task under the plan for a day, and documents
+// with both sections in them are still in `~/.relay`. The plan's heading is above
+// the older one, so a document sent again loses the list with it.
+const both = up + "\n---\n\n## The task so far — relay/task-timeline\n\n- **09:17** Something — answered\n";
+check("a document from before the list was dropped loses the list too", strip(both), doc);
 
 // A nameless heading — the scratchpad case — is still relay's own.
-const nameless = append("# Which index\n", render(loose, read(loose), 2, noon));
+const nameless = append("# Which index\n", render(loose, read(loose), kept(1), noon));
 check("a nameless heading is still recognised as one", append(nameless, ""), "# Which index\n");
 
 function exists(path: string): boolean {

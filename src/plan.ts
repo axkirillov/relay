@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { clock, name, note, rooted, taskDir, tilde } from "./timeline.ts";
+import { clock, name, note, rooted, taskDir, tilde } from "./task.ts";
 
 /**
  * What the task is, and where it has got to, under every document.
@@ -13,13 +13,14 @@ import { clock, name, note, rooted, taskDir, tilde } from "./timeline.ts";
  * between, and the thing they have lost is not the last document: it is what the
  * whole task was for and how far along it is.
  *
- * Neither of those can be worked out from the rounds. A list of what was asked is
- * a record of the conversation, not of the work — it says nothing about what is
- * still to do, and a document's own first line is a poor summary of why it exists.
- * So this half is written rather than derived: the agent puts a short overview and
- * a to-do list in the task's `plan.md` at the start, keeps the list ticked as it
- * goes, and relay carries whatever is in that file under every document of the
- * task.
+ * Neither of those can be derived. relay listed the rounds of the task under the
+ * document first — every question it had asked, and what became of each — and a
+ * list of what was asked is a record of the conversation, not of the work: it says
+ * nothing about what is still to do, and a document's own first line is a poor
+ * summary of why it exists. So this is written rather than derived: the agent puts
+ * a short overview and a to-do list in the task's `plan.md` at the start, keeps
+ * the list ticked as it goes, and relay carries whatever is in that file under
+ * every document of the task.
  *
  * relay owns the path and the agent owns the file. There is one copy, in a
  * directory the task already has, so a plan cannot fall out of step with itself
@@ -95,14 +96,35 @@ export function read(task: string): Plan | null {
 }
 
 /**
+ * Which round of the task the plan is older than: the first round that went up
+ * after the agent last wrote it, counting this document's own as the next one, or
+ * 0 when no round has gone up since.
+ *
+ * A plan is a to-do list that is only worth anything while it is true, and the
+ * agent is told to update it before every relay. Whether it did is not a matter of
+ * opinion — a round went up, and the file was not touched — and the document is
+ * the only place that can say so, because the human is the one being asked to
+ * trust it.
+ *
+ * A tie is not stale. A plan written in the same second a round went up was
+ * written for that round as far as anything here can tell, and a borderline case
+ * should not accuse.
+ */
+export function stale(plan: Plan, past: Date[]): number {
+  const at = past.findIndex((when) => when > plan.written);
+  return at < 0 ? 0 : at + 1;
+}
+
+/**
  * The section as markdown, or nothing at all when there is no plan. No heading
  * over an absence: a document from a tool that does not keep plans should look
  * exactly as it did before this existed.
  *
- * `round` is which round of the task this document is — this one included, since
- * the human is reading it.
+ * `past` is when each earlier round of the task went up — its length is which
+ * round this document is, and its times are what says whether the plan has kept
+ * up with them.
  */
-export function render(task: string, plan: Plan | null, round: number, now: Date): string {
+export function render(task: string, plan: Plan | null, past: Date[], now: Date): string {
   if (!plan) return "";
 
   // The name only when there is a task to name. A relay from a directory with no
@@ -120,7 +142,15 @@ export function render(task: string, plan: Plan | null, round: number, now: Date
   // into a day's work is worse than none, and the only way to see that from the
   // document is to be told when it was last touched.
   const where = `The agent keeps this in \`${tilde(file(task))}\`, last written ${clock(plan.written, now)}.`;
-  lines.push("", round > 0 ? `${nth(round)} round of this task. ${where}` : where);
+  lines.push("", `${nth(past.length + 1)} round of this task. ${where}`);
+
+  // And when the time on that line is old enough to matter, saying it in a way
+  // that does not need arithmetic. A whole round has gone by without the agent
+  // touching this, so the list is at best what the work looked like then — which
+  // is the one thing the human cannot see for themselves, and the one thing that
+  // decides how much of the section to believe.
+  const behind = stale(plan, past);
+  if (behind) lines.push(`**Not touched since before the ${nth(behind)} round — it may be behind the work.**`);
   return lines.join("\n") + "\n";
 }
 

@@ -15,8 +15,8 @@ export type Store = {
   /**
    * The window went without a reply. `shown` is whether the human ever had this
    * document in front of them — a relay dismissed while it was still in line was
-   * never declined, and a timeline that says otherwise is telling them they turned
-   * down something they never saw.
+   * never declined, and a record that says otherwise has them turning down
+   * something they never saw.
    */
   abandon(shown: boolean): void;
 };

@@ -9,7 +9,7 @@ import * as plan from "./plan.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
-import * as timeline from "./timeline.js";
+import * as tasks from "./task.js";
 import { attend } from "./window.js";
 
 const usage = `relay <file.md>
@@ -33,6 +33,9 @@ the task but what relay has shown them, and hours pass between windows: this is
 what says what the question is about and how far along the work is. It is part of
 the baseline, so it costs you nothing in the diff unless they write in it — and if
 they do write in it, fold what they said back into the file.
+
+Update it before every relay. The document says when you last wrote it, and once a
+round has gone by untouched it says that too, to the human reading it.
 
 There is one relay window. Documents go through it one at a time, in the order
 their relays started, so this one appears once those ahead of it are done —
@@ -65,7 +68,7 @@ const args = process.argv.slice(2).filter((a) => a !== "--");
 // copy and nothing is passed on a command line, which is what lets the list be
 // ticked off between documents rather than only when one goes up.
 if (args.length === 1 && args[0] === "--plan") {
-  process.stdout.write(plan.open(timeline.taskOf(process.cwd())) + "\n");
+  process.stdout.write(plan.open(tasks.taskOf(process.cwd())) + "\n");
   process.exit(0);
 }
 
@@ -90,23 +93,19 @@ try {
 // has got is relay's to say rather than something the agent has to remember to
 // repeat. From here on `sent` is the document as it goes on screen: what is
 // diffed against, what is kept, and what the editor opens with.
-const task = timeline.taskOf(process.cwd());
+const task = tasks.taskOf(process.cwd());
 // Once ever, and before the first read of the ledger: the rounds that were
 // relayed before relay kept one, filed under the tasks they came from. Without it
 // every task in flight would be counting from its next round.
-timeline.fill();
-const past = timeline.before(task);
+tasks.fill();
+const past = tasks.rounds(task);
 const wrote = plan.read(task);
 const now = new Date();
 
-// Both sections are stripped before either is added, and in the reverse of the
-// order they go back in: a document that has been through relay once ends with
-// the rounds, so the rounds come off first and the plan is at the end again for
-// its own strip to recognise. Adding without that would leave a round-old plan
-// under the current one.
-sent = plan.append(timeline.append(sent, ""), "");
-sent = plan.append(sent, plan.render(task, wrote, past.total + 1, now));
-sent = timeline.append(sent, timeline.render(task, past.rounds, past.total, now));
+// A plan already under the document — this is a document that came back out of
+// `~/.relay` and is being sent again — comes off before the current one goes on.
+// Two of them, one of them a round out of date, is worse than either.
+sent = plan.append(sent, plan.render(task, wrote, past, now));
 
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
@@ -114,7 +113,7 @@ const store = storage.open(path, sent);
 // After the count was taken, so that this round is the one it counted up to:
 // the document on screen is the task's Nth, and the ledger says N once this
 // round is in it.
-timeline.note(task, store.id);
+tasks.note(task, store.id);
 // Joined before the server comes up, so the line is in the order the relays were
 // run. With no window there is nothing to line up for.
 const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path);
@@ -138,10 +137,20 @@ process.stderr.write(
 // The one place the agent is already reading when it thinks about this task, so
 // the one place worth saying it: a plan nobody knows the path of does not get
 // written, and one nobody is reminded of stops being true halfway through a day.
+// When it has already stopped being true, the line says that instead — the human
+// is being told the same thing under the document, and the agent should not learn
+// it from their reply.
+const behind = wrote ? plan.stale(wrote, past) : 0;
+// How many rounds went up after it was last written, this one not counted: it is
+// going up now, and it is the one being complained about.
+const missed = past.length + 1 - behind;
+const where = tasks.tilde(plan.file(task));
 process.stderr.write(
-  wrote
-    ? `relay: the plan under this document is ${timeline.tilde(plan.file(task))} — keep it current\n`
-    : `relay: this task has no plan — write one at ${timeline.tilde(plan.file(task))} and every document carries it\n`,
+  !wrote
+    ? `relay: this task has no plan — write one at ${where} and every document carries it\n`
+    : behind
+      ? `relay: the plan under this document has not been touched in ${missed} round${missed === 1 ? "" : "s"} — the human is being told so; update ${where}\n`
+      : `relay: the plan under this document is ${where} — keep it current\n`,
 );
 
 if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);

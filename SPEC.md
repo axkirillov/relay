@@ -238,13 +238,14 @@ four others across a morning, each in a window that closed behind them, with an
 agent that was a black box in between — and what they have lost by then is not
 the last document. It is what the work was for, and how far along it is.
 
-Neither of those can be worked out from what relay keeps. A record of what was
-asked is a record of the conversation and not of the work: it says nothing about
-what is still to do, and a document's own first line is a poor account of why it
-exists. So this half is written rather than derived. The agent puts a short
-overview and a to-do list in the task's own `plan.md` at the start, keeps the list
-ticked as the work moves, and relay carries that file under every document of the
-task:
+Neither of those can be derived. relay listed the rounds of the task first — every
+question asked from this worktree, when each went up and what became of it — and a
+record of what was asked is a record of the conversation and not of the work: it
+says nothing about what is still to do, and a document's own first line is a poor
+account of why it exists. That list is gone; this is what replaced it. The agent
+puts a short overview and a to-do list in the task's own `plan.md` at the start,
+keeps the list ticked as the work moves, and relay carries that file under every
+document of the task:
 
 ```
 ---
@@ -270,58 +271,51 @@ cap is a symptom; the query behind it is the thing.
 - **The plan is beside the rounds, not in the repository.** In the worktree it
   would be an untracked file in every checkout the human works in, asking to be
   committed or ignored.
+- **Under the document, not over it.** The question is what the human opened the
+  window for and keeps the top. The ground it stands on is what they read next, if
+  they need it.
+- **Which round this is.** One line of orientation the ledger already holds, and
+  what gives the line beside it a scale.
 - **When it was last written is said out loud.** A to-do list that stopped being
   true an hour into a day's work is worse than none, and the only way to see that
   from the document is to be told.
-- **Which round this is.** One line of orientation the rounds already know: the
-  ledger below counts them.
 - **A task with no plan gets no heading.** A document from a tool that keeps none
   looks exactly as it did before this existed.
 - **Forty lines, then a count.** A plan that grew into a document of its own would
   bury the question it is pasted under.
+- **It is text in the document**, not a panel beside it. So it renders, `gf` opens
+  what it names, and a line of it can be struck out or written in. Nothing new to
+  learn, and nothing protected.
 - **What the human writes in it comes back in the diff**, like every other edit,
   and belongs in the file — the agent folds it in. relay does not write the plan.
+- **It is part of the baseline.** `sent.md` is the document as it went on screen,
+  plan included, so an untouched section is not in the diff at all and the agent's
+  answer is unchanged by the feature.
 
-### And the rounds it took
+### A plan that stopped being true
 
-Under the plan, what has already been asked:
+A to-do list is worth something only while it is true, so the agent is told to
+update it before every relay — and whether it did is not a matter of opinion. A
+round went up and the file was not touched. The document says so:
 
 ```
-## The task so far — relay/task-timeline
-
-- **Aug 17 16:12** Which cap is the real one — answered
-- **Aug 17 16:37** A hold on the migration until the index lands — accepted as written
-- **09:17** The run that failed on staging — closed without a reply
-- **09:22** Closing out the reconcile job — answered
-
-Each round is a directory in `~/.relay/tasks/relay-task-timeline-e01e2c/`.
+7th round of this task. The agent keeps this in `~/.relay/tasks/relay-task-timeline-e01e2c/plan.md`, last written Aug 17 18:22.
+**Not touched since before the 5th round — it may be behind the work.**
 ```
 
-Every part of that is something relay already knew and had never said. The time
-is the round's own name. What each one was about is the first line of the document
-that went out. What became of it is whether an `accepted.md` was written and
-whether its patch has a hunk in it — the difference between *answered* and
-*accepted as written*, which is the difference between a reply and a nod.
+It is the plan's mtime against the times the rounds went up, both of which relay
+already has: a round's directory is named for when it opened, so this costs the
+same listing that counts the rounds and not one file read more.
 
-- **Under the document, not over it.** The question is what the human opened the
-  window for and keeps the top. The account of how they got here is what they read
-  next, if they need it.
-- **Both are text in the document**, not a panel beside it. So they render, `gf`
-  opens what they name, and a line can be struck out or written in — and what is
-  written there comes back in the diff like every other edit. Nothing new to
-  learn, and nothing protected.
-- **Both are part of the baseline.** `sent.md` is the document as it went on
-  screen, plan and timeline included, so an untouched section is not in the diff
-  at all and the agent's answer is unchanged by the feature.
-- **A dozen rounds, then a count.** A long task would otherwise put thirty lines
-  under every question. What is not listed is said to exist rather than dropped in
-  silence.
-- **One line per round.** Every entry carried the path to its round at first, and
-  a path is the longest thing on a line and the least of what the line says: it
-  wrapped every entry onto three rows and read as the loudest part of each. Said
-  once, at the end, it is a directory to walk instead.
-- **A first round gets nothing.** A heading over an empty list is a paragraph
-  saying "no history", which is not worth the room.
+- **The round it names is the first one it missed** — where the list stopped
+  keeping up. Hours would leave the human to work out for themselves how many
+  questions they have answered off a plan that was already out of date.
+- **A tie is not stale.** A plan written in the same second a round went up was
+  written for that round as far as anything here can tell, and a borderline case
+  should not accuse.
+- **The agent is told as well**, on the stderr line that says where the plan is.
+  The human should not have to be the one who points it out, because by the time
+  they can they have already read a list that was not true.
 
 ### A task is the worktree
 
@@ -332,18 +326,19 @@ human names a task too, the branch and the tmux session and the directory all
 carrying the one name. The walk up stops at the first `.git`, a worktree's file
 as readily as a clone's directory. With none above at all, an agent relaying from
 `/tmp`, the directory itself is the task; that groups nothing, which is the right
-failure — a timeline of one round beats a timeline of four unrelated agents.
+failure — one session's own plan beats one plan shared out between four unrelated
+agents.
 
 Such a task has no name, and the heading says so by saying nothing:
 
 ```
-## The task so far
+## The task
 ```
 
 What it would be called is the directory it ran in, which for an agent's scratchpad
 is a session's UUID. The heading is there to tell the human which piece of work a
 document belongs to and a UUID does not, so the more truthful of the two is to leave
-it off. The rounds under it are unchanged — they really are one session's — and the
+it off. The plan under it is unchanged — it really is that session's — and the
 path at the end is still the real directory, so the UUID is in the document once,
 in something you can open, rather than across the top of it. Whether there is a
 checkout is asked of the disk at the time the section is written, which is right
@@ -354,29 +349,39 @@ Which rounds are one task is the one thing a round's own directory cannot say, a
 working it out afterwards means reading every `meta.json` under `~/.relay`: on a
 few hundred rounds that is half a second, in front of every document, spent on a
 question the relay could have answered for free while it had the answer. So each
-relay leaves its own name in its task's directory as a symlink to itself:
+relay leaves its own name in its task's directory as a symlink to itself, beside
+the plan:
 
 ```
 ~/.relay/tasks/relay-task-timeline-e01e2c/
+  plan.md                       # what the agent wrote, under every document
   task                          # the worktree this stands for, in full
   20260818-093042-question ->  ~/.relay/20260818-093042-question
 ```
 
-Nothing a timeline says is kept there, so there is no second copy of anything to
-go stale — and the task is then a directory, walkable, which is what lets the
-document name one path instead of twelve. The name is what the human calls the
-task, and six characters of the full path's hash, because two checkouts really can
-end in the same two segments and quietly pouring two tasks into one directory is
-the one failure this cannot have.
+Nothing said under a document is copied in there, so there is no second copy of
+anything to go stale — and the task is then a directory, walkable, which is what
+lets the document name one path and have `gf` open the plan, the rounds, and
+everything each round kept. The name is what the human calls the task, and six
+characters of the full path's hash, because two checkouts really can end in the
+same two segments and quietly pouring two tasks into one directory is the one
+failure this cannot have.
+
+What is read back out of it is the count of a task's rounds and the times they
+went up — which document this is, and whether the plan has kept up with them.
+Both come out of the listing alone: the time is in the name each round already
+carries, so a task a hundred rounds deep costs one `readdir` and no file reads at
+all.
 
 ### What came before the ledger
 
 A ledger written a round at a time is empty on the day it ships, and every task
 already under way has its whole history outside it. That is not a small edge: it
 was nine hundred rounds across a hundred tasks here, several of them dozens of
-answered questions deep. The feature would land and show nothing about anything in
-flight — nothing on this relay, because it is the first *noted* round of its task,
-and one line on the next.
+answered questions deep. The feature would land and tell the human, on the
+hundredth question of a task they had been at for two days, that this was its
+first round — and call the plan they were reading current on the strength of a
+history it claimed had never happened.
 
 They are not lost. A round records the directory it was relayed from, so the task
 it belonged to is `taskOf` of that — the same answer the relay would have written
@@ -835,11 +840,12 @@ overridable on its own.
 - **relay runs no command of the human's.** It shows a document and prints an
   answer to the agent that asked for one. A gesture that starts work belongs to
   the window that holds the documents — composer — not to the document.
-- **Every document says what the task so far was.** Not a walk back on the line
-  above: *starting* a task is a gesture and belongs to the window, while what
-  relay has already shown this human is relay's own record and nobody else can
-  say it. The agent is not asked to remember to repeat it, because an obligation
-  every document carries cannot rest on an agent remembering.
+- **Every document says what the task is and how far it has got.** Not a walk
+  back on the line above: *starting* a task is a gesture and belongs to the
+  window, while carrying the task's plan under every document is relay's — the
+  agent is not asked to remember to repeat it, because an obligation every
+  document carries cannot rest on an agent remembering. Writing the plan is the
+  agent's; relay says which round this is and when the file was last touched.
 - **One document at a time.** The next appears the moment the current one is
   answered. No tabs, no list of what is waiting.
 - **Closing the window dismisses everything**, not only the document on screen.

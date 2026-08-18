@@ -106,11 +106,8 @@ grep -q '^Cutting the refresh job' "$TMP/shown" || fail "the section is missing 
 grep -q '^- \[ \] \*\*Fix the query\*\*' "$TMP/shown" || fail "the section is missing the to-do list"
 grep -q '^2nd round of this task\. The agent keeps this in ' "$TMP/shown" \
   || fail "the section does not say which round this is and where the plan lives"
-# And under the plan, the rounds themselves.
-grep -q '^## The task so far — ' "$TMP/shown" || fail "no timeline under the second document"
-grep -q 'Refresh job — answered$' "$TMP/shown" || fail "the timeline does not say what became of the first round"
-grep -q 'Each round is a directory in' "$TMP/shown" || fail "the timeline does not say where the rounds are"
-# And the task's directory is walkable: a round of it is the round itself.
+# And the task's directory is walkable: the plan is a file in it, and so is every
+# round the human might want to open from the path the section names.
 [ -f "$HOME_RELAY/tasks/"*/"$(basename "$DIR")/accepted.md" ] \
   || fail "the task's directory does not lead to the round it holds"
 
@@ -131,18 +128,31 @@ ROUNDS=$(ls "$HOME_RELAY"/tasks/*/ | grep -c '^2' || true)
 [ "$ROUNDS" = 2 ] || fail "$ROUNDS rounds in the task's ledger, not 2"
 
 # --- a document that has already been through the window -----------------------
-# The agent sends back what came out of ~/.relay and both sections are already in
-# it. Two of either, one of them a round out of date, is worse than none.
+# The agent sends back what came out of ~/.relay and the plan is already under it.
+# Two of them, one a round out of date, is worse than either.
 serve "$DIR2/accepted.md"
 curl -sf "${URL}doc" >"$TMP/twice" || fail "the reused document is not served"
 kill "$PID" 2>/dev/null || true
 wait "$PID" 2>/dev/null || true
 PLANS=$(grep -c '^## The task — ' "$TMP/twice" || true)
 [ "$PLANS" = 1 ] || fail "$PLANS plans under the reused document, not 1"
-TIMES=$(grep -c '^## The task so far — ' "$TMP/twice" || true)
-[ "$TIMES" = 1 ] || fail "$TIMES timelines under the reused document, not 1"
 grep -q '^The (job_id, created_at) one\.$' "$TMP/twice" || fail "the reused document lost the human's line"
-[ "$(grep -c '^---$' "$TMP/twice")" = 2 ] || fail "the rules between the sections did not survive a second pass"
+[ "$(grep -c '^---$' "$TMP/twice")" = 1 ] || fail "the rule above the plan did not survive a second pass"
+
+# --- a plan the agent stopped updating -----------------------------------------
+# The agent is told to update the plan before every relay, and whether it did is
+# not a matter of opinion: rounds went up and the file was not touched. The human
+# is the one being asked to trust the list, so the document says so — and the
+# agent, which should not be learning it from their reply, is told on stderr.
+touch -t 202608100900 "$PLAN"
+serve "$TMP/next.md"
+curl -sf "${URL}doc" >"$TMP/stale" || fail "the document with an old plan is not served"
+kill "$PID" 2>/dev/null || true
+wait "$PID" 2>/dev/null || true
+grep -q '^\*\*Not touched since before the 1st round' "$TMP/stale" \
+  || fail "the document does not say the plan has gone rounds without being touched"
+grep -q 'has not been touched in 3 rounds' "$TMP/err" \
+  || fail "the agent is not told on stderr that the plan is behind"
 
 
 # --- the rounds that came before the ledger did --------------------------------
@@ -173,4 +183,4 @@ grep -q '^2nd round of this task\.' "$TMP/filled" \
 [ -f "$HOME_BEFORE/tasks/"*/"20260810-090000-earlier/sent.md" ] \
   || fail "the filled-in ledger does not lead to the round it filed"
 
-echo "ok — blocked, served, accepted, diffed, stored, the next one carries the plan, and what came before is counted ($DIR)"
+echo "ok — blocked, served, accepted, diffed, stored, the next one carries the plan, an old plan is called old, and what came before is counted ($DIR)"
