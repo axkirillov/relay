@@ -48,7 +48,10 @@ W="$(window_pid)"
 
 # Served, in line, but not on screen — and no second window for it.
 kill -0 "$B" 2>/dev/null || fail "second relay exited instead of waiting"
-curl -sf "${UB}doc" | diff -q - "$TMP/two.md" >/dev/null || fail "queued relay is not serving its document"
+# The top of it, since relay writes the task under every document and by now this
+# task has a round behind it.
+curl -sf "${UB}doc" | head -c "$(wc -c <"$TMP/two.md")" | diff -q - "$TMP/two.md" >/dev/null \
+  || fail "queued relay is not serving its document"
 
 curl -sf -X POST -H 'Content-Type: text/markdown' --data-binary 'first, answered' "${UA}accept" \
   || fail "accept was refused by the first relay"
