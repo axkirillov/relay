@@ -144,7 +144,7 @@ const behind = wrote ? plan.stale(wrote, past) : 0;
 // How many rounds went up after it was last written, this one not counted: it is
 // going up now, and it is the one being complained about.
 const missed = past.length + 1 - behind;
-const where = tasks.tilde(plan.file(task));
+const where = plan.tilde(plan.file(task));
 process.stderr.write(
   !wrote
     ? `relay: this task has no plan — write one at ${where} and every document carries it\n`

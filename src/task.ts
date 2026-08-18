@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join, sep } from "node:path";
 
 import { filledFile, relayHome, tasksDir } from "./paths.ts";
@@ -229,42 +228,7 @@ function opened(id: string): Date {
   return new Date(y, m - 1, d, hh, mm, ss);
 }
 
-const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/**
- * A time, as a document says it. Clock time, not "20 minutes ago": the document is
- * kept, and a document that says "20 minutes ago" is wrong by the time anybody
- * reads it back. The date comes with it only when it is not today's — a task
- * answered inside an afternoon should not repeat the date every time.
- */
-export function clock(when: Date, now: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  const time = `${p(when.getHours())}:${p(when.getMinutes())}`;
-  const sameDay =
-    when.getFullYear() === now.getFullYear() && when.getMonth() === now.getMonth() && when.getDate() === now.getDate();
-  return sameDay ? time : `${months[when.getMonth()]} ${when.getDate()} ${time}`;
-}
-
-/**
- * Whether there is a checkout at this path, which is the same question as whether
- * `taskOf` found one or fell through to the directory it was given.
- */
-export function rooted(task: string): boolean {
-  try {
-    statSync(join(task, ".git"));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** The task, said the way the human says it: the worktree and the repo above it. */
 export function name(task: string): string {
   return task.split(sep).filter(Boolean).slice(-2).join("/") || task;
-}
-
-/** `~` for the human's home, since that is how the rest of the document spells it. */
-export function tilde(path: string): string {
-  const home = homedir();
-  return path === home || path.startsWith(home + sep) ? "~" + path.slice(home.length) : path;
 }

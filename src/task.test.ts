@@ -5,7 +5,7 @@ import { join } from "node:path";
 const home = mkdtempSync(join(tmpdir(), "relay-task-"));
 process.env.RELAY_QUEUE_DIR = join(home, "queue");
 
-const { clock, fill, name, note, rooted, rounds, taskDir, taskOf, tilde } = await import("./task.ts");
+const { fill, name, note, rounds, taskDir, taskOf } = await import("./task.ts");
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -38,9 +38,7 @@ const loose = join(home, "work", "nothing");
 mkdirSync(loose, { recursive: true });
 check("with no checkout above it, the directory is the task", taskOf(loose), loose);
 check("a directory that does not exist is still an answer", taskOf(join(loose, "gone")), join(loose, "gone"));
-check("and a checkout is what tells those two apart", [rooted(repo), rooted(loose)], [true, false]);
 check("the task is said the way the human says it", name("/Users/x/repos/worktrees/relay/v1"), "relay/v1");
-check("and a path under home is spelled the way the human spells it", tilde(join(home, "x")).startsWith(home), true);
 
 // --- the ledger ---------------------------------------------------------------
 check("a task with no rounds behind it has none", rounds(repo), []);
@@ -75,12 +73,6 @@ check("a round whose directory is gone is still a round", (() => {
   note(repo, "20260818-095000-deleted");
   return rounds(repo).length;
 })(), 4);
-
-// --- a time, as a document says it ---------------------------------------------
-const noon = new Date(2026, 7, 18, 12, 0, 0);
-check("today is a clock time", clock(new Date(2026, 7, 18, 9, 5), noon), "09:05");
-check("another day brings its date", clock(new Date(2026, 7, 17, 16, 12), noon), "Aug 17 16:12");
-check("another year does too", clock(new Date(2025, 11, 31, 23, 59), noon), "Dec 31 23:59");
 
 // --- the rounds that came before the ledger did ---------------------------------
 // On the day this ships the ledger is empty and every task in flight has hundreds

@@ -1,7 +1,8 @@
 import { mkdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { join, sep } from "node:path";
 
-import { clock, name, note, rooted, taskDir, tilde } from "./task.ts";
+import { name, note, taskDir } from "./task.ts";
 
 /**
  * What the task is, and where it has got to, under every document.
@@ -197,6 +198,50 @@ export function strip(doc: string): string {
   if (end > 0 && lines[end - 1]!.trim() === "---") end--;
   while (blank()) end--;
   return lines.slice(0, end).join("\n") + "\n";
+}
+
+/**
+ * How the last line spells a time and a path.
+ *
+ * It is the one line relay writes for a human to read rather than for a program
+ * to parse, and nothing else in relay needs either of these, so they live beside
+ * the line rather than with the task they are about.
+ */
+
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * A time, as a document says it. Clock time, not "20 minutes ago": the document is
+ * kept, and a document that says "20 minutes ago" is wrong by the time anybody
+ * reads it back. The date comes with it only when it is not today's — a task
+ * answered inside an afternoon should not repeat the date every time.
+ */
+export function clock(when: Date, now: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  const time = `${p(when.getHours())}:${p(when.getMinutes())}`;
+  const sameDay =
+    when.getFullYear() === now.getFullYear() && when.getMonth() === now.getMonth() && when.getDate() === now.getDate();
+  return sameDay ? time : `${months[when.getMonth()]} ${when.getDate()} ${time}`;
+}
+
+/**
+ * Whether there is a checkout at this path, which is the same question as whether
+ * `taskOf` found one or fell through to the directory it was given — and so
+ * whether the heading has a task to name.
+ */
+export function rooted(task: string): boolean {
+  try {
+    statSync(join(task, ".git"));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** `~` for the human's home, since that is how the rest of the document spells it. */
+export function tilde(path: string): string {
+  const home = homedir();
+  return path === home || path.startsWith(home + sep) ? "~" + path.slice(home.length) : path;
 }
 
 /** `1st`, `2nd`, `3rd`, `4th` — how the line reads it out loud. */

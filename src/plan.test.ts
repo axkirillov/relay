@@ -1,11 +1,11 @@
 import { mkdirSync, mkdtempSync, readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 const home = mkdtempSync(join(tmpdir(), "relay-plan-"));
 process.env.RELAY_QUEUE_DIR = join(home, "queue");
 
-const { append, file, open, read, render, shown, stale, strip } = await import("./plan.ts");
+const { append, clock, file, open, read, render, rooted, shown, stale, strip, tilde } = await import("./plan.ts");
 const { taskDir } = await import("./task.ts");
 
 let fails = 0;
@@ -57,6 +57,15 @@ const text = `Every relay document should say what task it belongs to.
 wrote(repo, text + "\n");
 check("what the agent wrote is what is read back", read(repo)!.text, text);
 check("with when they last wrote it", read(repo)!.written.getHours(), 9);
+
+// --- how the last line spells a time and a path ---------------------------------
+// The one line relay writes for a human to read rather than a program to parse.
+check("today is a clock time", clock(new Date(2026, 7, 18, 9, 5), noon), "09:05");
+check("another day brings its date", clock(new Date(2026, 7, 17, 16, 12), noon), "Aug 17 16:12");
+check("another year does too", clock(new Date(2025, 11, 31, 23, 59), noon), "Dec 31 23:59");
+check("a path under home is spelled the way the human spells it", tilde(join(homedir(), "relay", "x")), "~/relay/x");
+check("one outside it is left alone", tilde("/opt/x"), "/opt/x");
+check("a checkout is what tells a named task from a scratchpad", [rooted(repo), rooted(join(home, "queue"))], [true, false]);
 
 // --- the section ----------------------------------------------------------------
 const section = render(repo, read(repo), kept(8), noon);
