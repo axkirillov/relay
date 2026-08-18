@@ -1,83 +1,43 @@
 import { mkdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, sep } from "node:path";
+import { basename, join, sep } from "node:path";
 
-import { name, note, taskDir } from "./task.ts";
-
-/**
- * What the task is, and where it has got to, above every document.
- *
- * The spec's first rule is that the human knows *nothing* about the task except
- * what relay has shown them, and the hardest part of that is not the question —
- * it is the ground the question stands on. They answered something about this
- * work at nine and are being asked about it at two, in a window that closed in
- * between, and the thing they have lost is not the last document: it is what the
- * whole task was for and how far along it is.
- *
- * Neither of those can be derived. relay listed the rounds of the task under the
- * document first — every question it had asked, and what became of each — and a
- * list of what was asked is a record of the conversation, not of the work: it says
- * nothing about what is still to do, and a document's own first line is a poor
- * summary of why it exists. So this is written rather than derived: the agent puts
- * a short overview and a to-do list in the task's `plan.md` at the start, keeps
- * the list ticked as it goes, and relay carries whatever is in that file above
- * every document of the task.
- *
- * relay owns the path and the agent owns the file. There is one copy, in a
- * directory the task already has, so a plan cannot fall out of step with itself
- * and a new session — a handoff, a restart, a second agent — finds the same file
- * from the same worktree without being told where it is.
- *
- * It is plain text in the document like everything else, so the human can strike
- * an item out or write a new one beside it, and what they write comes back in the
- * diff for the agent to fold into the file.
- */
-
-/** relay's own heading over the plan, and what finds an earlier copy of it. */
-const heading = "## The task";
+import { plansDir } from "./paths.ts";
+import { taskDir } from "./task.ts";
 
 /**
- * How many lines of a plan a document carries. A plan is meant to be a paragraph
- * and a list; this is the backstop against one that grew into a document of its
- * own and pushed the question it stands over off the bottom of the screen.
+ * Where the task's plan is, and whether the agent has kept it current.
+ *
+ * relay used to render it above every document. composer draws it now — a band over
+ * the document column that folds — so all that is left here is the path `--plan`
+ * prints and the two facts the stderr lines are worth.
  */
-export const shown = 40;
 
 /** What the agent writes, and when it last wrote it. */
 export type Plan = {
-  /** The file's own text: the overview, then the list. relay does not touch it. */
   text: string;
   /** Its mtime — the one honest answer to "is this still true?". */
   written: Date;
 };
 
 /**
- * Where the task's plan lives: beside the rounds it is the plan for.
- *
- * The task's directory rather than the worktree, because the plan is relay's
- * business and not the repository's — it would otherwise be an untracked file in
- * every checkout the human works in, showing up in `git status` and asking to be
- * committed or ignored.
+ * The task's plan file, under composer's `~/.task/plans/`. The name is the same slug
+ * relay's round ledger uses for the task, so the two are findable side by side.
  */
 export function file(task: string): string {
-  return join(taskDir(task), "plan.md");
+  return join(plansDir(), `${basename(taskDir(task))}.md`);
 }
 
 /**
- * The path, ready to be written to — the answer to `relay --plan`.
- *
- * The directory comes into being here rather than on first write, so that the
- * agent's next step is to write the file and not to work out that it has to make
- * a directory first. `note` with no rounds is exactly that: the directory, and the
- * `task` file saying which worktree it stands for.
+ * The path, ready to be written to — the answer to `relay --plan`, kept working so
+ * that an agent told the old flag still lands on the file composer reads.
  */
 export function open(task: string): string {
-  note(task);
   try {
-    mkdirSync(taskDir(task), { recursive: true });
+    mkdirSync(plansDir(), { recursive: true });
   } catch {
-    // Unwritable — `--plan` still says where it would go, and the agent's own
-    // write will fail with a better message than anything invented here.
+    // `--plan` still says where it would go, and the agent's own write will fail
+    // with a better message than anything invented here.
   }
   return file(task);
 }
@@ -87,8 +47,7 @@ export function read(task: string): Plan | null {
   const path = file(task);
   try {
     const text = readFileSync(path, "utf8").trim();
-    // An empty file is a plan that was opened and never written. It should read
-    // as absent rather than as a heading over nothing.
+    // Opened and never written: absent rather than empty.
     if (!text) return null;
     return { text, written: statSync(path).mtime };
   } catch {
@@ -97,213 +56,20 @@ export function read(task: string): Plan | null {
 }
 
 /**
- * Which round of the task the plan is older than: the first round that went up
- * after the agent last wrote it, counting this document's own as the next one, or
- * 0 when no round has gone up since.
+ * Which round of the task the plan is older than: the first round that went up after
+ * the agent last wrote it, counting this document's own as the next one, or 0 when no
+ * round has gone up since.
  *
- * A plan is a to-do list that is only worth anything while it is true, and the
- * agent is told to update it before every relay. Whether it did is not a matter of
- * opinion — a round went up, and the file was not touched — and the document is
- * the only place that can say so, because the human is the one being asked to
- * trust it.
- *
- * A tie is not stale. A plan written in the same second a round went up was
- * written for that round as far as anything here can tell, and a borderline case
- * should not accuse.
+ * A tie is not stale. A plan written in the same second a round went up was written
+ * for that round as far as anything here can tell.
  */
 export function stale(plan: Plan, past: Date[]): number {
   const at = past.findIndex((when) => when > plan.written);
   return at < 0 ? 0 : at + 1;
 }
 
-/**
- * The section as markdown, or nothing at all when there is no plan. No heading
- * over an absence: a document from a tool that does not keep plans should look
- * exactly as it did before this existed.
- *
- * `past` is when each earlier round of the task went up — its length is which
- * round this document is, and its times are what says whether the plan has kept
- * up with them.
- */
-export function render(task: string, plan: Plan | null, past: Date[], now: Date): string {
-  if (!plan) return "";
-
-  // The name only when there is a task to name. A relay from a directory with no
-  // checkout above it — an agent in its own scratchpad — would be headed with a
-  // session's UUID, which tells the human nothing; saying nothing is truer.
-  const lines = [`${heading}${rooted(task) ? ` — ${name(task)}` : ""}`, ""];
-
-  const body = plan.text.split("\n");
-  const kept = body.slice(0, shown);
-  lines.push(...kept);
-  if (body.length > kept.length) lines.push("", `… and ${body.length - kept.length} more lines of it.`);
-
-  // Who wrote this, where it is, and when — the three things the human needs to
-  // judge it by. When above all: a to-do list that stopped being updated an hour
-  // into a day's work is worse than none, and the only way to see that from the
-  // document is to be told when it was last touched.
-  const where = `The agent keeps this in \`${tilde(file(task))}\`, last written ${clock(plan.written, now)}.`;
-  lines.push("", `${nth(past.length + 1)} round of this task. ${where}`);
-
-  // And when the time on that line is old enough to matter, saying it in a way
-  // that does not need arithmetic. A whole round has gone by without the agent
-  // touching this, so the list is at best what the work looked like then — which
-  // is the one thing the human cannot see for themselves, and the one thing that
-  // decides how much of the section to believe.
-  const behind = stale(plan, past);
-  if (behind) lines.push(`**Not touched since before the ${nth(behind)} round — it may be behind the work.**`);
-  return lines.join("\n") + "\n";
-}
-
-/**
- * The document as it goes on screen: the plan, then a rule, then what the agent
- * wrote.
- *
- * Above, not under. It was under the document first, on the argument that the
- * question is what the human opened the window for and should keep the top — but
- * the window opens hours after the last one closed, and a question read cold is
- * read twice: once to find out what it is about, and again to answer it. The work
- * comes first and the question is asked of someone who already has it in mind.
- */
-export function prepend(doc: string, section: string): string {
-  const body = strip(doc);
-  if (!section) return body;
-  return `${section.replace(/\n*$/, "")}\n\n---\n\n${body.replace(/^\n*/, "")}`;
-}
-
-/**
- * An earlier copy of this, and the rule relay set against it, cut back out — so
- * that a document which has been through relay once and is being sent again does
- * not go up with a round-old plan against a current one.
- *
- * Both places relay has ever put it. The section is above the document now and was
- * under it until today, and documents from then are still in `~/.relay` waiting to
- * be sent a second time; a plan that was true this morning is exactly the kind of
- * thing nobody rereads.
- */
-export function strip(doc: string): string {
-  return under(over(doc));
-}
-
-/** Whether this line is relay's heading — named for its task, or nameless. */
-function heads(line: string): boolean {
-  return line === heading || line.startsWith(`${heading} — `);
-}
-
-/**
- * relay's own last line of the section: which round this is, and where the file
- * lives. It is what says where the plan ends and the agent's document begins,
- * rather than the rule itself, because everything above this line is the agent's
- * own prose and a to-do list is allowed a rule of its own in it.
- */
-const closes = /^\d+(?:st|nd|rd|th) round of this task\./;
-
-/**
- * The section at the top of the document, and the rule under it, cut off.
- *
- * Only from the very first line: a document *about* this feature quotes the
- * heading — SPEC.md and README.md both do — and relay eating a document it was
- * asked to show would be worse than any duplicate. Nothing relay writes puts the
- * heading anywhere but line one, so nothing else is relay's to cut.
- */
-function over(doc: string): string {
-  const lines = doc.split("\n");
-  if (!heads(lines[0] ?? "")) return doc;
-
-  let fenced = false;
-  let closed = false;
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (/^\s{0,3}(```|~~~)/.test(line)) fenced = !fenced;
-    else if (fenced) continue;
-    else if (closes.test(line)) closed = true;
-    else if (closed && line.trim() === "---") {
-      let at = i + 1;
-      while (at < lines.length && lines[at]!.trim() === "") at++;
-      return lines.slice(at).join("\n");
-    }
-  }
-  // A heading and no section under it is not something relay wrote. Left alone.
-  return doc;
-}
-
-/**
- * The same section where it used to go, under the document, cut off with the rule
- * above it.
- *
- * Two things have to be true of a heading here, since this one really is looking
- * into the middle of a document. It must be the last such heading with nothing but
- * its own section after it — a quotation has the document it is explaining
- * underneath it — and it must not be inside a fenced code block, which is where
- * both SPEC.md and README.md show one.
- */
-function under(doc: string): string {
-  const lines = doc.split("\n");
-  let at = -1;
-  let fenced = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (/^\s{0,3}(```|~~~)/.test(line)) fenced = !fenced;
-    else if (!fenced && heads(line)) at = i;
-  }
-  // At the top it is not this one's business, and a section under the document has
-  // a document above it to be under.
-  if (at <= 0) return doc;
-
-  let end = at;
-  const blank = () => end > 0 && lines[end - 1]!.trim() === "";
-  while (blank()) end--;
-  if (end > 0 && lines[end - 1]!.trim() === "---") end--;
-  while (blank()) end--;
-  return lines.slice(0, end).join("\n") + "\n";
-}
-
-/**
- * How the last line spells a time and a path.
- *
- * It is the one line relay writes for a human to read rather than for a program
- * to parse, and nothing else in relay needs either of these, so they live beside
- * the line rather than with the task they are about.
- */
-
-const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/**
- * A time, as a document says it. Clock time, not "20 minutes ago": the document is
- * kept, and a document that says "20 minutes ago" is wrong by the time anybody
- * reads it back. The date comes with it only when it is not today's — a task
- * answered inside an afternoon should not repeat the date every time.
- */
-export function clock(when: Date, now: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  const time = `${p(when.getHours())}:${p(when.getMinutes())}`;
-  const sameDay =
-    when.getFullYear() === now.getFullYear() && when.getMonth() === now.getMonth() && when.getDate() === now.getDate();
-  return sameDay ? time : `${months[when.getMonth()]} ${when.getDate()} ${time}`;
-}
-
-/**
- * Whether there is a checkout at this path, which is the same question as whether
- * `taskOf` found one or fell through to the directory it was given — and so
- * whether the heading has a task to name.
- */
-export function rooted(task: string): boolean {
-  try {
-    statSync(join(task, ".git"));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** `~` for the human's home, since that is how the rest of the document spells it. */
+/** `~` for the human's home, since that is how the rest of the line spells it. */
 export function tilde(path: string): string {
   const home = homedir();
   return path === home || path.startsWith(home + sep) ? "~" + path.slice(home.length) : path;
-}
-
-/** `1st`, `2nd`, `3rd`, `4th` — how the line reads it out loud. */
-function nth(n: number): string {
-  const teen = n % 100 >= 11 && n % 100 <= 13;
-  return `${n}${teen ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
 }

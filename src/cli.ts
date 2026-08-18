@@ -26,16 +26,13 @@ A \`\`\`diff block is shown as a review the human can write in. They edit the pa
 where it stands, and any line they write that does not open with a diff marker is
 a comment — those come back under the diff, each one located as file:line.
 
-Above the document relay puts the task's plan: a short overview of the work and a
-to-do list, ticked off as it goes. \`relay --plan\` prints the file to write it in —
-one per worktree, yours to keep current. The human is assumed to know nothing about
-the task but what relay has shown them, and hours pass between windows: this is
-what says what the question is about and how far along the work is. It is part of
-the baseline, so it costs you nothing in the diff unless they write in it — and if
-they do write in it, fold what they said back into the file.
+The task's plan — a short overview of the work and a to-do list, ticked off as it
+goes — is drawn by composer as a band over the document, not by relay. \`--plan\`
+prints the file to write it in, one per worktree; \`composer --plan\` prints the same
+one and is the flag to reach for.
 
-Update it before every relay. The document says when you last wrote it, and once a
-round has gone by untouched it says that too, to the human reading it.
+Update it before every relay. The band says when you last wrote it, and once a round
+has gone by untouched it says that too, to the human reading it.
 
 There is one relay window. Documents go through it one at a time, in the order
 their relays started, so this one appears once those ahead of it are done —
@@ -62,11 +59,8 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
 
-// Where this task's plan goes. relay owns the path — it is derived from the
-// worktree, so a second agent or a session that started this morning finds the
-// same file without being told — and the agent owns what is in it. There is one
-// copy and nothing is passed on a command line, which is what lets the list be
-// ticked off between documents rather than only when one goes up.
+// Where this task's plan goes. Kept working after the band moved to composer, so an
+// agent told the old flag still lands on the file composer draws.
 if (args.length === 1 && args[0] === "--plan") {
   process.stdout.write(plan.open(tasks.taskOf(process.cwd())) + "\n");
   process.exit(0);
@@ -87,12 +81,10 @@ try {
   process.exit(2);
 }
 
-// The document goes up with the task's plan over it. The human is assumed to
-// know nothing about the task except what relay has shown them, and they read
-// this one hours after the last one, so what the work is and how far along it
-// has got is what the page opens with — relay's to say rather than something the
-// agent has to remember to repeat. From here on `sent` is the document as it goes on screen: what is
-// diffed against, what is kept, and what the editor opens with.
+// The document goes up as the agent wrote it. What the task is and how far along it
+// has got is composer's band over the document column now, so nothing is stapled to
+// the text the human is editing: `sent` is what is diffed against, what is kept, and
+// what the editor opens with.
 const task = tasks.taskOf(process.cwd());
 // Once ever, and before the first read of the ledger: the rounds that were
 // relayed before relay kept one, filed under the tasks they came from. Without it
@@ -100,12 +92,6 @@ const task = tasks.taskOf(process.cwd());
 tasks.fill();
 const past = tasks.rounds(task);
 const wrote = plan.read(task);
-const now = new Date();
-
-// A plan already on the document — this is a document that came back out of
-// `~/.relay` and is being sent again — comes off before the current one goes on.
-// Two of them, one of them a round out of date, is worse than either.
-sent = plan.prepend(sent, plan.render(task, wrote, past, now));
 
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
@@ -134,12 +120,9 @@ process.stderr.write(
   "relay: this blocks until they answer — if a command timeout can fire first, run relay in the background\n",
 );
 
-// The one place the agent is already reading when it thinks about this task, so
-// the one place worth saying it: a plan nobody knows the path of does not get
-// written, and one nobody is reminded of stops being true halfway through a day.
-// When it has already stopped being true, the line says that instead — the human
-// is being told the same thing at the top of the document, and the agent should
-// not learn it from their reply.
+// The one place the agent is already reading when it thinks about this task, and now
+// the only one: the band that says the same thing is on the human's screen, not in
+// what relay hands back.
 const behind = wrote ? plan.stale(wrote, past) : 0;
 // How many rounds went up after it was last written, this one not counted: it is
 // going up now, and it is the one being complained about.
@@ -147,9 +130,9 @@ const missed = past.length + 1 - behind;
 const where = plan.tilde(plan.file(task));
 process.stderr.write(
   !wrote
-    ? `relay: this task has no plan — write one at ${where} and every document carries it\n`
+    ? `relay: this task has no plan — write one at ${where} and the window carries it over every document\n`
     : behind
-      ? `relay: the plan over this document has not been touched in ${missed} round${missed === 1 ? "" : "s"} — the human is being told so; update ${where}\n`
+      ? `relay: the plan over this document has not been touched in ${missed} round${missed === 1 ? "" : "s"} — the band is telling the human so; update ${where}\n`
       : `relay: the plan over this document is ${where} — keep it current\n`,
 );
 

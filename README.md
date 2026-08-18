@@ -40,60 +40,22 @@ Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
 
-## The task above every document
+## The task, and where the plan lives
 
-Every document opens with what the task is and where it has got to — a short
-overview and a to-do list, written once at the start and kept ticked as the work
-moves:
+relay does not put the task above the document any more — **composer** does, as a
+band across the top of the document column that arrives folded and opens on `⌘P` or
+a click. The plan it draws is a file the agent writes: a short overview and a to-do
+list, kept ticked as the work moves.
 
-```
-## The task — relay/task-timeline
+`relay --plan` still prints that file, so an agent told the old flag lands on the
+same one composer reads — `~/.task/plans/<worktree>-<hash>.md`, one per worktree.
+`composer --plan` is the flag to reach for now.
 
-Cutting what the refresh job costs, which is the 100k cap it hits every run. The
-cap is a symptom; the query behind it is the thing.
-
-- [x] Find out what the cap is really for
-- [x] Reproduce the run that hits it
-- [ ] **Fix the query** — an index on (job_id, created_at)
-- [ ] Put the cap back down once it is not load-bearing
-
-7th round of this task. The agent keeps this in `~/.relay/tasks/relay-task-timeline-e01e2c/plan.md`, last written 09:41.
-
----
-
-# Which cap to raise
-```
-
-You are meant to know nothing about a task but what relay has shown you, and what
-goes missing between one window and the next is not the last question — it is what
-the whole thing was for. That cannot be worked out from what relay keeps, so the
-agent writes it: `relay --plan` prints the one file per worktree it goes in, and
-relay puts whatever is in that file above every document of the task — the
-question is under it, and you reach it already knowing what it is about.
-
-The last line of the section is relay's own. Which question of this task you are on, where the
-file is — `gf` opens it, and the directory it is in holds every round of the task
-besides — and when the agent last wrote it, because a to-do list nobody has
-touched since breakfast is worse than none. When a whole round has gone by without
-it being touched, that is said outright:
-
-```
-7th round of this task. The agent keeps this in `~/.relay/tasks/relay-task-timeline-e01e2c/plan.md`, last written Aug 17 18:22.
-**Not touched since before the 5th round — it may be behind the work.**
-```
-
-Agents are told to update the plan before every relay. That line is how you can
-tell whether this one did, without having to take its word for it — and the agent
-is told the same thing on its way out, so it is not something you have to raise.
-
-Strike an item out or write a new one beside it and it comes back to the agent in
-the diff like any other edit, to fold into the file. A task whose agent keeps no
-plan gets no heading, and a plan longer than forty lines is cut with the rest
-counted.
-
-A relay from a directory with no worktree above it — an agent that ran it from its
-own scratchpad — has no task to name, and the heading leaves the name off rather
-than heading your document with a session's UUID.
+What relay keeps is the ledger the band counts rounds from: `~/.relay/tasks/` holds
+a directory per task with a symlink per round, and relay files its own round there
+as each document goes up. On its way out it also says on stderr whether the plan has
+been touched since the last round — which is the one thing an agent should be told
+about its own list without having to be told by the human.
 
 ## Reviewing a diff
 
@@ -207,7 +169,7 @@ the document — so the diff view can be looked at without typing into it.
 Every relay is kept in `~/.relay/<timestamp>-<slug>/` — the agent only gets a
 diff back, so what it was diffed against has to live somewhere. Beside it,
 `~/.relay/tasks/<task>-<hash>/` says which of those rounds are one task, a symlink
-each, and holds that task's `plan.md`, `~/.relay/queue/` holds a ticket per relay
+each, `~/.relay/queue/` holds a ticket per relay
 waiting for the screen,
 `~/.relay/window.json` is the window saying it is up, and `~/.relay/closed`
 records the last time the human closed it. `RELAY_QUEUE_DIR` moves the lot — a

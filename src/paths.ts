@@ -31,6 +31,23 @@ export function closedFile(): string {
 }
 
 /**
+ * Tasks' own home, which is composer's rather than relay's: the hook lives there and
+ * so does the plan a document used to carry. relay reads it for `--plan` alone.
+ *
+ * `RELAY_QUEUE_DIR` moves it, as it moves everything else here, so a rehearsal cannot
+ * point an agent at the human's real plans.
+ */
+export function taskHome(): string {
+  const q = process.env.RELAY_QUEUE_DIR;
+  return q ? join(dirname(q), "task") : join(homedir(), ".task");
+}
+
+/** A file per task holding the plan the agent writes by hand. composer draws it. */
+export function plansDir(): string {
+  return join(taskHome(), "plans");
+}
+
+/**
  * Which rounds belong to which task — a directory per task, holding an empty
  * file per round. It is a grouping and nothing else: what a round *contains*
  * stays in the round's own directory, so there is no second copy of anything
