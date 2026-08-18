@@ -39,3 +39,15 @@ export function closedFile(): string {
 export function tasksDir(): string {
   return join(relayHome(), "tasks");
 }
+
+/**
+ * Whether the ledger has been filled in from the rounds that were relayed before
+ * relay kept one — something done once in the life of an install.
+ *
+ * Beside the directory rather than in it, because `tasks/` holds tasks and nothing
+ * else: it is named in a document, the human opens it with `gf`, and a listing of
+ * their tasks should not have relay's bookkeeping sitting in it.
+ */
+export function filledFile(): string {
+  return join(relayHome(), "tasks.filled");
+}

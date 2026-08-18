@@ -76,6 +76,10 @@ try {
 // `sent` is the document as it goes on screen: what is diffed against, what is
 // kept, and what the editor opens with.
 const task = timeline.taskOf(process.cwd());
+// Once ever, and before the first read of the ledger: the rounds that were
+// relayed before relay kept one, filed under the tasks they came from. Without it
+// the feature would be blind to everything behind it on the day it shipped.
+timeline.fill();
 const past = timeline.before(task);
 sent = timeline.append(sent, timeline.render(task, past.rounds, past.total, new Date()));
 

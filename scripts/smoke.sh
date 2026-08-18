@@ -108,4 +108,29 @@ TASKS=$(ls "$HOME_RELAY/tasks" | wc -l | tr -d ' ')
 ROUNDS=$(ls "$HOME_RELAY"/tasks/*/ | grep -c '^2' || true)
 [ "$ROUNDS" = 2 ] || fail "$ROUNDS rounds in the task's ledger, not 2"
 
-echo "ok — blocked, served, accepted, diffed, stored, and the next one carries the timeline ($DIR)"
+# --- the rounds that came before the ledger did --------------------------------
+# The ledger is written a round at a time, so on the day it ships it is empty and
+# every task in flight has its whole history outside it. A round records the
+# directory it was relayed from, so it can be filed afterwards. Its own home, so
+# that what is planted here is the only history there is.
+export RELAY_QUEUE_DIR="$TMP/before/queue"
+HOME_BEFORE="$TMP/before"
+OLD="$HOME_BEFORE/20260810-090000-earlier"
+mkdir -p "$OLD"
+echo "# The question from last week" >"$OLD/sent.md"
+printf '{"id":"20260810-090000-earlier","cwd":"%s","accepted":"2026-08-10T09:10:00.000Z"}\n' "$PWD" \
+  >"$OLD/meta.json"
+printf -- '--- a\n+++ b\n@@ -1 +1 @@\n-a\n+b\n' >"$OLD/diff.patch"
+
+serve "$TMP/next.md"
+curl -sf "${URL}doc" >"$TMP/filled" || fail "the document is not served with a filled-in ledger"
+kill "$PID" 2>/dev/null || true
+wait "$PID" 2>/dev/null || true
+
+grep -q 'The question from last week — answered$' "$TMP/filled" \
+  || fail "a round relayed before the ledger existed is not in the timeline"
+[ -s "$HOME_BEFORE/tasks.filled" ] || fail "the ledger does not record that it was filled in"
+[ -f "$HOME_BEFORE/tasks/"*/"20260810-090000-earlier/sent.md" ] \
+  || fail "the filled-in ledger does not lead to the round it filed"
+
+echo "ok — blocked, served, accepted, diffed, stored, the next one carries the timeline, and what came before is in it ($DIR)"

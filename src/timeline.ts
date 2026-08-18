@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileS
 import { homedir } from "node:os";
 import { dirname, join, sep } from "node:path";
 
-import { relayHome, tasksDir } from "./paths.ts";
+import { filledFile, relayHome, tasksDir } from "./paths.ts";
 
 /**
  * What has already been asked, under what is being asked now.
@@ -96,17 +96,105 @@ export function taskOf(cwd: string): string {
  * kept here, so there is no second copy of anything to go stale — and the task's
  * directory is then the task, walkable. It is the one path a document has to name,
  * and `gf` on it opens a listing where every round is a directory to step into.
+ *
+ * Rounds, plural, because filling the ledger in files hundreds at a time and the
+ * directory is the same directory for all of them: one relay says one round, and
+ * that is this with a list of one.
  */
-export function note(task: string, id: string): void {
+export function note(task: string, ...ids: string[]): void {
   const dir = taskDir(task);
   try {
     mkdirSync(dir, { recursive: true });
     // The path it stands for, since the directory's name is a shortening of it.
     writeFileSync(join(dir, "task"), task + "\n");
-    symlinkSync(join(relayHome(), id), join(dir, id));
   } catch {
     // A ledger that will not be written costs a timeline, and a timeline is not
     // worth a relay. The document still goes up.
+    return;
+  }
+  for (const id of ids) {
+    try {
+      symlinkSync(join(relayHome(), id), join(dir, id));
+    } catch {
+      // Already filed, most likely — which is what makes filling in the ledger
+      // something that can be interrupted and simply done again.
+    }
+  }
+}
+
+/**
+ * Every round already on disk, filed under the task it was relayed from.
+ *
+ * The ledger is written a round at a time, by the relay that opens the round —
+ * which means that on the day this ships it is empty, and every task in flight
+ * has a timeline that starts at zero. The human would land the feature and see
+ * nothing: not on this relay, because it is the first noted round of its task,
+ * and on the next one only the one round in between. A hundred answered
+ * questions would be behind them and none of them said.
+ *
+ * They do not have to be lost. A round records the directory it was relayed from,
+ * so the task it belonged to is `taskOf` of that — the same answer the relay
+ * would have written down at the time, worked out afterwards from what it kept.
+ * So the ledger is filled in once, from every round in `~/.relay`, and after that
+ * each relay notes its own and nothing rereads anything.
+ *
+ * Once, not once per task: the marker is the ledger's, not the task's. Otherwise
+ * a genuinely new task pays for a scan that can only tell it what it already
+ * knows — that it has no history — and pays again on the next new task, and the
+ * next. And a marker rather than the directory merely existing, because by the
+ * time this runs the directory may already hold the few rounds that were noted
+ * between the feature landing and this: filing them again is a no-op, and losing
+ * the nine hundred behind them would not be.
+ */
+export function fill(home = relayHome()): void {
+  const marker = filledFile();
+  try {
+    statSync(marker);
+    return;
+  } catch {
+    // Not filled in yet, or not readable — either way, do it and find out.
+  }
+
+  let ids: string[];
+  try {
+    ids = readdirSync(home).filter((id) => /^\d{8}-\d{6}-/.test(id));
+  } catch {
+    // No rounds to file, which the marker should still say, so that a first
+    // relay on a fresh machine does not go looking again on the second.
+    ids = [];
+  }
+
+  // Grouped before anything is written, because both halves of the work repeat
+  // otherwise: a task's directory would be created once per round it holds, and
+  // the walk to a worktree root once per round relayed from it. Hundreds of
+  // rounds share a few dozen directories between them, and the whole of this is
+  // time spent in front of a document.
+  const tasks = new Map<string, string[]>();
+  const roots = new Map<string, string>();
+  for (const id of ids) {
+    let cwd: string | undefined;
+    try {
+      cwd = (JSON.parse(readFileSync(join(home, id, "meta.json"), "utf8")) as { cwd?: string }).cwd;
+    } catch {
+      // A round from before relay recorded where it was run, or one whose meta
+      // will not parse: there is nothing that says which task it was, and a
+      // guess would be worse than the omission.
+    }
+    if (!cwd) continue;
+    let root = roots.get(cwd);
+    if (root === undefined) roots.set(cwd, (root = taskOf(cwd)));
+    const held = tasks.get(root);
+    if (held) held.push(id);
+    else tasks.set(root, [id]);
+  }
+  for (const [root, held] of tasks) note(root, ...held);
+
+  try {
+    mkdirSync(relayHome(), { recursive: true });
+    writeFileSync(marker, `${ids.length}\n`);
+  } catch {
+    // Unwritable: the filing above still stands, and the next relay redoes it.
+    // Idempotent, so that costs a scan and changes nothing.
   }
 }
 

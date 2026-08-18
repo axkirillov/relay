@@ -307,9 +307,45 @@ task, and six characters of the full path's hash, because two checkouts really c
 end in the same two segments and quietly pouring two tasks into one directory is
 the one failure this cannot have.
 
-Rounds that ran before any of this have no entry, so a timeline starts empty for a
-task already under way rather than being reconstructed. It fills from the next
-round on.
+### What came before the ledger
+
+A ledger written a round at a time is empty on the day it ships, and every task
+already under way has its whole history outside it. That is not a small edge: it
+was nine hundred rounds across a hundred tasks here, several of them dozens of
+answered questions deep. The feature would land and show nothing about anything in
+flight — nothing on this relay, because it is the first *noted* round of its task,
+and one line on the next.
+
+They are not lost. A round records the directory it was relayed from, so the task
+it belonged to is `taskOf` of that — the same answer the relay would have written
+down at the time, worked out afterwards from what it kept. So the ledger is filled
+in from every round in `~/.relay`, once, and `~/.relay/tasks.filled` says it has
+been.
+
+The half second that argues against reading every `meta.json` is an argument about
+doing it *in front of every document*, which is what the ledger exists to avoid.
+Once is a different quantity: half a second, on one relay, in the life of an
+install — and the walk to each worktree root and the write of each task's own
+directory are done once per task rather than once per round, which is the
+difference between that and two seconds.
+
+- **Once for the ledger, not once per task.** The marker is the ledger's.
+  Otherwise every genuinely new task pays for a scan that can only tell it what it
+  already knows.
+- **A marker, not the directory merely existing.** By the time this first runs the
+  directory may already hold the few rounds noted since the feature landed. Filing
+  those again is a no-op; losing the hundreds behind them would not be.
+- **Interruptible.** Every entry is a symlink that either exists or does not, so a
+  filling-in that died halfway is simply done again.
+- **A round that says nothing is left out.** The oldest rounds predate `cwd` being
+  recorded at all. There is nothing that says which task they were, and a guess
+  would be worse than the omission.
+
+A relay run from a directory with no checkout above it — an agent in its own
+scratchpad — is still its own task, filled in exactly where a relay would have
+filed it at the time. It reads as a session rather than a task and its name is a
+UUID, which is the documented failure above and not a new one; a ledger that
+disagreed with the live path about what a task is would be worse.
 
 ## A task the human starts is not relay's
 

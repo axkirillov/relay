@@ -5,7 +5,7 @@ import { join } from "node:path";
 const home = mkdtempSync(join(tmpdir(), "relay-timeline-"));
 process.env.RELAY_QUEUE_DIR = join(home, "queue");
 
-const { append, before, clock, label, name, note, opened, render, taskDir, taskOf } = await import("./timeline.ts");
+const { append, before, clock, fill, label, name, note, opened, render, taskDir, taskOf } = await import("./timeline.ts");
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -165,5 +165,60 @@ check("a timeline is dropped even when there is none to put back", append(up, ""
 const about = `# What relay writes\n\n\`\`\`\n${section}\`\`\`\n\nEvery part of that it already knew.\n`;
 check("a document quoting the heading keeps everything under it", append(about, ""), about);
 check("and still gets its own timeline", append(about, section).startsWith(about.replace(/\n$/, "")), true);
+
+// --- the rounds that came before the ledger did ---------------------------------
+// On the day this ships the ledger is empty and every task in flight has hundreds
+// of answered rounds behind it. A round says which directory it was relayed from,
+// so it can be filed afterwards under the task that directory belongs to.
+
+/** A round as it sits on disk having never been filed: no ledger entry, a `cwd`. */
+function unfiled(cwd: string | null, id: string, doc: string) {
+  const dir = join(home, id);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "sent.md"), doc);
+  const meta: Record<string, unknown> = { id, accepted: "2026-08-18T07:10:00.000Z" };
+  if (cwd) meta.cwd = cwd;
+  writeFileSync(join(dir, "meta.json"), JSON.stringify(meta));
+  writeFileSync(join(dir, "diff.patch"), "--- a\n+++ b\n");
+}
+
+const old = join(home, "work", "relay", "run-blocks");
+mkdirSync(join(old, "src"), { recursive: true });
+writeFileSync(join(old, ".git"), "gitdir: /somewhere/.git/worktrees/run-blocks\n");
+check("a task nobody filed has no timeline yet", before(old, 12, home).total, 0);
+
+unfiled(old, "20260810-090000-first", "# The first question\n");
+unfiled(join(old, "src"), "20260810-100000-from-a-subdirectory", "# Asked from deeper in\n");
+unfiled(old, "20260810-110000-third", "# The third\n");
+unfiled(null, "20260810-120000-nowhere", "# Relayed before relay knew where\n");
+// One that was filed the ordinary way and also carries a cwd, so filing it in is
+// something already done.
+unfiled(old, "20260810-130000-already", "# Filed once\n");
+note(old, "20260810-130000-already");
+
+fill(home);
+
+const back = before(old, 12, home);
+check("the rounds are filed under the task they were relayed from", back.rounds.map((r) => r.id), [
+  "20260810-090000-first",
+  "20260810-100000-from-a-subdirectory",
+  "20260810-110000-third",
+  "20260810-130000-already",
+]);
+check("a round with nothing saying where it ran is left out", back.total, 4);
+check("one already filed is filed once", back.rounds.filter((r) => r.id === "20260810-130000-already").length, 1);
+check("and they read as rounds, not as names", back.rounds[1]!.label, "Asked from deeper in");
+check("a task filled in from disk is the task the human names", render(old, back.rounds, back.total, noon).split("\n")[0], "## The task so far — relay/run-blocks");
+
+// Rounds that were noted the ordinary way, in a ledger that already existed when
+// this ran: filling in is additive, and says nothing about a task it found nothing
+// new for.
+check("what was already in the ledger is untouched", before(repo, 12, home).total, 6);
+
+// Once for the ledger, not once for each task: a task with no history would
+// otherwise pay for a scan that can only tell it that.
+unfiled(old, "20260810-140000-after", "# After the filling in\n");
+fill(home);
+check("it does not run twice", before(old, 12, home).total, 4);
 
 process.exit(fails ? 1 : 0);
