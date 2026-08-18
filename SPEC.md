@@ -229,6 +229,88 @@ the headers above it say which file and which line it is against.
 No widgets, no schema. The agent asks in ordinary text; the human answers by
 editing. They are never boxed into options the agent thought of.
 
+## Every document carries the task so far
+
+The first rule of this spec is that the human knows **nothing** about the task
+except what relay has shown them. That is an obligation on every document, not
+just the first one. The fifth question of a task reaches someone who answered
+four others across a morning, each in a window that closed behind them, with an
+agent that was a black box in between — so under the document relay writes the
+account itself:
+
+```
+---
+
+## The task so far — relay/task-timeline
+
+- **Aug 17 16:12** Which cap is the real one — answered
+- **Aug 17 16:37** A hold on the migration until the index lands — accepted as written
+- **09:17** The run that failed on staging — closed without a reply
+- **09:22** Closing out the reconcile job — answered
+
+Each round is a directory in `~/.relay/tasks/relay-task-timeline-e01e2c/`.
+```
+
+Every part of that is something relay already knew and had never said. The time
+is the round's own name. What each one was about is the first line of the document
+that went out. What became of it is whether an `accepted.md` was written and
+whether its patch has a hunk in it — the difference between *answered* and
+*accepted as written*, which is the difference between a reply and a nod.
+
+- **Under the document, not over it.** The question is what the human opened the
+  window for and keeps the top. The account of how they got here is what they read
+  next, if they need it.
+- **It is text in the document**, not a panel beside it. So it renders, `gf`
+  opens what it names, and a line of it can be struck out or written in — and what
+  they write there comes back in the diff like every other edit. Nothing new to
+  learn, and nothing protected.
+- **It is part of the baseline.** `sent.md` is the document as it went on screen,
+  timeline included, so an untouched timeline is not in the diff at all and the
+  agent's answer is unchanged by the feature.
+- **A dozen rounds, then a count.** A long task would otherwise put thirty lines
+  under every question. What is not listed is said to exist rather than dropped in
+  silence.
+- **One line per round.** Every entry carried the path to its round at first, and
+  a path is the longest thing on a line and the least of what the line says: it
+  wrapped every entry onto three rows and read as the loudest part of each. Said
+  once, at the end, it is a directory to walk instead.
+- **A first round gets nothing.** A heading over an empty list is a paragraph
+  saying "no history", which is not worth the room.
+
+### A task is the worktree
+
+relay does not know what a task is; that word is composer's, and the human's.
+What it has is the directory it was run from, and the one thing about that
+directory that tracks a piece of work: the worktree it sits in — which is how the
+human names a task too, the branch and the tmux session and the directory all
+carrying the one name. The walk up stops at the first `.git`, a worktree's file
+as readily as a clone's directory. With none above at all, an agent relaying from
+`/tmp`, the directory itself is the task; that groups nothing, which is the right
+failure — a timeline of one round beats a timeline of four unrelated agents.
+
+Which rounds are one task is the one thing a round's own directory cannot say, and
+working it out afterwards means reading every `meta.json` under `~/.relay`: on a
+few hundred rounds that is half a second, in front of every document, spent on a
+question the relay could have answered for free while it had the answer. So each
+relay leaves its own name in its task's directory as a symlink to itself:
+
+```
+~/.relay/tasks/relay-task-timeline-e01e2c/
+  task                          # the worktree this stands for, in full
+  20260818-093042-question ->  ~/.relay/20260818-093042-question
+```
+
+Nothing a timeline says is kept there, so there is no second copy of anything to
+go stale — and the task is then a directory, walkable, which is what lets the
+document name one path instead of twelve. The name is what the human calls the
+task, and six characters of the full path's hash, because two checkouts really can
+end in the same two segments and quietly pouring two tasks into one directory is
+the one failure this cannot have.
+
+Rounds that ran before any of this have no entry, so a timeline starts empty for a
+task already under way rather than being reconstructed. It fills from the next
+round on.
+
 ## A task the human starts is not relay's
 
 relay once had this: **`⌘N`** or **`:new`** put up a document nobody sent, and
@@ -620,6 +702,7 @@ is no gate there is no file, and nothing to remove.
   draft.md        # what they had typed when the document left the screen
   diff.patch      # the patch the agent was told, and only the patch
 
+~/.relay/tasks/<task>-<hash>/  # which rounds are one task: a symlink each
 ~/.relay/queue/   # a ticket per relay waiting for the screen
 ~/.relay/window.json  # the window, while it is up: pid, and a heartbeat
 ~/.relay/closed   # the last close: when, and what was on screen
@@ -655,6 +738,11 @@ overridable on its own.
 - **relay runs no command of the human's.** It shows a document and prints an
   answer to the agent that asked for one. A gesture that starts work belongs to
   the window that holds the documents — composer — not to the document.
+- **Every document says what the task so far was.** Not a walk back on the line
+  above: *starting* a task is a gesture and belongs to the window, while what
+  relay has already shown this human is relay's own record and nobody else can
+  say it. The agent is not asked to remember to repeat it, because an obligation
+  every document carries cannot rest on an agent remembering.
 - **One document at a time.** The next appears the moment the current one is
   answered. No tabs, no list of what is waiting.
 - **Closing the window dismisses everything**, not only the document on screen.

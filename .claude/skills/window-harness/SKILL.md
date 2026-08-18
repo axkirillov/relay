@@ -36,6 +36,15 @@ Drive a window when the question is whether something reaches a human — a
 keystroke, a decoration, what is on screen when two documents contend. Not when
 the question is what a relay does with what it was told.
 
+**And when the question is how something *looks*, the run needs no keys at all.**
+Load the URL, read the `.cm-line` texts, take one picture, exit — none of the
+dropped-keystroke hazards below can apply, because nothing is typed. It is the
+cheapest window run there is and it answers what no assertion can: a timeline
+whose every entry carried the path to its round passed all four of its DOM checks
+and was plainly wrong in the picture, three wrapped rows an entry with the least
+useful thing on the line the loudest. Take the picture for the layout, not only
+for the proof.
+
 ## Run it
 
 ```sh

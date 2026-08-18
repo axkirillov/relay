@@ -12,7 +12,13 @@ export type Store = {
    * the prefill when the document returns.
    */
   draft(text: string): void;
-  abandon(): void;
+  /**
+   * The window went without a reply. `shown` is whether the human ever had this
+   * document in front of them — a relay dismissed while it was still in line was
+   * never declined, and a timeline that says otherwise is telling them they turned
+   * down something they never saw.
+   */
+  abandon(shown: boolean): void;
 };
 
 /**
@@ -47,8 +53,9 @@ export function open(source: string, sent: string): Store {
       meta.drafted = new Date().toISOString();
       writeMeta();
     },
-    abandon() {
+    abandon(shown) {
       meta.abandoned = new Date().toISOString();
+      meta.shown = shown;
       writeMeta();
     },
   };

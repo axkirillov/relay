@@ -40,6 +40,33 @@ Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
 
+## The task so far
+
+Under the document is a timeline of the task — the earlier relays from this
+worktree, when each went up and what became of it:
+
+```
+## The task so far — relay/task-timeline
+
+- **Aug 17 16:12** Which cap is the real one — answered
+- **Aug 17 16:37** A hold on the migration until the index lands — accepted as written
+- **09:17** The run that failed on staging — closed without a reply
+- **09:22** Closing out the reconcile job — answered
+
+Each round is a directory in `~/.relay/tasks/relay-task-timeline-e01e2c/`.
+```
+
+You are meant to know nothing about a task but what relay has shown you, and this
+is what it has shown you: the fifth question of a morning arrives with the four
+before it under it, each named by its own first line, *answered* where you wrote
+something back and *accepted as written* where you did not. `gf` on that last path
+opens the task as a directory, a round in each.
+
+It is ordinary text in the document, so a line of it can be struck out or written
+in like any other — and relay adds it for the agent, which does not have to
+remember to. A dozen rounds, then a count; the first relay of a task has none and
+gets none.
+
 ## Reviewing a diff
 
 A ```` ```diff ```` block is a review you can write in. Edit the patch where it
@@ -131,7 +158,7 @@ pnpm install
 pnpm build        # dist/relay.js, dist/shell.cjs (the window), and the editor bundle
 pnpm check        # types
 pnpm test         # the line arithmetic behind :res, the queue, the window's presence, a real pty
-pnpm smoke        # end to end, no window
+pnpm smoke        # end to end, no window: two relays of one task, the second carrying the first
 pnpm smoke:pty    # a shell on demand, keys in, output out, gone with the relay
 pnpm smoke:goto   # a real nvim on the file under the cursor, gone when it quits
 pnpm smoke:open   # the link under the cursor out to the machine's opener, whole and as data
@@ -151,7 +178,8 @@ the document — so the diff view can be looked at without typing into it.
 
 Every relay is kept in `~/.relay/<timestamp>-<slug>/` — the agent only gets a
 diff back, so what it was diffed against has to live somewhere. Beside it,
-`~/.relay/queue/` holds a ticket per relay waiting for the screen,
+`~/.relay/tasks/<task>-<hash>/` says which of those rounds are one task, a symlink
+each, `~/.relay/queue/` holds a ticket per relay waiting for the screen,
 `~/.relay/window.json` is the window saying it is up, and `~/.relay/closed`
 records the last time the human closed it. `RELAY_QUEUE_DIR` moves the lot — a
 test pointed at a temp directory takes the window with it.

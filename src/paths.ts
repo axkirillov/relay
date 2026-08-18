@@ -29,3 +29,13 @@ export function windowFile(): string {
 export function closedFile(): string {
   return join(relayHome(), "closed");
 }
+
+/**
+ * Which rounds belong to which task — a directory per task, holding an empty
+ * file per round. It is a grouping and nothing else: what a round *contains*
+ * stays in the round's own directory, so there is no second copy of anything
+ * here to fall out of step with the first.
+ */
+export function tasksDir(): string {
+  return join(relayHome(), "tasks");
+}

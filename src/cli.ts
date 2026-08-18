@@ -8,6 +8,7 @@ import { unlatchOnExit } from "./latch.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
+import * as timeline from "./timeline.js";
 import { attend } from "./window.js";
 
 const usage = `relay <file.md>
@@ -22,6 +23,12 @@ On accept, the unified diff of their edits is printed to stdout and relay exits
 A \`\`\`diff block is shown as a review the human can write in. They edit the patch
 where it stands, and any line they write that does not open with a diff marker is
 a comment — those come back under the diff, each one located as file:line.
+
+Under the document relay adds a timeline of the task: the earlier relays from this
+worktree, when each went up and what became of it. The human is assumed to know
+nothing about the task but what relay has shown them, and it has shown them those.
+It is part of the baseline, so it costs you nothing in the diff unless they write
+in it.
 
 There is one relay window. Documents go through it one at a time, in the order
 their relays started, so this one appears once those ahead of it are done —
@@ -62,9 +69,23 @@ try {
   process.exit(2);
 }
 
+// The document goes up with an account of the task under it. The human is
+// assumed to know nothing about the task except what relay has shown them, and
+// they read this one hours after the last one, so what led here is relay's to
+// say rather than something the agent has to remember to repeat. From here on
+// `sent` is the document as it goes on screen: what is diffed against, what is
+// kept, and what the editor opens with.
+const task = timeline.taskOf(process.cwd());
+const past = timeline.before(task);
+sent = timeline.append(sent, timeline.render(task, past.rounds, past.total, new Date()));
+
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
 const store = storage.open(path, sent);
+// After its own timeline was read, so this round is not in it: the document is
+// the current round, and saying so under it would be telling the human where
+// they already are.
+timeline.note(task, store.id);
 // Joined before the server comes up, so the line is in the order the relays were
 // run. With no window there is nothing to line up for.
 const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path);
@@ -108,7 +129,7 @@ screen?.stop();
 relay.close();
 
 if (outcome === null) {
-  store.abandon();
+  store.abandon(!!screen?.shown());
   process.stderr.write(
     screen?.shown()
       ? "relay: the human closed the window without replying\n"
