@@ -288,6 +288,22 @@ as readily as a clone's directory. With none above at all, an agent relaying fro
 `/tmp`, the directory itself is the task; that groups nothing, which is the right
 failure — a timeline of one round beats a timeline of four unrelated agents.
 
+Such a task has no name, and the heading says so by saying nothing:
+
+```
+## The task so far
+```
+
+What it would be called is the directory it ran in, which for an agent's scratchpad
+is a session's UUID. The heading is there to tell the human which piece of work a
+document belongs to and a UUID does not, so the more truthful of the two is to leave
+it off. The rounds under it are unchanged — they really are one session's — and the
+path at the end is still the real directory, so the UUID is in the document once,
+in something you can open, rather than across the top of it. Whether there is a
+checkout is asked of the disk at the time the section is written, which is right
+because the only task ever rendered is the one the relay is in; a worktree torn down
+months ago keeps its name, because nothing renders its heading.
+
 Which rounds are one task is the one thing a round's own directory cannot say, and
 working it out afterwards means reading every `meta.json` under `~/.relay`: on a
 few hundred rounds that is half a second, in front of every document, spent on a
@@ -343,9 +359,8 @@ difference between that and two seconds.
 
 A relay run from a directory with no checkout above it — an agent in its own
 scratchpad — is still its own task, filled in exactly where a relay would have
-filed it at the time. It reads as a session rather than a task and its name is a
-UUID, which is the documented failure above and not a new one; a ledger that
-disagreed with the live path about what a task is would be worse.
+filed it at the time. A ledger that disagreed with the live path about what a task
+is would be worse than one holding a few sessions.
 
 ## A task the human starts is not relay's
 

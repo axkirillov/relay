@@ -67,6 +67,10 @@ in like any other — and relay adds it for the agent, which does not have to
 remember to. A dozen rounds, then a count; the first relay of a task has none and
 gets none.
 
+A relay from a directory with no worktree above it — an agent that ran it from its
+own scratchpad — has no task to name, and the heading leaves the name off rather
+than heading your document with a session's UUID.
+
 The rounds you answered before any of this existed are in it too. A round records
 the directory it was relayed from, so relay files every round already in
 `~/.relay` under the task it came from — once, on the first relay after this

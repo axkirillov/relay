@@ -144,6 +144,16 @@ check("where the rounds are is said once, at the end", section.trimEnd().endsWit
 check("and says so when it is not showing all of them", render(repo, now.rounds.slice(-2), now.total, noon).includes("The last 2 of 6."), true);
 check("the first round of a task gets no section at all", render(repo, [], 0, noon), "");
 
+// A relay from a directory with no checkout above it is its own task, and what it
+// would be called is a scratchpad's name — a session's UUID. The rounds are still
+// its rounds; the heading just does not claim to know what the task is.
+round(loose, "20260818-094000-from-nowhere", "# Asked from nowhere\n", { accepted: true });
+const nowhere = before(loose, 12, home);
+check("with no checkout above it, the heading names nothing", render(loose, nowhere.rounds, nowhere.total, noon).split("\n")[0], "## The task so far");
+check("and the rounds are still under it", render(loose, nowhere.rounds, nowhere.total, noon).includes("Asked from nowhere — accepted as written"), true);
+const bare = "# Which index\n";
+check("a nameless heading is still recognised as one", append(append(bare, render(loose, nowhere.rounds, nowhere.total, noon)), ""), bare);
+
 // --- the document as it goes up -------------------------------------------------
 const doc = "# Which cap to raise\n\nThe refresh job.\n";
 const up = append(doc, section);

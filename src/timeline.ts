@@ -285,7 +285,18 @@ export function read(id: string, home = relayHome()): Round | null {
 export function render(task: string, rounds: Round[], total: number, now: Date): string {
   if (!rounds.length) return "";
 
-  const lines = [`${heading} — ${name(task)}`, ""];
+  // The name only when there is a task to name. A relay run from a directory with
+  // no checkout above it — an agent in its own scratchpad — is its own task, and
+  // the rounds under it really are one session's, but what it would be called is
+  // the directory it ran in: a session's UUID. The heading is there to tell the
+  // human which piece of work a document belongs to, and a UUID does not, so
+  // saying nothing is the more truthful of the two.
+  //
+  // Statting for the checkout is right here because the task being rendered is
+  // always the one this relay is in, whose directory is on disk as we ask. A task
+  // whose worktree the human tore down months ago keeps its name — nothing renders
+  // its heading, and if anything did, the name is what it should say.
+  const lines = [`${heading}${rooted(task) ? ` — ${name(task)}` : ""}`, ""];
   for (const round of rounds) {
     lines.push(`- **${clock(round.when, now)}** ${round.label} — ${round.outcome}`);
   }
@@ -425,6 +436,19 @@ export function clock(when: Date, now: Date): string {
   const sameDay =
     when.getFullYear() === now.getFullYear() && when.getMonth() === now.getMonth() && when.getDate() === now.getDate();
   return sameDay ? time : `${months[when.getMonth()]} ${when.getDate()} ${time}`;
+}
+
+/**
+ * Whether there is a checkout at this path, which is the same question as whether
+ * `taskOf` found one or fell through to the directory it was given.
+ */
+function rooted(task: string): boolean {
+  try {
+    statSync(join(task, ".git"));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** The task, said the way the human says it: the worktree and the repo above it. */
