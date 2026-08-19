@@ -62,7 +62,7 @@ export const theme = EditorView.theme(
       // stretch, and without a width of its own the scroller would shrink to
       // whatever the longest line happens to be and shift as the human types.
       width: "100%",
-      maxWidth: "calc(72ch + 4rem)",
+      maxWidth: "calc(96ch + 4rem)",
       margin: "0 auto",
     },
     ".cm-content": {
