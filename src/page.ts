@@ -1,6 +1,17 @@
 import { basename } from "node:path";
 
-export function page(source: string): string {
+/**
+ * The page, and whether it is going into composer's frame.
+ *
+ * `framed` takes this page's own header off it. Inside composer there is already a
+ * band over the document — the task, the list, the round, when the plan was written
+ * — and everything this header said is either said better up there or not worth a
+ * strip of its own: the document's *file name* is the agent's scratchpad spelling
+ * of it, and `the agent is waiting` is what a document standing on the screen
+ * already means. Run on its own, with the URL opened by hand, nothing about relay
+ * changes.
+ */
+export function page(source: string, framed = false): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -177,10 +188,10 @@ export function page(source: string): string {
 </style>
 </head>
 <body>
-  <header>
+  ${framed ? "" : `<header>
     <span class="name">${escape(basename(source))}</span>
     <span>· the agent is waiting</span>
-  </header>
+  </header>`}
 
   <div id="split">
     <div id="editor"></div>

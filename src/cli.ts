@@ -109,6 +109,13 @@ const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path);
 const relay = await serve(path, sent, prefill, store.dir, {
   onDraft: store.draft,
   behind: () => turn?.behind() ?? 0,
+  // In the line, and the task has a plan: composer will draw its band over this
+  // document, so the page leaves its own header off — one strip, not two. Both
+  // halves matter. Nothing in the line means nobody is going to frame this and the
+  // URL is being opened by hand; and composer's rule is *no plan, no band*, which
+  // it decides off this same file, so a task without one keeps the header that
+  // holds the traffic lights clear of the first line.
+  framed: !!turn && !!wrote,
 });
 // The window reads this off the ticket. Until it is there the window waits,
 // rather than skipping ahead to someone who is already serving.

@@ -24,7 +24,8 @@ export type Relay = {
   close(): void;
 };
 
-export type Hooks = {
+/** What the CLI hands the server beyond the document itself. */
+export type Options = {
   /**
    * What they have typed, sent because this document is about to leave the
    * screen — the page is destroyed when the window loads the next one, and their
@@ -38,6 +39,14 @@ export type Hooks = {
    * line, which is the one process that knows.
    */
   behind?: () => number;
+  /**
+   * Whether this document is going into composer's frame — true when the relay
+   * joined the line and the task it belongs to has a plan, which is exactly when
+   * composer draws its band over the document. The page drops its own header:
+   * there is no sense in two strips over one document, and with no band the header
+   * is also what keeps the traffic lights off the first line of the text.
+   */
+  framed?: boolean;
 };
 
 /**
@@ -49,7 +58,7 @@ export async function serve(
   doc: string,
   prefill: string,
   logDir: string,
-  hooks: Hooks = {},
+  opts: Options = {},
 ): Promise<Relay> {
   let settle: (doc: string) => void;
   const accepted = new Promise<string>((resolve) => {
@@ -78,7 +87,7 @@ export async function serve(
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
 
-    if (req.method === "GET" && path === "/") return send(res, 200, "text/html; charset=utf-8", page(source));
+    if (req.method === "GET" && path === "/") return send(res, 200, "text/html; charset=utf-8", page(source, opts.framed));
     // /doc is what the agent sent — the baseline every edit is measured
     // against. /prefill is what the editor opens with; the two differ only
     // under RELAY_PREFILL, which exists so the diff view can be looked at
@@ -112,7 +121,7 @@ export async function serve(
     // human spends reading it. Answering 0 rather than refusing is what makes
     // this safe to ask of a relay that is in no line at all — RELAY_NO_OPEN.
     if (req.method === "GET" && path === "/queue") {
-      const waiting = hooks.behind?.() ?? 0;
+      const waiting = opts.behind?.() ?? 0;
       return send(res, 200, "application/json; charset=utf-8", JSON.stringify({ waiting }));
     }
     if (req.method === "POST" && path === "/accept") return handleAccept(req, res, settle);
@@ -123,7 +132,7 @@ export async function serve(
       return read(req, maxDocBytes).then(
         (text) => {
           opening = text;
-          hooks.onDraft?.(text);
+          opts.onDraft?.(text);
           res.writeHead(204).end();
         },
         () => send(res, 413, "text/plain", "document too large"),
