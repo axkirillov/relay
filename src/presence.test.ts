@@ -56,9 +56,14 @@ check("nothing there: beside the queue, not in it", file, join(dir, "window.json
 {
   // Alive, but nothing has touched the file: a PID recycled onto something that
   // is not the window. A relay must not wait on it, and must not take its going
-  // for the human closing anything.
+  // for the human closing anything — but not yet, because this process started
+  // moments ago and has not been awake long enough to call anything stale. For
+  // its first ten seconds it believes the file, and `attend` keeps ticking, so a
+  // relay starting just after a window died puts one up ten seconds late rather
+  // than not at all. The rule itself, and the moment it starts biting, are in
+  // `live.test.ts`, where the clock can be handed in instead of waited out.
   claim(process.ppid, 60_000);
-  check("stale: no window", screenHeld(), false);
+  check("still waking: a stale window is believed", screenHeld(), true);
 }
 
 {

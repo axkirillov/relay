@@ -6,7 +6,10 @@ const dir = mkdtempSync(join(tmpdir(), "relay-queue-"));
 process.env.RELAY_QUEUE_DIR = dir;
 
 const { enter, line } = await import("./queue.ts");
-const { beatMs } = await import("./live.ts");
+const { beatMs, staleMs } = await import("./live.ts");
+
+/** When this process started, and so when its own ten-second grace runs out. */
+const started = Date.now();
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -81,11 +84,18 @@ const live = process.ppid; // whoever ran the test
 
 {
   // Alive PID, but nothing has touched the ticket: a recycled PID, not a relay.
-  ticket(1, live, 60_000);
+  // This process started moments ago, though, so it has not been awake long
+  // enough to hold that against anybody — the same grace that stops a relay
+  // waking with the machine from sweeping a line of relays that are merely
+  // asleep. It keeps its place, and this one waits behind it.
+  const ghost = ticket(1, live, 60_000);
   const t = enter("after-a-ghost", "/tmp/d.md");
-  check("stale ticket: not counted", t.ahead, 0);
-  check("stale ticket: turn is now", await turnComes(t), true);
-  check("stale ticket: swept", tickets().length, 1);
+  check("still waking: a stale ticket keeps its place", t.ahead, 1);
+  check("still waking: and is waited behind", await turnComes(t, 600), false);
+  check("still waking: not swept", tickets().length, 2);
+
+  rmSync(ghost);
+  check("still waking: turn comes once it is really gone", await turnComes(t), true);
   t.leave();
 }
 
@@ -219,6 +229,21 @@ const live = process.ppid; // whoever ran the test
 
   t.leave();
   rmSync(join(dir, `${at + 1}-${live}.json`));
+}
+
+// --- and once this process has been awake long enough to judge --------------
+{
+  // The grace is over ten seconds in, and then the rule bites as it always did.
+  // Waited out rather than faked, because `line` reads its own clock — and the
+  // wait is usually already over by the time the checks above have run.
+  await pause(Math.max(0, staleMs - (Date.now() - started)));
+
+  ticket(1, live, 60_000);
+  const t = enter("after-a-ghost-later", "/tmp/n.md");
+  check("awake long enough: a stale ticket is not counted", t.ahead, 0);
+  check("awake long enough: turn is now", await turnComes(t), true);
+  check("awake long enough: and it is swept", tickets().length, 1);
+  t.leave();
 }
 
 check("nothing left behind", tickets(), []);
