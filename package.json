@@ -27,6 +27,7 @@
     "smoke:goto": "bash scripts/goto.sh",
     "smoke:open": "bash scripts/open.sh",
     "smoke:queue": "bash scripts/queue.sh",
+    "smoke:priority": "bash scripts/priority.sh",
     "smoke:dismiss": "bash scripts/dismiss.sh",
     "smoke:latch": "bash scripts/latch.sh"
   },

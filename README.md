@@ -117,6 +117,18 @@ one window and four documents in a row — never four things in your alt-tab, an
 never a doubt about which one to read first. Closing the window dismisses them
 all: it is the gesture for clearing the screen, not for skipping one document.
 
+Unless one of them matters more. Mark a session and its documents go in front of
+every other session's, however long those have been waiting — ⌘-click its row in
+composer's fleet pane, or `relay --priority` in the worktree itself
+(`relay --priority off` takes it back). A session here is the worktree, the same
+thing the plan is keyed on, so restarting the agent in it does not lose the mark.
+
+The mark applies to the document already waiting, not just the next one: it is
+read every time the line is read. Marking a session hands it the screen at once,
+and letting it go hands the screen back. Arrival still decides within the mark —
+two questions from the marked session arrive in the order they were asked — and
+nothing an agent does sets or clears a mark.
+
 The window is nobody's in particular. Whichever relay finds none up starts it,
 and it stays for the ones behind, then goes on its own once the line is empty —
 so no MCP server, no daemon and no registration. One process per relay, for as
@@ -153,6 +165,7 @@ pnpm smoke:pty    # a shell on demand, keys in, output out, gone with the relay
 pnpm smoke:goto   # a real nvim on the file under the cursor, gone when it quits
 pnpm smoke:open   # the link under the cursor out to the machine's opener, whole and as data
 pnpm smoke:queue  # two relays, one window, in turn — opens a real window briefly
+pnpm smoke:priority # a marked session's document jumps one already waiting, no window
 pnpm smoke:dismiss # closing the window dismisses the queued relay too
 pnpm smoke:latch  # the agent's gate latch lifts on every way out of a relay
 ```
@@ -169,8 +182,8 @@ the document — so the diff view can be looked at without typing into it.
 Every relay is kept in `~/.relay/<timestamp>-<slug>/` — the agent only gets a
 diff back, so what it was diffed against has to live somewhere. Beside it,
 `~/.relay/tasks/<task>-<hash>/` says which of those rounds are one task, a symlink
-each, `~/.relay/queue/` holds a ticket per relay
-waiting for the screen,
+each, and holds a `priority` file when that session is the one to go first,
+`~/.relay/queue/` holds a ticket per relay waiting for the screen,
 `~/.relay/window.json` is the window saying it is up, and `~/.relay/closed`
 records the last time the human closed it. `RELAY_QUEUE_DIR` moves the lot — a
 test pointed at a temp directory takes the window with it.

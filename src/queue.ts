@@ -5,8 +5,30 @@ import { join } from "node:path";
 // emit: the tests run this module through node as it stands.
 import { alive, beatMs, touch } from "./live.ts";
 import { queueDir } from "./paths.ts";
+import { marked } from "./priority.ts";
 
 const pollMs = 250;
+
+/**
+ * Where in the line a relay belongs, before arrival is looked at.
+ *
+ * - `top` — a document from the session the human has marked as the priority
+ *   one. It goes in front of everything an unmarked session sends, however long
+ *   that has been waiting.
+ * - `normal` — everyone else. Arrival among themselves, as they always were.
+ *
+ * Worked out as the line is read, not written on the ticket as the relay joins.
+ * The human marks a session from the window, looking at a row that is *already
+ * waiting* — so the mark has to move the document they can see, and a rank
+ * stamped at arrival would only ever have moved the next one. It costs a `stat`
+ * per ticket per poll and buys a mark that takes effect the instant it is made.
+ *
+ * The word is composer's too: it reads a ticket, ranks it the same way off the
+ * same file, and shows what it finds at the head.
+ */
+export type Rank = "top" | "normal";
+
+const ranks: Record<Rank, number> = { top: 0, normal: 1 };
 
 export type Turn = {
   /** Relays ahead of this one in line when it joined. */
@@ -32,8 +54,15 @@ export type Waiting = {
   name: string;
   at: number;
   pid: number;
+  /** Read off the mark as this was read, not off the ticket. */
+  rank: Rank;
   id?: string;
   source?: string;
+  /**
+   * The session this document came from — the worktree the relay was run in.
+   * What the mark is on, so this is what says whether the mark is on this.
+   */
+  task?: string;
   /** Where its document is served. Absent for the moment before it is up. */
   url?: string;
 };
@@ -41,10 +70,10 @@ export type Waiting = {
 /**
  * There is one human, one screen, and one window. With no daemon to hold a
  * queue, the line is a directory: one ticket file per relay, named for its
- * arrival, and the oldest live ticket is the one the window is showing.
- * Everyone polls; nobody holds a lock that could go stale.
+ * arrival, and the oldest live ticket of the highest rank is the one the window
+ * is showing. Everyone polls; nobody holds a lock that could go stale.
  */
-export function enter(id: string, source: string): Turn {
+export function enter(id: string, source: string, task: string): Turn {
   const dir = queueDir();
   mkdirSync(dir, { recursive: true });
 
@@ -54,7 +83,7 @@ export function enter(id: string, source: string): Turn {
 
   // Everything the ticket says, kept here because one of them changes while the
   // relay is in line: where it is served.
-  const fields: Record<string, unknown> = { pid: process.pid, id, source, since };
+  const fields: Record<string, unknown> = { pid: process.pid, id, source, since, task };
   // Rewritten when that changes, so keep the current text: a ticket taken out
   // from under us has to go back as it was, url and all.
   let ticket = body();
@@ -148,8 +177,18 @@ export function enter(id: string, source: string): Turn {
 }
 
 /**
- * Every relay in line, oldest first — the one that should be on screen is the
- * one that has been waiting longest. Tickets of relays that are gone are swept.
+ * Every relay in line, the one that should be on screen first: the priority
+ * session's documents, then everyone else's, and oldest first within each.
+ *
+ * Oldest first *within* each and not only overall, because a marked session
+ * asking twice is asking two questions in an order — the second may well be
+ * about the answer to the first. Jumping the line is the mark's whole effect;
+ * reversing that session's own two documents would be a second one nobody asked
+ * for.
+ *
+ * A torn read costs a ticket its rank for one poll and not its place: it stays
+ * where arrival puts it, and the next read has the whole of it. Tickets of relays
+ * that are gone are swept.
  */
 export function line(dir = queueDir()): Waiting[] {
   let names: string[];
@@ -164,7 +203,7 @@ export function line(dir = queueDir()): Waiting[] {
     const m = /^(\d+)-(\d+)\.json$/.exec(name);
     if (!m) continue;
     const file = join(dir, name);
-    const t: Waiting = { name, at: Number(m[1]), pid: Number(m[2]) };
+    const t: Waiting = { name, at: Number(m[1]), pid: Number(m[2]), rank: "normal" };
     if (!alive(file, t.pid)) {
       try {
         rmSync(file);
@@ -174,15 +213,19 @@ export function line(dir = queueDir()): Waiting[] {
     // A ticket being written as it is read is a torn read, not a dead relay —
     // it keeps its place and the next poll picks up the rest of it.
     try {
-      const { id, source, url } = JSON.parse(readFileSync(file, "utf8"));
+      const { id, source, url, task } = JSON.parse(readFileSync(file, "utf8"));
       if (typeof id === "string") t.id = id;
       if (typeof source === "string") t.source = source;
       if (typeof url === "string") t.url = url;
+      if (typeof task === "string") {
+        t.task = task;
+        if (marked(task)) t.rank = "top";
+      }
     } catch {}
     live.push(t);
   }
 
-  return live.sort((a, b) => a.at - b.at || a.pid - b.pid);
+  return live.sort((a, b) => ranks[a.rank] - ranks[b.rank] || a.at - b.at || a.pid - b.pid);
 }
 
 function sleep(ms: number): Promise<void> {

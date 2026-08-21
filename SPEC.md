@@ -660,14 +660,66 @@ line by whoever notices — its PID no longer answers, or its ticket has stopped
 being touched (which is how a PID recycled onto an unrelated process is told
 from a relay).
 
-Arrival is the whole of the ordering: oldest first, nothing jumps, and a ticket
-carries no standing to sort by. It said `rank` for as long as relay had a task
-of its own to put in front of everything; that went with the feature.
+Arrival is the ordering, and exactly one thing outranks it: the session the human
+has marked. A ticket says which session it came from — `task`, the worktree the
+relay was run in — and whether that session is marked is read off the ledger as
+the line is read, by relay and by composer alike.
 
 The line is per-human, not per-repo: relays from four worktrees share it. No
 timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to contend
 for. The HTTP server comes up immediately either way, so a queued relay is
 serving its document and printing its URL while it waits.
+
+### The session that goes first
+
+Four agents can be waiting at once, and treating them all the same is only right
+while they are all worth the same. They are not: one of the four is the work the
+human is actually doing, and oldest-first makes them clear three skims to reach
+it. **A marked session's documents go in front of every other session's** —
+however long those have been waiting.
+
+The gesture is the human's, and it belongs where they can see the line: a ⌘-click
+on the row in composer's fleet pane, where a plain click already focuses that
+session's pane and has to keep doing so. relay owns the state and the ordering,
+not the gesture — `relay --priority` in a worktree, and `relay --priority off`,
+are the same mark set from a terminal, which is what makes it testable and what a
+machine without the window still has.
+
+Not an agent's gesture either way. An agent given the flag would use it on every
+document it sends, which is the same as nobody having it; nothing relay does on
+its own changes a mark.
+
+**A session is the worktree.** That is what the human means by the word — one
+worktree, one branch, one tmux session, one agent, all carrying the one name —
+and it is what relay already keys the plan and the round ledger on. The agent's
+own session id would have been the narrower answer and the wrong one: it changes
+when they restart the agent, and the mark would go with it, on the session they
+most likely restarted *because* it was the one that mattered.
+
+The mark is a file, `~/.relay/tasks/<task>-<hash>/priority`, present or absent.
+It sits in the directory that is already the task, beside the rounds it reorders,
+named the way the human names it and removable by hand. Composer writes it from
+the fleet pane and relay writes it from the flag; it is one file either way, and
+nothing has to be told that it changed.
+
+**It is read as the line is read, not stamped on a ticket.** The human marks a
+session while looking at a row that is *already waiting on them* — that is the
+moment the gesture is for, and a rank fixed at arrival would have moved the next
+document instead of the one they can see. So the ticket says only which session
+it is, and the sort answers *is that session marked* on every read: a mark takes
+the screen at once, and letting it go hands the screen back to whoever arrival
+says should have it. The cost is a `stat` per ticket per poll.
+
+Arrival still decides everything within a rank, the marked session's own
+documents included. A session asking twice is asking two questions in an order,
+and the second is often about the answer to the first; jumping the line is the
+mark's whole effect, and reversing that session's own two documents would be a
+second effect nobody asked for.
+
+Nothing expires. The mark is a standing answer to *which session matters*, not
+something a document spends — so `--priority` prints every marked session back,
+however it was called. A mark left on from yesterday would otherwise reorder
+everything today from a session the human is not looking at.
 
 ### How much is left
 

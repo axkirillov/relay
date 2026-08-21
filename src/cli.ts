@@ -6,6 +6,7 @@ import { createTwoFilesPatch, structuredPatch } from "diff";
 import { commentReport } from "./diff.js";
 import { unlatchOnExit } from "./latch.js";
 import * as plan from "./plan.js";
+import * as priority from "./priority.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
@@ -14,6 +15,7 @@ import { attend } from "./window.js";
 
 const usage = `relay <file.md>
 relay --plan
+relay --priority [off]
 
 Show a markdown document to the human and wait — for as long as it takes — for
 their reply. They can edit anywhere in it; their edits are highlighted live
@@ -37,6 +39,11 @@ has gone by untouched it says that too, to the human reading it.
 There is one relay window. Documents go through it one at a time, in the order
 their relays started, so this one appears once those ahead of it are done —
 and closing that window dismisses everything still waiting, this included.
+
+Unless the human has marked a session as the one that matters. \`relay --priority\`,
+run in a worktree, puts that worktree's documents in front of every other
+session's however long those have been waiting; \`relay --priority off\` takes it
+back. It is theirs to set, not an agent's — nothing here changes it.
 
 Waiting for a human outlasts most command timeouts, and a queued relay waits
 longer still. If the harness running this puts a clock on a command, start relay
@@ -63,6 +70,46 @@ const args = process.argv.slice(2).filter((a) => a !== "--");
 // agent told the old flag still lands on the file composer draws.
 if (args.length === 1 && args[0] === "--plan") {
   process.stdout.write(plan.open(tasks.taskOf(process.cwd())) + "\n");
+  process.exit(0);
+}
+
+// Which session's documents go first. The human's own gesture, run from inside
+// the worktree it is about — so what it marks is the directory this was run in,
+// the same thing `--plan` is about, and no id has to be typed or looked up.
+//
+// A state rather than a toggle: they say which way they want it, so saying it
+// twice is not a way back to where they started. And the whole of the state is
+// printed either way, because a mark left on from yesterday reorders everything
+// and would otherwise be invisible from the session it is not on.
+if (args.length <= 2 && args[0] === "--priority") {
+  const state = args[1] ?? "on";
+  if (state !== "on" && state !== "off") {
+    process.stderr.write(`relay: --priority takes "off", or nothing at all\n`);
+    process.exit(2);
+  }
+  const task = tasks.taskOf(process.cwd());
+  const was = priority.marked(task);
+  try {
+    priority.mark(task, state === "on");
+  } catch (err) {
+    process.stderr.write(`relay: cannot mark ${tasks.name(task)}: ${(err as Error).message}\n`);
+    process.exit(2);
+  }
+  const others = priority.all().filter((t) => t !== task).map(tasks.name);
+  process.stdout.write(
+    state === "on"
+      ? `${tasks.name(task)} is priority — its documents go to the front of the line\n`
+      : was
+        ? `${tasks.name(task)} is no longer priority\n`
+        : `${tasks.name(task)} was not priority\n`,
+  );
+  process.stdout.write(
+    others.length
+      ? `${state === "on" ? "also" : "still"} priority: ${others.join(", ")}\n`
+      : state === "on"
+        ? ""
+        : "nothing is priority now — the line is by arrival again\n",
+  );
   process.exit(0);
 }
 
@@ -102,7 +149,11 @@ const store = storage.open(path, sent);
 tasks.note(task, store.id);
 // Joined before the server comes up, so the line is in the order the relays were
 // run. With no window there is nothing to line up for.
-const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path);
+//
+// The ticket says which session this is, and the line works out from that whether
+// the human has marked it — every time it is read, so a mark made while this
+// document is already waiting moves this document rather than the next one.
+const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path, task);
 
 // The round's own directory holds what a long command wrote, beside the document
 // it was run from.
@@ -143,6 +194,12 @@ process.stderr.write(
       : `relay: the plan over this document is ${where} — keep it current\n`,
 );
 
+// What the agent is waiting behind, and why it might be less than it looks: a
+// marked session is told so, since otherwise the count is the only thing it hears
+// and the count is the part the mark is about to change. As it stands right now —
+// the human can mark this session, or let it go, while this document waits.
+if (priority.marked(task))
+  process.stderr.write("relay: this session is priority — this document goes to the front of the line\n");
 if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);
 
 // From here on the window is somebody's job, and it is this relay's for as long
