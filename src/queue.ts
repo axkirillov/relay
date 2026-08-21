@@ -1,9 +1,9 @@
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // Named by the file that is really there, not by the `.js` the bundle would
 // emit: the tests run this module through node as it stands.
-import { alive, heartbeat } from "./live.ts";
+import { alive, beatMs, touch } from "./live.ts";
 import { queueDir } from "./paths.ts";
 
 const pollMs = 250;
@@ -60,9 +60,25 @@ export function enter(id: string, source: string): Turn {
   let ticket = body();
   writeFileSync(mine, ticket);
 
-  const stop = heartbeat(mine);
-
   let gone = false;
+
+  // The beat is what tells the others this relay is still here, so it is also
+  // the only thing running when a ticket is swept from under a relay that is
+  // very much alive — a machine asleep long enough that every beat looks stale.
+  // Touching a file that is not there is a silent no-op, which is how a sweep
+  // became permanent; writing it back makes the line heal in one beat, whether
+  // or not `wait` is still in a position to notice. `ticket` is read fresh
+  // because `serving` rewrites it while the relay is in line.
+  const beat = setInterval(() => {
+    if (gone) return;
+    if (existsSync(mine)) return touch(mine);
+    try {
+      writeFileSync(mine, ticket);
+    } catch {}
+  }, beatMs);
+  beat.unref();
+  const stop = () => clearInterval(beat);
+
   const leave = () => {
     if (gone) return;
     gone = true;
@@ -99,10 +115,18 @@ export function enter(id: string, source: string): Turn {
     },
     async wait() {
       for (;;) {
-        const waiting = line(dir);
+        let waiting = line(dir);
         // Our ticket only vanishes if something outside took it; put it back
         // under its original name so we keep the place we queued for.
-        if (!gone && !waiting.some((t) => t.name === name)) writeFileSync(mine, ticket);
+        if (!gone && !waiting.some((t) => t.name === name)) {
+          writeFileSync(mine, ticket);
+          // And read the line again with it in. The line we were just handed is
+          // the one our ticket was missing from, and a sweep that takes every
+          // ticket at once leaves an empty line — which reads as "nobody ahead"
+          // to every relay in it simultaneously, so they all leave the one loop
+          // that would have put their tickets back.
+          waiting = line(dir);
+        }
         const head = waiting[0];
         if (!head || head.name === name) return;
         await sleep(pollMs);

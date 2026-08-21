@@ -6,6 +6,7 @@ const dir = mkdtempSync(join(tmpdir(), "relay-queue-"));
 process.env.RELAY_QUEUE_DIR = dir;
 
 const { enter, line } = await import("./queue.ts");
+const { beatMs } = await import("./live.ts");
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -37,6 +38,11 @@ function turnComes(t: { wait(): Promise<void> }, ms = 2000): Promise<boolean> {
     t.wait().then(() => true),
     new Promise<boolean>((r) => setTimeout(() => r(false), ms)),
   ]);
+}
+
+/** Long enough for the thing under test to have had its turn to happen. */
+function pause(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 const dead = 999_999; // no such process
@@ -107,6 +113,54 @@ const live = process.ppid; // whoever ran the test
   check("stolen ticket: put back", tickets().length, 1);
   t.leave();
   check("stolen ticket: leaves clean", tickets(), []);
+}
+
+{
+  // The sweep that took this ticket ran while the machine was asleep, long after
+  // `wait` had returned and the human had started reading — so there is nothing
+  // left watching but the beat, and a beat that only touches notices nothing:
+  // `utimesSync` on a file that is not there fails into an empty catch forever.
+  const t = enter("swept-while-read", "/tmp/k.md");
+  t.serving("http://127.0.0.1:4321/");
+  await turnComes(t);
+  rmSync(join(dir, tickets()[0]!));
+  check("swept while read: gone for the moment", tickets(), []);
+
+  await pause(beatMs + 400);
+  check("swept while read: the beat writes it back", tickets().length, 1);
+  check("swept while read: as it was, url and all", line()[0]?.url, "http://127.0.0.1:4321/");
+
+  t.leave();
+  await pause(beatMs + 400);
+  check("left: the beat does not resurrect it", tickets(), []);
+}
+
+// --- the line a relay decides its turn from ----------------------------------
+{
+  // `wait` used to read the line, put a stolen ticket back, and then decide from
+  // the read it already had — the one the ticket was missing from. A sweep that
+  // empties the directory therefore read as "nobody ahead" to every relay in
+  // line at once, and they all left the only loop that would have restored them.
+  const t = enter("emptied-line", "/tmp/l.md");
+  const name = tickets()[0]!;
+  rmSync(join(dir, name));
+  check("emptied line: turn comes", await turnComes(t), true);
+  check("emptied line: on its own ticket, not on nothing", line()[0]?.name, name);
+  t.leave();
+}
+
+{
+  // And a relay ahead is still ahead: putting a stolen ticket back is not a way
+  // to reach the head of the line.
+  const ahead = ticket(1, live);
+  const t = enter("robbed-in-line", "/tmp/m.md");
+  rmSync(join(dir, tickets().find((n) => n !== `1-${live}.json`)!));
+  check("robbed in line: still waits", await turnComes(t, 600), false);
+  check("robbed in line: ticket back, behind the one ahead", line().length, 2);
+
+  rmSync(ahead);
+  check("robbed in line: then its turn comes", await turnComes(t), true);
+  t.leave();
 }
 
 // --- what the window reads off the line --------------------------------------
