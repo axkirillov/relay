@@ -11,6 +11,10 @@ export function relayHome(): string {
   return q ? dirname(q) : join(homedir(), ".relay");
 }
 
+export function rehearsing(): boolean {
+  return Boolean(process.env.RELAY_QUEUE_DIR);
+}
+
 /** A ticket per relay in line. */
 export function queueDir(): string {
   return process.env.RELAY_QUEUE_DIR || join(relayHome(), "queue");
