@@ -28,9 +28,9 @@ block, so the diff carries it back. `⌃C` stops it, running the block again
 replaces its last output, and `:res` takes an output you would rather not send
 back out. Long output is folded to its last twenty lines — every line is still
 there. Clicking the `… N earlier lines` notice opens the fold, `zc` or `:fold`
-closes it again, and `:raw` shows the lot. Output longer than a document should
-hold goes to `~/.relay/<round>/run-N.log` instead, and the block keeps its first
-hundred lines, a pointer to that file, and its last twenty.
+closes it again, and `:raw` shows the lot. Output taller than the window goes to
+`~/.relay/<round>/run-N.log` instead, and the block keeps a windowful of it, a
+pointer to that file, and its last twenty lines.
 
 In the window: `⌃X` or `ZZ` accepts — `:w`, `:wq`, `:x` and `:acc` do too — `:q`
 closes without replying, and `:res` puts a stretch of the document back the way

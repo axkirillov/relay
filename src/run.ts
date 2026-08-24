@@ -23,19 +23,41 @@ import { spillNotice } from "./spill.ts";
 export const maxOutputBytes = 8 << 20;
 
 /**
- * What the document keeps of an output too long to hold: the first lines of it
- * and the last.
+ * What the document keeps of an output too long to hold: a screenful of the
+ * first lines of it, and the last few.
  *
  * The start says what the command set out to do and the end says how it turned
  * out, which between them is usually the whole answer. The middle is what nobody
  * reads unless something is wrong — and for that the file has all of it.
  *
+ * A screenful is also what decides that an output *is* too long: the caller says
+ * how many lines its window can show at once, and output that outgrows the
+ * screen it landed on is output nobody was going to read in place. A flat
+ * hundred lines was a number picked out of the air, and on a window that shows
+ * forty it meant scrolling past sixty lines to find out that the answer had been
+ * written to a file all along.
+ *
  * Bytes as well as lines, because one line of minified javascript would flood
- * the document on its own and never reach a hundred of anything.
+ * the document on its own and never reach a screenful of anything.
  */
-export const headLines = 100;
 export const tailLines = 20;
 export const maxDocBytes = 64 << 10;
+
+/**
+ * The screenful, for a caller with no window to measure — the tests, and any
+ * run whose request arrived without the page's measure on it.
+ */
+export const defaultScreenLines = 100;
+
+/**
+ * No smaller a screenful than this, however short the window is.
+ *
+ * Below it there is nothing to gain: the head and the tail together would hold
+ * the whole output anyway, and all the file would add is a second copy of what
+ * the document already has. It is the fold's own `worthFolding` number, so the
+ * two agree about when hiding something stops being worth it.
+ */
+const leastWorthSpilling = tailLines + 3;
 
 export type Running = {
   /** Ends it — the human's ⌃C, or the relay shutting down around it. */
@@ -47,13 +69,19 @@ export type Running = {
 /**
  * `logPath` is where the output goes if it outgrows the document. The file is
  * opened only if that happens, so an ordinary short run leaves nothing behind.
+ *
+ * `screenLines` is how many lines the window this output is going into can show
+ * at once — the length past which it goes to the file instead.
  */
 export function start(
   command: string,
   cwd: string,
   write: (text: string) => void,
   logPath: string,
+  screenLines: number = defaultScreenLines,
 ): Running {
+  const headLines = Math.max(screenLines, leastWorthSpilling);
+
   // The human's own shell, but not a login one. relay is launched by the agent,
   // so this process already holds the environment the agent works in — the PATH
   // that found `pnpm` for it will find `pnpm` here. Re-reading a login profile

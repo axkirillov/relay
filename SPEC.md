@@ -119,13 +119,19 @@ by a notice the human can click, while every line stays in the document. The
 agent gets all of it; the fold only decides how much the human scrolls past.
 `:raw` shows the lot, and `:fold` — or `zc` — puts an opened one back.
 
-Output too long to belong in a document at all **goes to a file instead**. Past a
-hundred lines — or 64 KB, since one line of minified javascript would flood the
-document without reaching a hundred of anything — the run writes to
-`~/.relay/<round>/run-N.log`, and the document keeps the first hundred lines, a
-pointer naming that file, and the last twenty. The start says what the command
-set out to do and the end says how it turned out, which between them is usually
-the whole answer; the file has every line for when it is not. The pointer is
+Output too long to belong in a document at all **goes to a file instead**, and
+too long means **taller than the window**. The page measures how many lines of
+document its window can show at once and sends that with the run; past it — or
+past 64 KB, since one line of minified javascript would flood the document
+without reaching a screenful of anything — the run writes to
+`~/.relay/<round>/run-N.log`, and the document keeps that screenful, a pointer
+naming the file, and the last twenty lines. The start says what the command set
+out to do and the end says how it turned out, which between them is usually the
+whole answer; the file has every line for when it is not. A flat hundred was a
+number picked out of the air, and on a window that shows forty it meant scrolling
+past sixty lines to find out the answer had been written to a file all along. It
+is the window that is measured and not the editor's share of it, so a terminal
+pane dragged tall does not change where a run's output is kept. The pointer is
 written the moment the spill starts rather than at the end, so a `⌃C` cannot leave
 a cut-off block with no file named. The fold hides that pointer along with the
 rest of the head, so the notice standing in its place names the file too — the one

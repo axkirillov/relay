@@ -142,7 +142,7 @@ export async function serve(
     // A shell block the human asked for. The body is the command, the response
     // is its output as it happens, and hanging up is how the human stops it.
     if (req.method === "POST" && path === "/run") {
-      return handleRun(req, res, running, join(logDir, `run-${++runs}.log`));
+      return handleRun(req, res, running, join(logDir, `run-${++runs}.log`), screenLines(req));
     }
     // A link the human's cursor was on. Out to the machine from this side for the
     // same reason nvim is: the page is sandboxed, and the window it is in has no
@@ -363,6 +363,21 @@ function handleOpen(req: IncomingMessage, res: ServerResponse) {
   );
 }
 
+/**
+ * How many lines of document the page says its window can show at once — the
+ * length past which a run's output goes to a file instead.
+ *
+ * Only the page can answer this: the window is on the other side of the wire,
+ * and its height is a thing that is measured rather than configured. Nothing
+ * back means nothing said, and run.ts falls back to its own screenful — one
+ * default, in the one place that has to have it.
+ */
+function screenLines(req: IncomingMessage): number | undefined {
+  const params = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+  const v = Number(params.get("lines"));
+  return Number.isInteger(v) && v > 0 && v < 5000 ? v : undefined;
+}
+
 /** How big the page says its terminal is. */
 function size(req: IncomingMessage): { cols: number; rows: number } {
   const params = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
@@ -393,6 +408,7 @@ function handleRun(
   res: ServerResponse,
   running: Set<Running>,
   logPath: string,
+  screenLines: number | undefined,
 ) {
   read(req, maxCommandBytes).then(
     (command) => {
@@ -412,6 +428,7 @@ function handleRun(
           if (!res.writableEnded) res.write(text);
         },
         logPath,
+        screenLines,
       );
       running.add(job);
 
