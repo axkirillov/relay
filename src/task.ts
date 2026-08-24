@@ -13,15 +13,16 @@ import { filledFile, relayHome, tasksDir } from "./paths.ts";
  * someone who answered four others hours ago, in a window that closed each time,
  * with a black box in between.
  *
- * What relay puts above the document to answer that is the task's plan — the
- * agent's own overview and to-do list, in `plan.ts`. This half is the ground it
- * stands on: which task a directory belongs to, where that task keeps its things,
- * and when each of its rounds went up. The plan is written; this is counted.
+ * What answers that is the task's `--about` — the agent's own prose saying what this
+ * session is about, in `about.ts`, which composer draws as a card on ⌘P. This half is
+ * the ground it stands on: which task a directory belongs to, where that task keeps
+ * its things, and when each of its rounds went up. The answer is written; this is
+ * counted.
  *
  * The ledger is a directory per task holding a symlink per round. Nothing the
- * plan says is copied into it, so there is nothing here to fall out of step with
+ * answer says is copied into it, so there is nothing here to fall out of step with
  * anything — and the task is a directory the human can walk, which is what lets a
- * document name one path and have `gf` open the plan, the rounds, and everything
+ * document name one path and have `gf` open the answer, the rounds, and everything
  * each round kept.
  */
 
@@ -37,8 +38,8 @@ import { filledFile, relayHome, tasksDir } from "./paths.ts";
  * The walk stops at the first `.git`, whether that is a directory or the file a
  * worktree has instead; both mean "the root of this checkout". With none above at
  * all — an agent relaying from `/tmp` — the directory itself is the task. That
- * groups nothing, which is the right failure: better one session's own plan than
- * one plan shared out between four unrelated agents.
+ * groups nothing, which is the right failure: better one session's own answer than
+ * one answer shared out between four unrelated agents.
  */
 export function taskOf(cwd: string): string {
   for (let dir = cwd; ; ) {
@@ -67,7 +68,7 @@ export function taskOf(cwd: string): string {
  * A symlink to the round rather than a file about it: nothing said under a
  * document is kept here, so there is no second copy of anything to go stale — and
  * the task's directory is then the task, walkable. It is the one path a document
- * has to name, and `gf` on it opens a listing with the plan in it and every round
+ * has to name, and `gf` on it opens a listing with the answer in it and every round
  * a directory to step into.
  *
  * Rounds, plural, because filling the ledger in files hundreds at a time and the
@@ -102,7 +103,7 @@ export function note(task: string, ...ids: string[]): void {
  * which means that on the day this ships it is empty, and every task in flight is
  * counting from zero. The human would land the feature and be told, on the
  * hundredth question of a task they have been at for two days, that this is its
- * first round; and the plan they are shown would say it was written before a
+ * first round; and the answer they are shown would say it was written before a
  * history that relay claims never happened.
  *
  * Those rounds do not have to be lost. A round records the directory it was
@@ -192,7 +193,7 @@ export function taskDir(task: string): string {
  * one, since a relay notes its own only once its document is stored.
  *
  * Two things are read off this and nothing else is: how many rounds the task has
- * had, which is the count, and whether the plan under the document has been
+ * had, which is the count, and whether the task's answer has been
  * touched since the work moved, which is the times. Both come out of the listing
  * alone — the time a round went up is in the name it already carries, so a task a
  * hundred rounds deep costs one `readdir` and not one file read.

@@ -40,22 +40,22 @@ Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
 
-## The task, and where the plan lives
+## The task, and where the answer lives
 
-relay does not put the task above the document any more — **composer** does, as a
-band across the top of the document column that arrives folded and opens on `⌘P` or
-a click. The plan it draws is a file the agent writes: a short overview and a to-do
-list, kept ticked as the work moves.
+relay does not put the task above the document any more — **composer** does, as a card
+floating in the middle of the window that comes up on `⌘P` and at no other time. It
+answers one question, *what is this session about*, and the file behind it is the
+agent's own prose answering exactly that and holding nothing else.
 
-`relay --plan` still prints that file, so an agent told the old flag lands on the
-same one composer reads — `~/.task/plans/<worktree>-<hash>.md`, one per worktree.
-`composer --plan` is the flag to reach for now.
+`relay --about` prints that file — `~/.task/about/<worktree>-<hash>.md`, one per
+worktree — and `composer --about` prints the same path. The two have to agree
+exactly, which is why the slug is the same six hex of the same hash on both sides.
 
-What relay keeps is the ledger the band counts rounds from: `~/.relay/tasks/` holds
+What relay keeps is the ledger the card counts rounds from: `~/.relay/tasks/` holds
 a directory per task with a symlink per round, and relay files its own round there
-as each document goes up. On its way out it also says on stderr whether the plan has
+as each document goes up. On its way out it also says on stderr whether the answer has
 been touched since the last round — which is the one thing an agent should be told
-about its own list without having to be told by the human.
+about its own file without having to be told by the human.
 
 ## Reviewing a diff
 
@@ -121,7 +121,7 @@ Unless one of them matters more. Mark a session and its documents go in front of
 every other session's, however long those have been waiting — ⌘-click its row in
 composer's fleet pane, or `relay --priority` in the worktree itself
 (`relay --priority off` takes it back). A session here is the worktree, the same
-thing the plan is keyed on, so restarting the agent in it does not lose the mark.
+thing the answer is keyed on, so restarting the agent in it does not lose the mark.
 
 The mark applies to the document already waiting, not just the next one: it is
 read every time the line is read. Marking a session hands it the screen at once,

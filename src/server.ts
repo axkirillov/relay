@@ -41,10 +41,11 @@ export type Options = {
   behind?: () => number;
   /**
    * Whether this document is going into composer's frame — true when the relay
-   * joined the line and the task it belongs to has a plan, which is exactly when
-   * composer draws its band over the document. The page drops its own header:
-   * there is no sense in two strips over one document, and with no band the header
-   * is also what keeps the traffic lights off the first line of the text.
+   * joined the line and the task it belongs to has an answer written, which is
+   * exactly when composer reserves 38px of bare window ground over the document for
+   * the traffic lights. The page drops its own header: there is no sense in two
+   * strips over one document, and outside the frame that header is what keeps the
+   * lights off the first line of the text.
    */
   framed?: boolean;
 };

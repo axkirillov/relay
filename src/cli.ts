@@ -5,7 +5,7 @@ import { createTwoFilesPatch, structuredPatch } from "diff";
 
 import { commentReport } from "./diff.js";
 import { unlatchOnExit } from "./latch.js";
-import * as plan from "./plan.js";
+import * as about from "./about.js";
 import * as priority from "./priority.js";
 import * as queue from "./queue.js";
 import { serve } from "./server.js";
@@ -14,7 +14,7 @@ import * as tasks from "./task.js";
 import { attend } from "./window.js";
 
 const usage = `relay <file.md>
-relay --plan
+relay --about
 relay --priority [off]
 
 Show a markdown document to the human and wait — for as long as it takes — for
@@ -28,12 +28,13 @@ A \`\`\`diff block is shown as a review the human can write in. They edit the pa
 where it stands, and any line they write that does not open with a diff marker is
 a comment — those come back under the diff, each one located as file:line.
 
-The task's plan — a short overview of the work and a to-do list, ticked off as it
-goes — is drawn by composer as a band over the document, not by relay. \`--plan\`
-prints the file to write it in, one per worktree; \`composer --plan\` prints the same
-one and is the flag to reach for.
+What this session is about — the answer to that one question, in your own prose, and
+nothing else in the file — is drawn by composer as a card the human raises with ⌘P.
+Not by relay, and not over the document unasked. \`--about\` prints the file to write
+it in, one per worktree; \`composer --about\` prints the same one and is the flag to
+reach for.
 
-Update it before every relay. The band says when you last wrote it, and once a round
+Update it before every relay. The card says when you last wrote it, and once a round
 has gone by untouched it says that too, to the human reading it.
 
 There is one relay window. Documents go through it one at a time, in the order
@@ -66,16 +67,17 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
 
-// Where this task's plan goes. Kept working after the band moved to composer, so an
-// agent told the old flag still lands on the file composer draws.
-if (args.length === 1 && args[0] === "--plan") {
-  process.stdout.write(plan.open(tasks.taskOf(process.cwd())) + "\n");
+// Where this task's answer goes — what the session is about, and only that. composer
+// owns the path and draws the card; relay writes nothing out of the file and only says
+// on stderr whether the agent has kept it current.
+if (args.length === 1 && args[0] === "--about") {
+  process.stdout.write(about.open(tasks.taskOf(process.cwd())) + "\n");
   process.exit(0);
 }
 
 // Which session's documents go first. The human's own gesture, run from inside
 // the worktree it is about — so what it marks is the directory this was run in,
-// the same thing `--plan` is about, and no id has to be typed or looked up.
+// the same thing `--about` is about, and no id has to be typed or looked up.
 //
 // A state rather than a toggle: they say which way they want it, so saying it
 // twice is not a way back to where they started. And the whole of the state is
@@ -128,8 +130,8 @@ try {
   process.exit(2);
 }
 
-// The document goes up as the agent wrote it. What the task is and how far along it
-// has got is composer's band over the document column now, so nothing is stapled to
+// The document goes up as the agent wrote it. What the task is about is composer's
+// card now, and how far along it has got is nobody's, so nothing is stapled to
 // the text the human is editing: `sent` is what is diffed against, what is kept, and
 // what the editor opens with.
 const task = tasks.taskOf(process.cwd());
@@ -138,7 +140,7 @@ const task = tasks.taskOf(process.cwd());
 // every task in flight would be counting from its next round.
 tasks.fill();
 const past = tasks.rounds(task);
-const wrote = plan.read(task);
+const wrote = about.read(task);
 
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
@@ -160,12 +162,13 @@ const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path, task
 const relay = await serve(path, sent, prefill, store.dir, {
   onDraft: store.draft,
   behind: () => turn?.behind() ?? 0,
-  // In the line, and the task has a plan: composer will draw its band over this
-  // document, so the page leaves its own header off — one strip, not two. Both
-  // halves matter. Nothing in the line means nobody is going to frame this and the
-  // URL is being opened by hand; and composer's rule is *no plan, no band*, which
-  // it decides off this same file, so a task without one keeps the header that
-  // holds the traffic lights clear of the first line.
+  // In the line, and the task has an answer written: composer reserves 38px of bare
+  // window ground over this document — the room the traffic lights need, and the whole
+  // of what is left of the band — so the page leaves its own 38px header off. One strip
+  // over the document, not two. Both halves matter. Nothing in the line means nobody is
+  // going to frame this and the URL is being opened by hand; and composer reserves that
+  // room on this same condition, read the same way off the same file, so a task without
+  // an answer keeps the header that holds the lights clear of the first line.
   framed: !!turn && !!wrote,
 });
 // The window reads this off the ticket. Until it is there the window waits,
@@ -179,19 +182,19 @@ process.stderr.write(
 );
 
 // The one place the agent is already reading when it thinks about this task, and now
-// the only one: the band that says the same thing is on the human's screen, not in
-// what relay hands back.
-const behind = wrote ? plan.stale(wrote, past) : 0;
+// the only one: the card that would say the same thing is on the human's screen only
+// while they hold it up with ⌘P, and never in what relay hands back.
+const behind = wrote ? about.stale(wrote, past) : 0;
 // How many rounds went up after it was last written, this one not counted: it is
 // going up now, and it is the one being complained about.
 const missed = past.length + 1 - behind;
-const where = plan.tilde(plan.file(task));
+const where = about.tilde(about.file(task));
 process.stderr.write(
   !wrote
-    ? `relay: this task has no plan — write one at ${where} and the window carries it over every document\n`
+    ? `relay: this task has no --about — write what this session is about at ${where}, and ⌘P puts it on the human's screen over every document\n`
     : behind
-      ? `relay: the plan over this document has not been touched in ${missed} round${missed === 1 ? "" : "s"} — the band is telling the human so; update ${where}\n`
-      : `relay: the plan over this document is ${where} — keep it current\n`,
+      ? `relay: the --about for this task has not been touched in ${missed} round${missed === 1 ? "" : "s"} — the card says so the moment they press ⌘P; update ${where}\n`
+      : `relay: the --about for this task is ${where} — keep it current\n`,
 );
 
 // What the agent is waiting behind, and why it might be less than it looks: a

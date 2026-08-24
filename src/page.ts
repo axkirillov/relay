@@ -3,13 +3,13 @@ import { basename } from "node:path";
 /**
  * The page, and whether it is going into composer's frame.
  *
- * `framed` takes this page's own header off it. Inside composer there is already a
- * band over the document — the task, the list, the round, when the plan was written
- * — and everything this header said is either said better up there or not worth a
- * strip of its own: the document's *file name* is the agent's scratchpad spelling
- * of it, and `the agent is waiting` is what a document standing on the screen
- * already means. Run on its own, with the URL opened by hand, nothing about relay
- * changes.
+ * `framed` takes this page's own header off it. Inside composer that strip's room is
+ * already reserved — 38px of bare window ground for the traffic lights, where the band
+ * used to be — and everything this header said is either said better by the window or
+ * not worth a strip of its own: the document's *file name* is the agent's scratchpad
+ * spelling of it, and `the agent is waiting` is what a document standing on the screen
+ * already means. What the task is about is a card, and the human raises it with ⌘P.
+ * Run on its own, with the URL opened by hand, nothing about relay changes.
  */
 export function page(source: string, framed = false): string {
   return `<!doctype html>

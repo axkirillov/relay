@@ -229,62 +229,70 @@ the headers above it say which file and which line it is against.
 No widgets, no schema. The agent asks in ordinary text; the human answers by
 editing. They are never boxed into options the agent thought of.
 
-## The task above the document is composer's now
+## What the session is about is composer's now
 
 Every document used to open with what the task is and where it has got to — the
 agent's own overview and to-do list, which relay read out of the task's `plan.md`
-and stapled above the text. It is **composer's** band across the top of the document
-column now: it arrives folded, opens on `⌘P` or a click, and shows the whole list
-including what is already ticked.
+and stapled above the text. It is **composer's** card now: a window of its own
+floating in the middle of composer's, which comes up on `⌘P` and comes up at no
+other time.
 
-The argument for moving it was not layout. It was that a plan rendered *into* the
-document is markdown in the text the human is editing — it is in the baseline, it
-has to be cut back out of a document sent twice, and it can only ever be seen when
-a question happens to be up. A window that outlives its documents can hold it
-beside one instead, and fold it away without the document reflowing.
+It answers one question — *what is this session about* — and the file behind it holds
+that answer and nothing else. The card was briefly the plan file with its checkboxes
+subtracted, and a card built out of what is left over from a document answering a
+different question carries whatever else that document held: in practice progress,
+in a card that exists precisely not to answer how far along the work is. So the flag
+is `--about`, the file is prose, and there is nothing to subtract.
+
+The argument for moving it out of the document was never layout. It was that a
+section rendered *into* the document is markdown in the text the human is editing —
+it is in the baseline, it has to be cut back out of a document sent twice, and it
+can only ever be seen while a question happens to be up. A window that outlives its
+documents can hold it beside one instead, and take it away without the document
+reflowing.
 
 What relay kept is the part only relay can do:
 
-- **`relay --plan` still prints the file**, so an agent told the old flag lands on
-  the one composer draws. It is `~/.task/plans/<worktree>-<hash>.md` now — under
-  composer's own home, with the hook and the rounds, and flat rather than buried
-  in relay's round ledger. `composer --plan` prints the same path.
+- **`relay --about` prints the file.** It is `~/.task/about/<worktree>-<hash>.md` —
+  under composer's own home, with the hook and the rounds, and flat rather than
+  buried in relay's round ledger. `composer --about` prints the same path, and the
+  two have to agree exactly: the slug is the same six hex of the same hash on both
+  sides, which is why `taskOf` is copied between the repos rather than shared.
 - **The ledger stays here.** A round is filed by the relay that opens it, and
-  which round of a task a document is — and whether the plan has kept up with them
+  which round of a task a document is — and whether the answer has kept up with them
   — is that listing and nothing else. composer reads it; nothing is copied.
 - **The agent is still told on stderr.** That line is the only thing that reaches
-  an agent whose own list has gone stale, and the human should not have to be the
+  an agent whose own file has gone stale, and the human should not have to be the
   one who points it out.
 
 Gone with the section: the forty-line cap, the `---` rule under it, the strip that
-cut an old copy out of a document being sent twice, and the plan's place in the
+cut an old copy out of a document being sent twice, and the file's place in the
 baseline. A reply is the document the agent wrote and nothing else again.
 
-### A plan that stopped being true
+### An answer that stopped being true
 
-A to-do list is worth something only while it is true, so the agent is told to
-update it before every relay — and whether it did is not a matter of opinion. A
-round went up and the file was not touched. The band says so, and relay says the
+An answer is worth something only while it is true, so the agent is told to update
+it before every relay — and whether it did is not a matter of opinion. A round went
+up and the file was not touched. The card says so in its footer, and relay says the
 same thing to the agent on its way out:
 
 ```
-7th round · plan written Aug 17 18:22 · behind
-Not touched since before the 5th round — it may be behind the work.
+written Aug 17 18:22 · not touched since before the 5th round
 ```
 
-It is the plan's mtime against the times the rounds went up: a round's directory is
+It is the file's mtime against the times the rounds went up: a round's directory is
 named for when it opened, so this costs the same listing that counts the rounds and
 not one file read more.
 
-- **The round it names is the first one it missed** — where the list stopped
+- **The round it names is the first one it missed** — where the answer stopped
   keeping up. Hours would leave the human to work out for themselves how many
-  questions they have answered off a plan that was already out of date.
-- **A tie is not stale.** A plan written in the same second a round went up was
+  questions they have answered off something that was already out of date.
+- **A tie is not stale.** An answer written in the same second a round went up was
   written for that round as far as anything here can tell, and a borderline case
   should not accuse.
-- **The agent is told as well**, on the stderr line that says where the plan is.
+- **The agent is told as well**, on the stderr line that says where the file is.
   The human should not have to be the one who points it out, because by the time
-  they can they have already read a list that was not true.
+  they can they have already read something that was not true.
 
 ### A task is the worktree
 
@@ -295,8 +303,8 @@ human names a task too, the branch and the tmux session and the directory all
 carrying the one name. The walk up stops at the first `.git`, a worktree's file
 as readily as a clone's directory. With none above at all, an agent relaying from
 `/tmp`, the directory itself is the task; that groups nothing, which is the right
-failure — one session's own plan beats one plan shared out between four unrelated
-agents.
+failure — one session's own answer beats one answer shared out between four
+unrelated agents.
 
 Such a task has no name, and the heading says so by saying nothing:
 
@@ -307,7 +315,7 @@ Such a task has no name, and the heading says so by saying nothing:
 What it would be called is the directory it ran in, which for an agent's scratchpad
 is a session's UUID. The heading is there to tell the human which piece of work a
 document belongs to and a UUID does not, so the more truthful of the two is to leave
-it off. The plan under it is unchanged — it really is that session's — and the
+it off. The answer under it is unchanged — it really is that session's — and the
 path at the end is still the real directory, so the UUID is in the document once,
 in something you can open, rather than across the top of it. Whether there is a
 checkout is asked of the disk at the time the section is written, which is right
@@ -328,14 +336,14 @@ relay leaves its own name in its task's directory as a symlink to itself:
 
 Nothing said under a document is copied in there, so there is no second copy of
 anything to go stale — and the task is then a directory, walkable, which is what
-lets `gf` on one path open the rounds and everything each round kept. The plan is
-`~/.task/plans/relay-task-timeline-e01e2c.md`, named for this same directory. The name is what the human calls the task, and six
+lets `gf` on one path open the rounds and everything each round kept. The answer is
+`~/.task/about/relay-task-timeline-e01e2c.md`, named for this same directory. The name is what the human calls the task, and six
 characters of the full path's hash, because two checkouts really can end in the
 same two segments and quietly pouring two tasks into one directory is the one
 failure this cannot have.
 
 What is read back out of it is the count of a task's rounds and the times they
-went up — which document this is, and whether the plan has kept up with them.
+went up — which document this is, and whether the answer has kept up with them.
 Both come out of the listing alone: the time is in the name each round already
 carries, so a task a hundred rounds deep costs one `readdir` and no file reads at
 all.
@@ -347,7 +355,7 @@ already under way has its whole history outside it. That is not a small edge: it
 was nine hundred rounds across a hundred tasks here, several of them dozens of
 answered questions deep. The feature would land and tell the human, on the
 hundredth question of a task they had been at for two days, that this was its
-first round — and call the plan they were reading current on the strength of a
+first round — and call the answer they were reading current on the strength of a
 history it claimed had never happened.
 
 They are not lost. A round records the directory it was relayed from, so the task
@@ -691,7 +699,7 @@ its own changes a mark.
 
 **A session is the worktree.** That is what the human means by the word — one
 worktree, one branch, one tmux session, one agent, all carrying the one name —
-and it is what relay already keys the plan and the round ledger on. The agent's
+and it is what relay already keys the answer and the round ledger on. The agent's
 own session id would have been the narrower answer and the wrong one: it changes
 when they restart the agent, and the mark would go with it, on the session they
 most likely restarted *because* it was the one that mattered.
@@ -768,7 +776,7 @@ window still here rather than watch it go and come back.
 Whichever relay is at the head starts a window if none is up; `~/.relay/window.json`
 is the window saying it is here, kept fresh by a heartbeat, and the head relay
 keeps looking, so a window that dies violently is simply replaced. Electron's
-single-instance lock is the backstop under all of that, not the plan.
+single-instance lock is the backstop under all of that, not the design.
 
 This also fixes something the old design could not. A window used to be spawned
 and killed by one relay, so a relay that was itself killed — a harness timeout,
@@ -859,12 +867,12 @@ overridable on its own.
 - **relay runs no command of the human's.** It shows a document and prints an
   answer to the agent that asked for one. A gesture that starts work belongs to
   the window that holds the documents — composer — not to the document.
-- **Every document says what the task is and how far it has got.** Not a walk
-  back on the line above: *starting* a task is a gesture and belongs to the
-  window, while carrying the task's plan above every document is relay's — the
-  agent is not asked to remember to repeat it, because an obligation every
-  document carries cannot rest on an agent remembering. Writing the plan is the
-  agent's; relay says which round this is and when the file was last touched.
+- **What the session is about is always reachable.** Reversed since it was
+  written: it used to be carried above every document by relay, on the argument
+  that an obligation every document carries cannot rest on an agent remembering.
+  It is composer's card now, on `⌘P`, which keeps the obligation off the agent
+  without putting it in the text the human is editing. Writing the answer is still
+  the agent's; relay only says on stderr when the file has stopped keeping up.
 - **One document at a time.** The next appears the moment the current one is
   answered. No tabs, no list of what is waiting.
 - **Closing the window dismisses everything**, not only the document on screen.

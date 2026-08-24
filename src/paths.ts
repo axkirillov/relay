@@ -32,19 +32,27 @@ export function closedFile(): string {
 
 /**
  * Tasks' own home, which is composer's rather than relay's: the hook lives there and
- * so does the plan a document used to carry. relay reads it for `--plan` alone.
+ * so does the answer a document used to carry. relay reads it for `--about` alone.
  *
  * `RELAY_QUEUE_DIR` moves it, as it moves everything else here, so a rehearsal cannot
- * point an agent at the human's real plans.
+ * point an agent at the human's real ones.
  */
 export function taskHome(): string {
   const q = process.env.RELAY_QUEUE_DIR;
   return q ? join(dirname(q), "task") : join(homedir(), ".task");
 }
 
-/** A file per task holding the plan the agent writes by hand. composer draws it. */
-export function plansDir(): string {
-  return join(taskHome(), "plans");
+/**
+ * A file per task holding the answer the agent writes by hand — what this session is
+ * about, and only that. composer draws it, on ⌘P and not otherwise.
+ *
+ * `about/`, and it was `plans/` while the file was a plan. This is the one path the
+ * two repos have to spell identically — composer's `aboutDir()` is the same line —
+ * so the rename only held because both were rebuilt together and the files already
+ * on disk were moved in the same breath.
+ */
+export function aboutDir(): string {
+  return join(taskHome(), "about");
 }
 
 /**
