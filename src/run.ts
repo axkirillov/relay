@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { closeSync, openSync, writeSync } from "node:fs";
+import { closeSync, openSync, readSync, truncateSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
+import { StringDecoder } from "node:string_decoder";
 
 // `.ts`, unlike the bundle's own `.js` specifiers: run.ts is loaded straight by
 // node in its test, and node resolves what is written.
@@ -13,6 +14,13 @@ import { spillNotice } from "./spill.ts";
  * question is answered with end-of-file rather than hanging on a prompt nobody
  * can see. stdout and stderr are merged in arrival order, because that is the
  * order they happened in and the human is reading them as one stream.
+ *
+ * The command writes to a file and this reads that file back. A pipe would be
+ * the obvious way round, and it was — but a pipe has this process on the other
+ * end of it, and a command the human left running when they accepted would die
+ * of `SIGPIPE` the moment the relay exited. A running child's descriptors cannot
+ * be reassigned after the fact, so the file has to be where the output was going
+ * all along.
  */
 
 /**
@@ -37,16 +45,36 @@ export const headLines = 100;
 export const tailLines = 20;
 export const maxDocBytes = 64 << 10;
 
+/**
+ * How often the file is read for what the command has added to it.
+ *
+ * The human is watching the output arrive, so this is the delay between a line
+ * being written and being seen. A read of a local file at rest costs one
+ * syscall that returns nothing.
+ */
+const pollMs = 50;
+
 export type Running = {
   /** Ends it — the human's ⌃C, or the relay shutting down around it. */
   kill(): void;
-  /** Resolves when the command is over and its last output has been written. */
+  /**
+   * Lets go of it, alive.
+   *
+   * The human accepted with this still running, which is them saying they would
+   * rather answer now than wait. Nothing here reads it again: its output is
+   * going to a file it holds open itself, and the document has been told where
+   * that file is.
+   */
+  detach(): void;
+  /** Resolves when the command is over — or when it has been let go of. */
   done: Promise<void>;
 };
 
 /**
- * `logPath` is where the output goes if it outgrows the document. The file is
- * opened only if that happens, so an ordinary short run leaves nothing behind.
+ * `logPath` is where the output goes. Every run writes it, because it is what
+ * the command's stdout is; a run that ends in the window without outgrowing the
+ * document takes it away again on the way out, so an ordinary short run still
+ * leaves nothing behind.
  */
 export function start(
   command: string,
@@ -60,28 +88,37 @@ export function start(
   // could only pull the two apart, and would tip any banner in it into the
   // document as output.
   const shell = process.env.SHELL || "/bin/sh";
+  const out = openSync(logPath, "w");
   // Its own process group, so stopping it stops what it started. A SIGTERM to
   // `sh -c "pnpm test"` need never reach pnpm; a signal to the group reaches
   // everything the command spawned.
   const child = spawn(shell, ["-c", command], {
     cwd,
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", out, out],
     detached: true,
   });
+  // The child has its own copy from the moment it was spawned, and this side
+  // never writes to it.
+  closeSync(out);
+
+  const rfd = openSync(logPath, "r");
+  const buf = Buffer.allocUnsafe(64 << 10);
+  // A read ends where the buffer does, which can be halfway through a character;
+  // the decoder holds those bytes back until the rest of them arrive.
+  const decoder = new StringDecoder("utf8");
+  /** How far into the file this has read. The read is positional, so this is the truth. */
+  let at = 0;
 
   let bytes = 0;
   let capped = false;
   let stopped = false;
-  let ended = false;
+  let detached = false;
+  let spilled = false;
 
   let lines = 0;
   let shown = 0;
   let shownBytes = 0;
   let partial = "";
-  // Held until the output turns out to be long enough to need a file, and gone
-  // the moment it is.
-  let held = "";
-  let log: number | null = null;
 
   // The end of the output, kept back so it can be shown below the part the
   // document did not get.
@@ -99,20 +136,22 @@ export function start(
     }
   };
 
-  /** The file gets every byte as it arrived: it is the copy of record. */
-  const keep = (chunk: string) => {
-    if (ended) return;
-    if (log === null) held += chunk;
-    else writeSync(log, chunk);
+  /** The output stops going into the document here, and the file is named instead. */
+  const spill = () => {
+    spilled = true;
+    // Named the moment the document stops keeping up rather than at the end,
+    // because ⌃C ends the response: without this the human would be left holding
+    // a cut-off block and no file to go to.
+    write(`\n${spillNotice(tilde(logPath))}\n`);
   };
 
-  const spill = () => {
-    log = openSync(logPath, "w");
-    writeSync(log, held);
-    held = "";
-    // Named here rather than at the end, because ⌃C ends the response: without
-    // this the human would be left holding a cut-off block and no file to go to.
-    write(`\n${spillNotice(tilde(logPath))}\n`);
+  /** Nothing points at this file and nothing needs it: take it away again. */
+  const discard = () => {
+    try {
+      unlinkSync(logPath);
+    } catch {
+      // Already gone, or never made.
+    }
   };
 
   const remember = (text: string) => {
@@ -127,8 +166,8 @@ export function start(
   const line = (text: string, terminated: boolean) => {
     lines++;
     const chunk = terminated ? `${text}\n` : text;
-    if (log === null && (lines > headLines || shownBytes + chunk.length > maxDocBytes)) spill();
-    if (log === null) {
+    if (!spilled && (lines > headLines || shownBytes + chunk.length > maxDocBytes)) spill();
+    if (!spilled) {
       shown++;
       shownBytes += chunk.length;
       write(chunk);
@@ -136,15 +175,14 @@ export function start(
     remember(text);
   };
 
-  const take = (text: string) => {
+  const take = (text: string, size: number) => {
     if (capped) return;
-    bytes += Buffer.byteLength(text);
-    keep(text);
+    bytes += size;
     if (bytes > maxOutputBytes) {
       capped = true;
       // Killed for its size, so the file is the only place the output survives —
       // even if it never grew past the document's own bounds in lines.
-      if (log === null) spill();
+      if (!spilled) spill();
       write(`\n… output passed ${maxOutputBytes >> 20} MB — the command was stopped here\n`);
       signal("SIGKILL");
       return;
@@ -156,6 +194,23 @@ export function start(
       partial = partial.slice(cut + 1);
     }
   };
+
+  /** Everything the command has written since the last look. */
+  const drain = () => {
+    while (!capped && !detached) {
+      let n = 0;
+      try {
+        n = readSync(rfd, buf, 0, buf.length, at);
+      } catch {
+        return;
+      }
+      if (n <= 0) return;
+      at += n;
+      take(decoder.write(buf.subarray(0, n)), n);
+    }
+  };
+
+  const timer = setInterval(drain, pollMs);
 
   /** What the document was not given, and the last of what it was. */
   const rest = () => {
@@ -172,30 +227,52 @@ export function start(
     write(`${end.map(cut).join("\n")}\n`);
   };
 
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", take);
-  child.stderr.on("data", take);
-
+  let over!: () => void;
   const done = new Promise<void>((resolve) => {
-    const over = () => {
-      ended = true;
-      if (log !== null) closeSync(log);
+    let settled = false;
+    over = () => {
+      if (settled) return;
+      settled = true;
+      clearInterval(timer);
+      try {
+        closeSync(rfd);
+      } catch {
+        // Already closed.
+      }
       resolve();
     };
-    // `error` fires instead of `close` when the shell itself cannot be spawned.
-    child.once("error", (err) => {
-      write(`relay could not run it: ${err.message}\n`);
-      over();
-    });
-    child.once("close", (code, sig) => {
-      if (partial) line(partial, false);
-      if (capped) return over();
-      if (log !== null) rest();
-      if (stopped || sig) write("\n[stopped]\n");
-      else if (code) write(`\n[exit ${code}]\n`);
-      over();
-    });
+  });
+
+  // `error` fires instead of `close` when the shell itself cannot be spawned.
+  child.once("error", (err) => {
+    write(`relay could not run it: ${err.message}\n`);
+    discard();
+    over();
+  });
+  child.once("close", (code, sig) => {
+    // Let go of at the accept. There is nobody to write to and the file is the
+    // whole point of it now.
+    if (detached) return;
+    drain();
+    const last = decoder.end();
+    if (last) take(last, Buffer.byteLength(last));
+    if (partial) line(partial, false);
+    if (capped) {
+      // The disk's bound is this file's size, so it is made true here rather
+      // than hoped for: the kill is not instant, and a command writing to a
+      // file has no pipe to fill up and be slowed by.
+      try {
+        truncateSync(logPath, maxOutputBytes);
+      } catch {
+        // Gone, or never grown that far.
+      }
+      return over();
+    }
+    if (spilled) rest();
+    else discard();
+    if (stopped || sig) write("\n[stopped]\n");
+    else if (code) write(`\n[exit ${code}]\n`);
+    over();
   });
 
   return {
@@ -203,6 +280,15 @@ export function start(
       stopped = true;
       signal("SIGTERM");
       setTimeout(() => signal("SIGKILL"), 2000).unref();
+    },
+    detach() {
+      if (detached) return;
+      detached = true;
+      // The relay is on its way out and node leaves when nothing is left to do:
+      // a child still counted would hold it here until the command ended, which
+      // is the wait the human just declined.
+      child.unref();
+      over();
     },
     done,
   };
@@ -215,7 +301,7 @@ function cut(text: string): string {
     : text;
 }
 
-function tilde(path: string): string {
+export function tilde(path: string): string {
   const home = homedir();
   return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
 }

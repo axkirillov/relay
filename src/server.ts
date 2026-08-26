@@ -8,7 +8,7 @@ import { contentType, type Images, localImages } from "./images.js";
 import { launch, openable, opener } from "./open.js";
 import { page } from "./page.js";
 import * as pty from "./pty.js";
-import { type Running, start } from "./run.js";
+import { type Running, start, tilde } from "./run.js";
 
 const maxDocBytes = 8 << 20;
 // A keystroke, or a paste of something the human had lying around.
@@ -68,7 +68,8 @@ export async function serve(
   // because the shell may well be in the middle of something the human wants
   // back afterwards; and its own lifetime, which is one file long.
   let editor: pty.Session | null = null;
-  // Every command still going, so that none of them outlives the window.
+  // Every command still going, so that a window being closed takes them with it
+  // and an accept can let go of them.
   const running = new Set<Running>();
   // Numbered in the order the human ran them, so a pointer in the document leads
   // to the run that wrote it. Runs short enough to stay in the document leave a
@@ -115,7 +116,15 @@ export async function serve(
       const waiting = hooks.behind?.() ?? 0;
       return send(res, 200, "application/json; charset=utf-8", JSON.stringify({ waiting }));
     }
-    if (req.method === "POST" && path === "/accept") return handleAccept(req, res, settle);
+    if (req.method === "POST" && path === "/accept") {
+      // Accepting is this relay exiting, and a command still going when it does
+      // is one the human chose not to wait for. It keeps its file and this lets
+      // go of it — the document they are sending says where that file is.
+      return handleAccept(req, res, settle, () => {
+        for (const job of running) job.detach();
+        running.clear();
+      });
+    }
     // A document losing the screen must not take the human's words with it.
     // Nothing here is a reply — the baseline is untouched, so what comes back
     // when this document returns still diffs as theirs.
@@ -206,10 +215,10 @@ export async function serve(
     url: `http://127.0.0.1:${addr.port}/`,
     accepted,
     close: () => {
-      // Nothing a relay started outlives the relay. The window is going, so
-      // there is nobody left to read a command's output and nowhere to put it;
-      // and a shell left running would keep its stream open and the server with
-      // it.
+      // Whatever is still in here was not let go of at an accept, so this is the
+      // window being closed on it: there is nobody left to read a command's
+      // output and nowhere to put it, and a shell left running would keep its
+      // stream open and the server with it.
       for (const job of running) job.kill();
       running.clear();
       shell?.kill();
@@ -375,6 +384,11 @@ function encode(text: string): string {
  * poll: the response *is* the run, so the page aborting the request is the
  * human's ⌃C, and `close` firing before the command ended means exactly that.
  *
+ * The file the output is going to is named in a header, and named up front. The
+ * page needs it at the one moment it cannot ask for it — the human accepting
+ * with the command still running, where the document has to say where the rest
+ * of the output went before it is posted.
+ *
  * It runs in the relay's own cwd — the directory the agent asked from, which is
  * the one the command was written for.
  */
@@ -391,18 +405,29 @@ function handleRun(
       res.writeHead(200, {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
+        // Percent-encoded: a header is ASCII, and a home directory is whatever
+        // the human called it.
+        "X-Relay-Log": encodeURIComponent(tilde(logPath)),
       });
       res.flushHeaders();
 
       let over = false;
-      const job = start(
-        command,
-        process.cwd(),
-        (text) => {
-          if (!res.writableEnded) res.write(text);
-        },
-        logPath,
-      );
+      let job: Running;
+      try {
+        job = start(
+          command,
+          process.cwd(),
+          (text) => {
+            if (!res.writableEnded) res.write(text);
+          },
+          logPath,
+        );
+      } catch (err) {
+        // The output has a file to go to before it has a command to come from,
+        // so a round with nowhere to write fails here rather than mid-run.
+        res.write(`relay could not run it: ${(err as Error).message}\n`);
+        return res.end();
+      }
       running.add(job);
 
       // Both the abort and the ordinary end arrive here; only an early one is
@@ -451,7 +476,12 @@ function sendLocal(res: ServerResponse, images: Images, index: string) {
 
 let taken = false;
 
-function handleAccept(req: IncomingMessage, res: ServerResponse, settle: (doc: string) => void) {
+function handleAccept(
+  req: IncomingMessage,
+  res: ServerResponse,
+  settle: (doc: string) => void,
+  letGo: () => void,
+) {
   const chunks: Buffer[] = [];
   let size = 0;
 
@@ -469,6 +499,9 @@ function handleAccept(req: IncomingMessage, res: ServerResponse, settle: (doc: s
     if (res.writableEnded) return;
     if (taken) return send(res, 409, "text/plain", "already accepted");
     taken = true;
+    // Before the waiting side is told, because being told is what starts the
+    // shutdown that would otherwise kill them.
+    letGo();
     const body = Buffer.concat(chunks).toString("utf8");
     // The reply is flushed to the page *before* the waiting side is told, so
     // shutting down here can never reset the connection mid-response.

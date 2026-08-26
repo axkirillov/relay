@@ -10,6 +10,7 @@ import {
 } from "@codemirror/view";
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
+import { stillRunningNotice } from "../../src/spill";
 import { diffReview, reviewNumber } from "./diffview";
 import { type Editor, editorPane } from "./editor";
 import { fenceBackground } from "./fence";
@@ -111,6 +112,12 @@ function watchQueue() {
 
 async function accept() {
   if (sending) return;
+  // A command still going when they accept is one they would rather not wait
+  // for, so relay lets go of it rather than killing it — and the block it was
+  // writing into has to say so, or the agent reads an output that stops in the
+  // middle of the test suite as though that were the end of it. Before the
+  // document is read, because this is part of the document being sent.
+  if (job && jobLog) append(`${jobWrote ? "\n" : ""}${stillRunningNotice(jobLog)}\n`);
   sending = true;
   overlay("↑", "Sending", "handing your reply to the agent…");
   try {
@@ -171,6 +178,10 @@ function saveSoon() {
 
 /** The command in flight, if there is one; aborting it is the human's ⌃C. */
 let job: AbortController | null = null;
+/** The file that command's output is going to, for an accept that leaves it running. */
+let jobLog: string | null = null;
+/** Whether anything of it has landed in the document yet — a blank line needs something above it. */
+let jobWrote = false;
 
 /**
  * Run the shell block the cursor is in, and write its output into the document.
@@ -193,10 +204,12 @@ async function runAtCursor() {
   });
 
   const first = block.command.split("\n")[0]!;
-  hold(`running ${first}${block.command.includes("\n") ? " …" : ""} — ⌃C stops it`);
+  hold(
+    `running ${first}${block.command.includes("\n") ? " …" : ""} — ⌃C stops it, accepting does not`,
+  );
 
   job = new AbortController();
-  let wrote = false;
+  jobWrote = false;
   try {
     const res = await fetch("/run", {
       method: "POST",
@@ -205,6 +218,10 @@ async function runAtCursor() {
       signal: job.signal,
     });
     if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+    // Where relay is writing this run's output. Kept for the one moment it is
+    // needed: an accept while the command is still going, which leaves it going
+    // and has to name the file the rest of it lands in.
+    jobLog = decodeURIComponent(res.headers.get("X-Relay-Log") ?? "") || null;
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -218,17 +235,18 @@ async function runAtCursor() {
       partial += decoder.decode(value, { stream: true });
       const cut = partial.lastIndexOf("\n");
       if (cut < 0) continue;
-      wrote = append(partial.slice(0, cut + 1)) || wrote;
+      jobWrote = append(partial.slice(0, cut + 1)) || jobWrote;
       partial = partial.slice(cut + 1);
     }
-    if (partial) wrote = append(`${partial}\n`) || wrote;
-    if (!wrote) append("[no output]\n");
+    if (partial) jobWrote = append(`${partial}\n`) || jobWrote;
+    if (!jobWrote) append("[no output]\n");
   } catch (err) {
     // The stop was ours, so the server's own last word went nowhere: say it here.
     if (err instanceof DOMException && err.name === "AbortError") append("[stopped]\n");
     else append(`relay could not run it: ${err}\n`);
   } finally {
     job = null;
+    jobLog = null;
     release();
     view.dispatch({ effects: setSink.of(null) });
   }

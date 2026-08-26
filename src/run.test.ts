@@ -143,5 +143,39 @@ has("a spilled run still carries its exit status", (await both("seq 1 5000; exit
 // stdin is closed rather than left hanging on a prompt nobody can see.
 check("reading stdin gets end-of-file", (await ran("cat")).trim(), "");
 
+// --- let go of, still running ------------------------------------------------
+// The human accepted rather than waiting. Nothing here reads the command again,
+// and nothing stops it: it writes on into the file, which is where the document
+// has just told the agent to look.
+{
+  const log = nextLog();
+  let doc = "";
+  const job = start(
+    "for i in 1 2 3 4 5; do echo line-$i; sleep 0.3; done",
+    process.cwd(),
+    (t) => {
+      doc += t;
+    },
+    log,
+  );
+
+  await wait(450);
+  job.detach();
+  await job.done;
+
+  const sent = doc;
+  has("what had arrived is in the document", sent, "line-1");
+  check("nothing there says it ended", /\[exit|\[stopped]/.test(sent), false);
+  check("its file is left behind", existsSync(log), true);
+
+  await wait(1600);
+  has("and the command went on writing to it", readFileSync(log, "utf8"), "line-5");
+  check("with nothing more going into the document", doc, sent);
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 rmSync(logs, { recursive: true, force: true });
 process.exit(fails ? 1 : 0);

@@ -24,3 +24,17 @@ export function spillPath(text: string): string | null {
   const end = rest.search(/\s/);
   return (end < 0 ? rest : rest.slice(0, end)) || null;
 }
+
+/**
+ * The line a run writes into the document when the human accepted while it was
+ * still going.
+ *
+ * The block ends here as far as the agent is concerned, and the file goes on
+ * being written after this relay is gone — so the agent that asked for the
+ * command has somewhere to wait for the rest of the answer.
+ */
+const running = "… still running when this was sent — its output is in ";
+
+export function stillRunningNotice(path: string): string {
+  return `${running}${path}`;
+}

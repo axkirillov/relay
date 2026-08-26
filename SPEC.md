@@ -25,8 +25,9 @@ The window belongs to no relay. Whichever one finds none up starts it, it shows
 whoever is at the head of the line, and it goes once the line runs dry.
 
 **Not an MCP server.** One process per relay, alive for exactly as long as the
-human takes, then gone; the window outlives the relay that started it and
-nothing outlives the window. There is nothing to register, and any agent that
+human takes, then gone; the window outlives the relay that started it, and the
+only thing that outlives the window is a command the human accepted out from
+under (below). There is nothing to register, and any agent that
 can run a command can use it, as can a person, by hand.
 
 The cost is that an agent must run it as a background command rather than a
@@ -134,9 +135,34 @@ saying where the rest of it went. Output that would never end is capped at 8 MB
 — a bound on the disk, not the document — and the command is stopped there and
 told so.
 
-Nothing a relay started outlives the relay. The response *is* the run — there is
-no run id and nothing to poll — so the page hanging up is the human's ⌃C, and
-closing the window kills whatever is still going.
+The response *is* the run — there is no run id and nothing to poll — so the page
+hanging up is the human's ⌃C, and closing the window kills whatever is still
+going.
+
+**Accepting does not.** A command that takes longer than the human is willing to
+sit there should not have to be killed for them to answer, so accepting with one
+still running lets go of it rather than stopping it: relay prints their diff and
+exits, and the command carries on. The block it was filling ends with the line
+
+```
+… still running when this was sent — its output is in ~/.relay/<round>/run-2.log
+```
+
+so the agent that asked for the command knows the answer it got is a partial one
+and knows where the rest of it is going. That file is the whole output, from the
+first line, not just what came after the accept.
+
+Which is why the output goes to a file **from the moment the command spawns**,
+and the document is written from that file rather than from a pipe. A pipe has
+relay on the other end of it, and a command left running when relay exits would
+die of `SIGPIPE` a moment later; a running child's descriptors cannot be
+reassigned after the fact, so the file has to have been where the output was
+going all along. A run that ends in the window without outgrowing the document
+takes its file away again on the way out — an ordinary short run still leaves
+nothing behind. A spilled one and a let-go-of one keep theirs.
+
+This is the one thing relay leaves behind, and it is the exception that says what
+the rule was: everything else still dies with the window.
 
 ## Reviewing a diff
 

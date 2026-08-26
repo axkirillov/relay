@@ -28,7 +28,8 @@
     "smoke:open": "bash scripts/open.sh",
     "smoke:queue": "bash scripts/queue.sh",
     "smoke:dismiss": "bash scripts/dismiss.sh",
-    "smoke:latch": "bash scripts/latch.sh"
+    "smoke:latch": "bash scripts/latch.sh",
+    "smoke:detach": "bash scripts/detach.sh"
   },
   "dependencies": {
     "@codemirror/commands": "^6.9.0",
