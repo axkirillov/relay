@@ -28,9 +28,9 @@ block, so the diff carries it back. `⌃C` stops it, running the block again
 replaces its last output, and `:res` takes an output you would rather not send
 back out. Long output is folded to its last twenty lines — every line is still
 there. Clicking the `… N earlier lines` notice opens the fold, `zc` or `:fold`
-closes it again, and `:raw` shows the lot. Output longer than a document should
-hold goes to `~/.relay/<round>/run-N.log` instead, and the block keeps its first
-hundred lines, a pointer to that file, and its last twenty.
+closes it again, and `:raw` shows the lot. Output taller than the window goes to
+`~/.relay/<round>/run-N.log` instead, and the block keeps a windowful of it, a
+pointer to that file, and its last twenty lines.
 
 In the window: `⌃X` or `ZZ` accepts — `:w`, `:wq`, `:x` and `:acc` do too — `:q`
 closes without replying, and `:res` puts a stretch of the document back the way
@@ -39,6 +39,23 @@ range like `:12,18res`. Lines are numbered so they can be pointed at in a reply.
 Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
+
+## The task, and where the answer lives
+
+relay does not put the task above the document any more — **composer** does, as a card
+floating in the middle of the window that comes up on `⌘P` and at no other time. It
+answers one question, *what is this session about*, and the file behind it is the
+agent's own prose answering exactly that and holding nothing else.
+
+`relay --about` prints that file — `~/.task/about/<worktree>-<hash>.md`, one per
+worktree — and `composer --about` prints the same path. The two have to agree
+exactly, which is why the slug is the same six hex of the same hash on both sides.
+
+What relay keeps is the ledger the card counts rounds from: `~/.relay/tasks/` holds
+a directory per task with a symlink per round, and relay files its own round there
+as each document goes up. On its way out it also says on stderr whether the answer has
+been touched since the last round — which is the one thing an agent should be told
+about its own file without having to be told by the human.
 
 ## Reviewing a diff
 
@@ -100,6 +117,18 @@ one window and four documents in a row — never four things in your alt-tab, an
 never a doubt about which one to read first. Closing the window dismisses them
 all: it is the gesture for clearing the screen, not for skipping one document.
 
+Unless one of them matters more. Mark a session and its documents go in front of
+every other session's, however long those have been waiting — ⌘-click its row in
+composer's fleet pane, or `relay --priority` in the worktree itself
+(`relay --priority off` takes it back). A session here is the worktree, the same
+thing the answer is keyed on, so restarting the agent in it does not lose the mark.
+
+The mark applies to the document already waiting, not just the next one: it is
+read every time the line is read. Marking a session hands it the screen at once,
+and letting it go hands the screen back. Arrival still decides within the mark —
+two questions from the marked session arrive in the order they were asked — and
+nothing an agent does sets or clears a mark.
+
 The window is nobody's in particular. Whichever relay finds none up starts it,
 and it stays for the ones behind, then goes on its own once the line is empty —
 so no MCP server, no daemon and no registration. One process per relay, for as
@@ -131,11 +160,12 @@ pnpm install
 pnpm build        # dist/relay.js, dist/shell.cjs (the window), and the editor bundle
 pnpm check        # types
 pnpm test         # the line arithmetic behind :res, the queue, the window's presence, a real pty
-pnpm smoke        # end to end, no window
+pnpm smoke        # end to end, no window: two relays of one task, the second carrying the first
 pnpm smoke:pty    # a shell on demand, keys in, output out, gone with the relay
 pnpm smoke:goto   # a real nvim on the file under the cursor, gone when it quits
 pnpm smoke:open   # the link under the cursor out to the machine's opener, whole and as data
 pnpm smoke:queue  # two relays, one window, in turn — opens a real window briefly
+pnpm smoke:priority # a marked session's document jumps one already waiting, no window
 pnpm smoke:dismiss # closing the window dismisses the queued relay too
 pnpm smoke:latch  # the agent's gate latch lifts on every way out of a relay
 ```
@@ -151,6 +181,8 @@ the document — so the diff view can be looked at without typing into it.
 
 Every relay is kept in `~/.relay/<timestamp>-<slug>/` — the agent only gets a
 diff back, so what it was diffed against has to live somewhere. Beside it,
+`~/.relay/tasks/<task>-<hash>/` says which of those rounds are one task, a symlink
+each, and holds a `priority` file when that session is the one to go first,
 `~/.relay/queue/` holds a ticket per relay waiting for the screen,
 `~/.relay/window.json` is the window saying it is up, and `~/.relay/closed`
 records the last time the human closed it. `RELAY_QUEUE_DIR` moves the lot — a

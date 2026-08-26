@@ -6,6 +6,14 @@ const bg = "#16161e";
 const panel = "#1a1b26";
 const fg = "#c0caf5";
 const dim = "#565f89";
+// Two greys, because one was doing two jobs. `dim` is for the marks: gutter
+// numbers, a diff's `+`/`-`, the `#` and `*` of the markup itself, a rule. None
+// of those are read as words, so 2.91:1 against the background costs nothing.
+// `muted` is for the roles that ARE words and are merely quieter than the body
+// — a block quote, a fold's summary line, a URL, a comment in code. Those are
+// read a line at a time, which is what WCAG's 4.5:1 rule for body text is
+// about; this one measures 5.03:1.
+const muted = "#7a85b8";
 const line = "#2a2e3f";
 const blue = "#7aa2f7";
 const cyan = "#7dcfff";
@@ -129,7 +137,7 @@ export const theme = EditorView.theme(
     },
     ".cm-relay-del-more": {
       padding: "0 0.75rem",
-      color: dim,
+      color: muted,
       fontSize: "0.85em",
     },
 
@@ -169,7 +177,7 @@ export const theme = EditorView.theme(
     ".cm-relay-diff-file": { backgroundColor: diffFileWash, fontWeight: "700" },
     ".cm-relay-diff-hunk": { borderTop: `1px solid ${line}` },
     ".cm-relay-diff-note, .cm-relay-diff-note span": {
-      color: `${dim} !important`,
+      color: `${muted} !important`,
       fontStyle: "italic !important",
     },
 
@@ -196,7 +204,7 @@ export const theme = EditorView.theme(
     // in rather than as a warning that something was lost.
     ".cm-relay-fold": {
       padding: "0 0.75rem",
-      color: dim,
+      color: muted,
       fontSize: "0.85em",
       cursor: "pointer",
     },
@@ -293,11 +301,11 @@ export const highlightStyle = HighlightStyle.define([
   { tag: t.emphasis, color: fg, fontStyle: "italic" },
   { tag: t.strikethrough, color: dim, textDecoration: "line-through" },
   { tag: t.link, color: cyan, textDecoration: "underline" },
-  { tag: t.url, color: dim },
+  { tag: t.url, color: muted },
   // A fixed class rather than colours, so the theme above can tell inline code
   // from the text of a fence nothing was nested into. One tag does both jobs.
   { tag: [t.monospace], class: "cm-relay-code" },
-  { tag: t.quote, color: dim, fontStyle: "italic" },
+  { tag: t.quote, color: muted, fontStyle: "italic" },
   { tag: t.list, color: magenta },
   { tag: t.contentSeparator, color: dim },
   { tag: t.processingInstruction, color: dim },
@@ -312,7 +320,7 @@ export const highlightStyle = HighlightStyle.define([
   { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.definitionKeyword, t.operatorKeyword, t.modifier, t.self], color: magenta },
   { tag: [t.string, t.special(t.string), t.regexp], color: green },
   { tag: [t.number, t.bool, t.null, t.atom, t.unit, t.escape, t.character], color: orange },
-  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment, t.meta], color: dim, fontStyle: "italic" },
+  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment, t.meta], color: muted, fontStyle: "italic" },
   { tag: [t.typeName, t.className, t.namespace, t.changed], color: teal },
   { tag: [t.function(t.variableName), t.function(t.propertyName), t.propertyName, t.macroName], color: blue },
   { tag: [t.standard(t.variableName), t.special(t.variableName)], color: cyan },

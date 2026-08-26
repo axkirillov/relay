@@ -211,7 +211,7 @@ async function runAtCursor() {
   job = new AbortController();
   jobWrote = false;
   try {
-    const res = await fetch("/run", {
+    const res = await fetch(`/run?lines=${screenLines()}`, {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
       body: block.command,
@@ -250,6 +250,25 @@ async function runAtCursor() {
     release();
     view.dispatch({ effects: setSink.of(null) });
   }
+}
+
+/**
+ * How many lines of document this window can show at once.
+ *
+ * The length past which output goes to a file instead of into the document, and
+ * the only side of the wire that can answer it: the window is here, and its
+ * height is measured rather than configured.
+ *
+ * The window, not the editor's own share of it. A terminal pane dragged tall
+ * leaves the editor a few lines high, and a run's output should not change where
+ * it is kept because a pane happens to be open over it.
+ *
+ * Measured per run rather than once, because the human resizes the window and
+ * moves it between screens, and the answer is only ever needed the instant a
+ * command starts.
+ */
+function screenLines(): number {
+  return Math.max(1, Math.floor(window.innerHeight / view.defaultLineHeight));
 }
 
 /** Output goes where the sink is now — which is not where it was a keystroke ago. */

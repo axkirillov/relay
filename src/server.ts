@@ -24,7 +24,8 @@ export type Relay = {
   close(): void;
 };
 
-export type Hooks = {
+/** What the CLI hands the server beyond the document itself. */
+export type Options = {
   /**
    * What they have typed, sent because this document is about to leave the
    * screen — the page is destroyed when the window loads the next one, and their
@@ -38,6 +39,15 @@ export type Hooks = {
    * line, which is the one process that knows.
    */
   behind?: () => number;
+  /**
+   * Whether this document is going into composer's frame — true when the relay
+   * joined the line and the task it belongs to has an answer written, which is
+   * exactly when composer reserves 38px of bare window ground over the document for
+   * the traffic lights. The page drops its own header: there is no sense in two
+   * strips over one document, and outside the frame that header is what keeps the
+   * lights off the first line of the text.
+   */
+  framed?: boolean;
 };
 
 /**
@@ -49,7 +59,7 @@ export async function serve(
   doc: string,
   prefill: string,
   logDir: string,
-  hooks: Hooks = {},
+  opts: Options = {},
 ): Promise<Relay> {
   let settle: (doc: string) => void;
   const accepted = new Promise<string>((resolve) => {
@@ -79,7 +89,7 @@ export async function serve(
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
 
-    if (req.method === "GET" && path === "/") return send(res, 200, "text/html; charset=utf-8", page(source));
+    if (req.method === "GET" && path === "/") return send(res, 200, "text/html; charset=utf-8", page(source, opts.framed));
     // /doc is what the agent sent — the baseline every edit is measured
     // against. /prefill is what the editor opens with; the two differ only
     // under RELAY_PREFILL, which exists so the diff view can be looked at
@@ -113,7 +123,7 @@ export async function serve(
     // human spends reading it. Answering 0 rather than refusing is what makes
     // this safe to ask of a relay that is in no line at all — RELAY_NO_OPEN.
     if (req.method === "GET" && path === "/queue") {
-      const waiting = hooks.behind?.() ?? 0;
+      const waiting = opts.behind?.() ?? 0;
       return send(res, 200, "application/json; charset=utf-8", JSON.stringify({ waiting }));
     }
     if (req.method === "POST" && path === "/accept") {
@@ -132,7 +142,7 @@ export async function serve(
       return read(req, maxDocBytes).then(
         (text) => {
           opening = text;
-          hooks.onDraft?.(text);
+          opts.onDraft?.(text);
           res.writeHead(204).end();
         },
         () => send(res, 413, "text/plain", "document too large"),
@@ -141,7 +151,7 @@ export async function serve(
     // A shell block the human asked for. The body is the command, the response
     // is its output as it happens, and hanging up is how the human stops it.
     if (req.method === "POST" && path === "/run") {
-      return handleRun(req, res, running, join(logDir, `run-${++runs}.log`));
+      return handleRun(req, res, running, join(logDir, `run-${++runs}.log`), screenLines(req));
     }
     // A link the human's cursor was on. Out to the machine from this side for the
     // same reason nvim is: the page is sandboxed, and the window it is in has no
@@ -362,6 +372,21 @@ function handleOpen(req: IncomingMessage, res: ServerResponse) {
   );
 }
 
+/**
+ * How many lines of document the page says its window can show at once — the
+ * length past which a run's output goes to a file instead.
+ *
+ * Only the page can answer this: the window is on the other side of the wire,
+ * and its height is a thing that is measured rather than configured. Nothing
+ * back means nothing said, and run.ts falls back to its own screenful — one
+ * default, in the one place that has to have it.
+ */
+function screenLines(req: IncomingMessage): number | undefined {
+  const params = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+  const v = Number(params.get("lines"));
+  return Number.isInteger(v) && v > 0 && v < 5000 ? v : undefined;
+}
+
 /** How big the page says its terminal is. */
 function size(req: IncomingMessage): { cols: number; rows: number } {
   const params = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
@@ -397,6 +422,7 @@ function handleRun(
   res: ServerResponse,
   running: Set<Running>,
   logPath: string,
+  screenLines: number | undefined,
 ) {
   read(req, maxCommandBytes).then(
     (command) => {
@@ -421,6 +447,7 @@ function handleRun(
             if (!res.writableEnded) res.write(text);
           },
           logPath,
+          screenLines,
         );
       } catch (err) {
         // The output has a file to go to before it has a command to come from,

@@ -120,13 +120,19 @@ by a notice the human can click, while every line stays in the document. The
 agent gets all of it; the fold only decides how much the human scrolls past.
 `:raw` shows the lot, and `:fold` — or `zc` — puts an opened one back.
 
-Output too long to belong in a document at all **goes to a file instead**. Past a
-hundred lines — or 64 KB, since one line of minified javascript would flood the
-document without reaching a hundred of anything — the run writes to
-`~/.relay/<round>/run-N.log`, and the document keeps the first hundred lines, a
-pointer naming that file, and the last twenty. The start says what the command
-set out to do and the end says how it turned out, which between them is usually
-the whole answer; the file has every line for when it is not. The pointer is
+Output too long to belong in a document at all **goes to a file instead**, and
+too long means **taller than the window**. The page measures how many lines of
+document its window can show at once and sends that with the run; past it — or
+past 64 KB, since one line of minified javascript would flood the document
+without reaching a screenful of anything — the run writes to
+`~/.relay/<round>/run-N.log`, and the document keeps that screenful, a pointer
+naming the file, and the last twenty lines. The start says what the command set
+out to do and the end says how it turned out, which between them is usually the
+whole answer; the file has every line for when it is not. A flat hundred was a
+number picked out of the air, and on a window that shows forty it meant scrolling
+past sixty lines to find out the answer had been written to a file all along. It
+is the window that is measured and not the editor's share of it, so a terminal
+pane dragged tall does not change where a run's output is kept. The pointer is
 written the moment the spill starts rather than at the end, so a `⌃C` cannot leave
 a cut-off block with no file named. The fold hides that pointer along with the
 rest of the head, so the notice standing in its place names the file too — the one
@@ -254,6 +260,165 @@ the headers above it say which file and which line it is against.
 
 No widgets, no schema. The agent asks in ordinary text; the human answers by
 editing. They are never boxed into options the agent thought of.
+
+## What the session is about is composer's now
+
+Every document used to open with what the task is and where it has got to — the
+agent's own overview and to-do list, which relay read out of the task's `plan.md`
+and stapled above the text. It is **composer's** card now: a window of its own
+floating in the middle of composer's, which comes up on `⌘P` and comes up at no
+other time.
+
+It answers one question — *what is this session about* — and the file behind it holds
+that answer and nothing else. The card was briefly the plan file with its checkboxes
+subtracted, and a card built out of what is left over from a document answering a
+different question carries whatever else that document held: in practice progress,
+in a card that exists precisely not to answer how far along the work is. So the flag
+is `--about`, the file is prose, and there is nothing to subtract.
+
+The argument for moving it out of the document was never layout. It was that a
+section rendered *into* the document is markdown in the text the human is editing —
+it is in the baseline, it has to be cut back out of a document sent twice, and it
+can only ever be seen while a question happens to be up. A window that outlives its
+documents can hold it beside one instead, and take it away without the document
+reflowing.
+
+What relay kept is the part only relay can do:
+
+- **`relay --about` prints the file.** It is `~/.task/about/<worktree>-<hash>.md` —
+  under composer's own home, with the hook and the rounds, and flat rather than
+  buried in relay's round ledger. `composer --about` prints the same path, and the
+  two have to agree exactly: the slug is the same six hex of the same hash on both
+  sides, which is why `taskOf` is copied between the repos rather than shared.
+- **The ledger stays here.** A round is filed by the relay that opens it, and
+  which round of a task a document is — and whether the answer has kept up with them
+  — is that listing and nothing else. composer reads it; nothing is copied.
+- **The agent is still told on stderr.** That line is the only thing that reaches
+  an agent whose own file has gone stale, and the human should not have to be the
+  one who points it out.
+
+Gone with the section: the forty-line cap, the `---` rule under it, the strip that
+cut an old copy out of a document being sent twice, and the file's place in the
+baseline. A reply is the document the agent wrote and nothing else again.
+
+### An answer that stopped being true
+
+An answer is worth something only while it is true, so the agent is told to update
+it before every relay — and whether it did is not a matter of opinion. A round went
+up and the file was not touched. The card says so in its footer, and relay says the
+same thing to the agent on its way out:
+
+```
+written Aug 17 18:22 · not touched since before the 5th round
+```
+
+It is the file's mtime against the times the rounds went up: a round's directory is
+named for when it opened, so this costs the same listing that counts the rounds and
+not one file read more.
+
+- **The round it names is the first one it missed** — where the answer stopped
+  keeping up. Hours would leave the human to work out for themselves how many
+  questions they have answered off something that was already out of date.
+- **A tie is not stale.** An answer written in the same second a round went up was
+  written for that round as far as anything here can tell, and a borderline case
+  should not accuse.
+- **The agent is told as well**, on the stderr line that says where the file is.
+  The human should not have to be the one who points it out, because by the time
+  they can they have already read something that was not true.
+
+### A task is the worktree
+
+relay does not know what a task is; that word is composer's, and the human's.
+What it has is the directory it was run from, and the one thing about that
+directory that tracks a piece of work: the worktree it sits in — which is how the
+human names a task too, the branch and the tmux session and the directory all
+carrying the one name. The walk up stops at the first `.git`, a worktree's file
+as readily as a clone's directory. With none above at all, an agent relaying from
+`/tmp`, the directory itself is the task; that groups nothing, which is the right
+failure — one session's own answer beats one answer shared out between four
+unrelated agents.
+
+Such a task has no name, and the heading says so by saying nothing:
+
+```
+## The task
+```
+
+What it would be called is the directory it ran in, which for an agent's scratchpad
+is a session's UUID. The heading is there to tell the human which piece of work a
+document belongs to and a UUID does not, so the more truthful of the two is to leave
+it off. The answer under it is unchanged — it really is that session's — and the
+path at the end is still the real directory, so the UUID is in the document once,
+in something you can open, rather than across the top of it. Whether there is a
+checkout is asked of the disk at the time the section is written, which is right
+because the only task ever rendered is the one the relay is in; a worktree torn down
+months ago keeps its name, because nothing renders its heading.
+
+Which rounds are one task is the one thing a round's own directory cannot say, and
+working it out afterwards means reading every `meta.json` under `~/.relay`: on a
+few hundred rounds that is half a second, in front of every document, spent on a
+question the relay could have answered for free while it had the answer. So each
+relay leaves its own name in its task's directory as a symlink to itself:
+
+```
+~/.relay/tasks/relay-task-timeline-e01e2c/
+  task                          # the worktree this stands for, in full
+  20260818-093042-question ->  ~/.relay/20260818-093042-question
+```
+
+Nothing said under a document is copied in there, so there is no second copy of
+anything to go stale — and the task is then a directory, walkable, which is what
+lets `gf` on one path open the rounds and everything each round kept. The answer is
+`~/.task/about/relay-task-timeline-e01e2c.md`, named for this same directory. The name is what the human calls the task, and six
+characters of the full path's hash, because two checkouts really can end in the
+same two segments and quietly pouring two tasks into one directory is the one
+failure this cannot have.
+
+What is read back out of it is the count of a task's rounds and the times they
+went up — which document this is, and whether the answer has kept up with them.
+Both come out of the listing alone: the time is in the name each round already
+carries, so a task a hundred rounds deep costs one `readdir` and no file reads at
+all.
+
+### What came before the ledger
+
+A ledger written a round at a time is empty on the day it ships, and every task
+already under way has its whole history outside it. That is not a small edge: it
+was nine hundred rounds across a hundred tasks here, several of them dozens of
+answered questions deep. The feature would land and tell the human, on the
+hundredth question of a task they had been at for two days, that this was its
+first round — and call the answer they were reading current on the strength of a
+history it claimed had never happened.
+
+They are not lost. A round records the directory it was relayed from, so the task
+it belonged to is `taskOf` of that — the same answer the relay would have written
+down at the time, worked out afterwards from what it kept. So the ledger is filled
+in from every round in `~/.relay`, once, and `~/.relay/tasks.filled` says it has
+been.
+
+The half second that argues against reading every `meta.json` is an argument about
+doing it *in front of every document*, which is what the ledger exists to avoid.
+Once is a different quantity: half a second, on one relay, in the life of an
+install — and the walk to each worktree root and the write of each task's own
+directory are done once per task rather than once per round, which is the
+difference between that and two seconds.
+
+- **Once for the ledger, not once per task.** The marker is the ledger's.
+  Otherwise every genuinely new task pays for a scan that can only tell it what it
+  already knows.
+- **A marker, not the directory merely existing.** By the time this first runs the
+  directory may already hold the few rounds noted since the feature landed. Filing
+  those again is a no-op; losing the hundreds behind them would not be.
+- **Interruptible.** Every entry is a symlink that either exists or does not, so a
+  filling-in that died halfway is simply done again.
+- **A round that says nothing is left out.** The oldest rounds predate `cwd` being
+  recorded at all. There is nothing that says which task they were, and a guess
+  would be worse than the omission.
+
+A relay run from a directory with no checkout above it — an agent in its own
+scratchpad — is still its own task, filled in exactly where a relay would have
+filed it at the time. A ledger that disagreed with the live path about what a task
+is would be worse than one holding a few sessions.
 
 ## A task the human starts is not relay's
 
@@ -535,14 +700,66 @@ line by whoever notices — its PID no longer answers, or its ticket has stopped
 being touched (which is how a PID recycled onto an unrelated process is told
 from a relay).
 
-Arrival is the whole of the ordering: oldest first, nothing jumps, and a ticket
-carries no standing to sort by. It said `rank` for as long as relay had a task
-of its own to put in front of everything; that went with the feature.
+Arrival is the ordering, and exactly one thing outranks it: the session the human
+has marked. A ticket says which session it came from — `task`, the worktree the
+relay was run in — and whether that session is marked is read off the ledger as
+the line is read, by relay and by composer alike.
 
 The line is per-human, not per-repo: relays from four worktrees share it. No
 timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to contend
 for. The HTTP server comes up immediately either way, so a queued relay is
 serving its document and printing its URL while it waits.
+
+### The session that goes first
+
+Four agents can be waiting at once, and treating them all the same is only right
+while they are all worth the same. They are not: one of the four is the work the
+human is actually doing, and oldest-first makes them clear three skims to reach
+it. **A marked session's documents go in front of every other session's** —
+however long those have been waiting.
+
+The gesture is the human's, and it belongs where they can see the line: a ⌘-click
+on the row in composer's fleet pane, where a plain click already focuses that
+session's pane and has to keep doing so. relay owns the state and the ordering,
+not the gesture — `relay --priority` in a worktree, and `relay --priority off`,
+are the same mark set from a terminal, which is what makes it testable and what a
+machine without the window still has.
+
+Not an agent's gesture either way. An agent given the flag would use it on every
+document it sends, which is the same as nobody having it; nothing relay does on
+its own changes a mark.
+
+**A session is the worktree.** That is what the human means by the word — one
+worktree, one branch, one tmux session, one agent, all carrying the one name —
+and it is what relay already keys the answer and the round ledger on. The agent's
+own session id would have been the narrower answer and the wrong one: it changes
+when they restart the agent, and the mark would go with it, on the session they
+most likely restarted *because* it was the one that mattered.
+
+The mark is a file, `~/.relay/tasks/<task>-<hash>/priority`, present or absent.
+It sits in the directory that is already the task, beside the rounds it reorders,
+named the way the human names it and removable by hand. Composer writes it from
+the fleet pane and relay writes it from the flag; it is one file either way, and
+nothing has to be told that it changed.
+
+**It is read as the line is read, not stamped on a ticket.** The human marks a
+session while looking at a row that is *already waiting on them* — that is the
+moment the gesture is for, and a rank fixed at arrival would have moved the next
+document instead of the one they can see. So the ticket says only which session
+it is, and the sort answers *is that session marked* on every read: a mark takes
+the screen at once, and letting it go hands the screen back to whoever arrival
+says should have it. The cost is a `stat` per ticket per poll.
+
+Arrival still decides everything within a rank, the marked session's own
+documents included. A session asking twice is asking two questions in an order,
+and the second is often about the answer to the first; jumping the line is the
+mark's whole effect, and reversing that session's own two documents would be a
+second effect nobody asked for.
+
+Nothing expires. The mark is a standing answer to *which session matters*, not
+something a document spends — so `--priority` prints every marked session back,
+however it was called. A mark left on from yesterday would otherwise reorder
+everything today from a session the human is not looking at.
 
 ### How much is left
 
@@ -591,7 +808,7 @@ window still here rather than watch it go and come back.
 Whichever relay is at the head starts a window if none is up; `~/.relay/window.json`
 is the window saying it is here, kept fresh by a heartbeat, and the head relay
 keeps looking, so a window that dies violently is simply replaced. Electron's
-single-instance lock is the backstop under all of that, not the plan.
+single-instance lock is the backstop under all of that, not the design.
 
 This also fixes something the old design could not. A window used to be spawned
 and killed by one relay, so a relay that was itself killed — a harness timeout,
@@ -646,6 +863,7 @@ is no gate there is no file, and nothing to remove.
   draft.md        # what they had typed when the document left the screen
   diff.patch      # the patch the agent was told, and only the patch
 
+~/.relay/tasks/<task>-<hash>/  # which rounds are one task: a symlink each
 ~/.relay/queue/   # a ticket per relay waiting for the screen
 ~/.relay/window.json  # the window, while it is up: pid, and a heartbeat
 ~/.relay/closed   # the last close: when, and what was on screen
@@ -681,6 +899,12 @@ overridable on its own.
 - **relay runs no command of the human's.** It shows a document and prints an
   answer to the agent that asked for one. A gesture that starts work belongs to
   the window that holds the documents — composer — not to the document.
+- **What the session is about is always reachable.** Reversed since it was
+  written: it used to be carried above every document by relay, on the argument
+  that an obligation every document carries cannot rest on an agent remembering.
+  It is composer's card now, on `⌘P`, which keeps the obligation off the agent
+  without putting it in the text the human is editing. Writing the answer is still
+  the agent's; relay only says on stderr when the file has stopped keeping up.
 - **One document at a time.** The next appears the moment the current one is
   answered. No tabs, no list of what is waiting.
 - **Closing the window dismisses everything**, not only the document on screen.

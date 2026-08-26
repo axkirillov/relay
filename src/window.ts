@@ -2,8 +2,9 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-import { lastClose, screenHeld } from "./presence.js";
-import type { Turn } from "./queue.js";
+import { rehearsing } from "./paths.ts";
+import { lastClose, screenHeld } from "./presence.ts";
+import type { Turn } from "./queue.ts";
 
 const require = createRequire(import.meta.url);
 const shell = fileURLToPath(new URL("./shell.cjs", import.meta.url));
@@ -17,6 +18,10 @@ const pollMs = 250;
  */
 const bootMs = 5_000;
 
+export function shouldOpen(): boolean {
+  return !screenHeld() && !rehearsing();
+}
+
 /**
  * Start the window, unless one is already up.
  *
@@ -26,7 +31,7 @@ const bootMs = 5_000;
  * behind it on the screen forever.
  */
 function ensureWindow(debug: boolean): void {
-  if (screenHeld()) return;
+  if (!shouldOpen()) return;
   const electron: string = require("electron");
   const child = spawn(electron, [shell], {
     detached: true,
