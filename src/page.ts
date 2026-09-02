@@ -10,8 +10,16 @@ import { basename } from "node:path";
  * spelling of it, and `the agent is waiting` is what a document standing on the screen
  * already means. What the task is about is a card, and the human raises it with ⌘P.
  * Run on its own, with the URL opened by hand, nothing about relay changes.
+ *
+ * `readOnly` is a round being read rather than answered — `relay --read`, which is what
+ * composer's ⌘R runs. It goes onto the body as a data attribute rather than into a
+ * variable the page could read off a script tag: the CSP here is `script-src 'self'`,
+ * so the only script that runs is the bundle, and an inline one carrying a flag would
+ * be refused. The footer is the visible half of it — there is nothing to accept, so the
+ * keys that accept are not offered — and the editor reads the same attribute for the
+ * other half.
  */
-export function page(source: string, framed = false): string {
+export function page(source: string, framed = false, readOnly = false): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -187,7 +195,7 @@ export function page(source: string, framed = false): string {
   #overlay[data-tone="error"] .mark { color: var(--del); }
 </style>
 </head>
-<body>
+<body${readOnly ? " data-read" : ""}>
   ${framed ? "" : `<header>
     <span class="name">${escape(basename(source))}</span>
     <span>· the agent is waiting</span>
@@ -233,9 +241,19 @@ export function page(source: string, framed = false): string {
     <span><kbd>gx</kbd> open the link</span>
     <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>:raw</kbd> render on/off</span>
-    <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
+    ${
+      // A read has nothing to accept, so the two keys that accept and the button are
+      // not there to be pressed — the one thing the human wants of it is the way out,
+      // and it is the same one composer gives them everywhere else. What stays is
+      // everything that only reads: the count of what they changed that day, the
+      // terminal, a command they can run again, and the two gestures that leave the
+      // document for a file or a link.
+      readOnly
+        ? `<span><kbd>esc</kbd> or <kbd>:q</kbd> close</span>`
+        : `<span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
     <span><kbd>:q</kbd> close without replying</span>
-    <button id="accept">Accept</button>
+    <button id="accept">Accept</button>`
+    }
   </footer>
 
   <div id="overlay">

@@ -886,6 +886,51 @@ was diffed against.
 needs to put a whole relay somewhere private, rather than each path being
 overridable on its own.
 
+### Reading one back
+
+```
+relay --read <round>   ──> stdout: the URL it is serving on
+```
+
+The other half of the store: the same directory, read. A round is what it was on
+the day, and a second reading of it is not a second answer.
+
+`<round>` is a directory name in `~/.relay` — the id, which is what the store and
+the ledger are keyed on — or the path to one, which is what a human has in their
+hand when they try this by typing. It serves that round's document on loopback and
+prints the URL on the first line of stdout. Nothing else: no window, no place in the
+line, no round of its own filed, nothing counted against the task. It waits until it
+is killed.
+
+This is **composer's**, not an agent's. `⌘R` lists the rounds that already happened,
+and `↵` on one spawns this, draws what it serves in the document column, and SIGTERMs
+it when the human closes it.
+
+What it serves is the round as it looked the day it arrived: the document is what
+they accepted, diffed against what the agent sent, so their own lines are lit
+against the agent's exactly as they were while they were typing them — and a round
+they never answered shows the question, with nothing lit. Rendered markdown, the
+panes, `gf`, `gx`, `:raw`, and vim, so a line can be yanked out of it.
+
+Read-only means the human's keys still arrive and their edits do not land:
+`EditorState.readOnly`, which vim itself checks before it changes anything, and not
+`EditorView.editable`, which would take contenteditable off the content and with it
+every key vim gets — visual mode among them, which is how a line is copied out of a
+round. The footer says the same thing by leaving the accept keys and the button off
+it, and `/accept` and `/draft` refuse as well: a page is a page, and the gate on a
+thing that must not happen belongs on the server too.
+
+A command in it still runs, in the tree the round came from — the read chdirs there
+before serving, which is where the run blocks, the terminal pane and `gf` all look.
+A round whose worktree has been torn down since has nowhere to run anything, and the
+block says which tree is missing rather than running it somewhere else.
+
+It lifts no gate latch on the way out, and that is the one thing about it that had to
+be arranged rather than left alone: the latch is keyed on `$CLAUDE_CODE_SESSION_ID`,
+composer inherits that variable from the agent that started composer, and a read
+exiting would otherwise let an agent that is still waiting for an answer past its own
+gate.
+
 
 ## Settled
 

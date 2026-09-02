@@ -30,7 +30,8 @@
     "smoke:priority": "bash scripts/priority.sh",
     "smoke:dismiss": "bash scripts/dismiss.sh",
     "smoke:latch": "bash scripts/latch.sh",
-    "smoke:detach": "bash scripts/detach.sh"
+    "smoke:detach": "bash scripts/detach.sh",
+    "smoke:read": "bash scripts/read.sh"
   },
   "dependencies": {
     "@codemirror/commands": "^6.9.0",

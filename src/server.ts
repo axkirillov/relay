@@ -48,6 +48,31 @@ export type Options = {
    * lights off the first line of the text.
    */
   framed?: boolean;
+  /**
+   * Whether this document is being read rather than answered — `relay --read`, a round
+   * that already happened, on screen again as it looked the day it arrived.
+   *
+   * It reaches the page, which is where it matters: the footer drops the accept hints
+   * and the button, and the editor takes the human's keys without taking their edits.
+   * The three routes that would write something are refused here as well, because a
+   * page is a page and the gate on a thing that must not happen belongs on this side of
+   * the wire too.
+   */
+  readOnly?: boolean;
+  /**
+   * Whether a command in the document can still be run. False for a read whose round
+   * ran in a worktree that has since been torn down: the command was written for that
+   * tree, and there is nowhere left to run it.
+   *
+   * Undefined means yes, which is every live relay — it is running in the directory the
+   * agent asked from, and that directory is by definition there.
+   */
+  runnable?: boolean;
+  /**
+   * Where the round ran, as it was recorded. Only for the refusal above, so that it can
+   * name the tree that is gone rather than leaving the human to guess which one it was.
+   */
+  ran?: string;
 };
 
 /**
@@ -89,7 +114,7 @@ export async function serve(
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
 
-    if (req.method === "GET" && path === "/") return send(res, 200, "text/html; charset=utf-8", page(source, opts.framed));
+    if (req.method === "GET" && path === "/") return send(res, 200, "text/html; charset=utf-8", page(source, opts.framed, opts.readOnly));
     // /doc is what the agent sent — the baseline every edit is measured
     // against. /prefill is what the editor opens with; the two differ only
     // under RELAY_PREFILL, which exists so the diff view can be looked at
@@ -127,6 +152,9 @@ export async function serve(
       return send(res, 200, "application/json; charset=utf-8", JSON.stringify({ waiting }));
     }
     if (req.method === "POST" && path === "/accept") {
+      // A round being read was answered on the day, or never was, and either way that
+      // is settled: there is no agent on the other end of this one waiting for a reply.
+      if (opts.readOnly) return send(res, 409, "text/plain", "this round is being read, not answered");
       // Accepting is this relay exiting, and a command still going when it does
       // is one the human chose not to wait for. It keeps its file and this lets
       // go of it — the document they are sending says where that file is.
@@ -139,6 +167,9 @@ export async function serve(
     // Nothing here is a reply — the baseline is untouched, so what comes back
     // when this document returns still diffs as theirs.
     if (req.method === "POST" && path === "/draft") {
+      // Nothing is being typed into a read, so there is nothing half-written to keep —
+      // and what a draft would be written over is the answer the human already gave.
+      if (opts.readOnly) return send(res, 409, "text/plain", "this round is being read — there is no draft to keep");
       return read(req, maxDocBytes).then(
         (text) => {
           opening = text;
@@ -151,6 +182,13 @@ export async function serve(
     // A shell block the human asked for. The body is the command, the response
     // is its output as it happens, and hanging up is how the human stops it.
     if (req.method === "POST" && path === "/run") {
+      // The one thing a past round cannot always do. A command runs *now*, in the tree
+      // the round came from, and a tree that has been torn down since is not somewhere
+      // else to run it — so the block says what is missing, by name, and runs nothing.
+      if (opts.runnable === false) {
+        const where = opts.ran ? ` — ${tilde(opts.ran)}` : "";
+        return send(res, 409, "text/plain", `the worktree this round ran in is gone${where}`);
+      }
       return handleRun(req, res, running, join(logDir, `run-${++runs}.log`), screenLines(req));
     }
     // A link the human's cursor was on. Out to the machine from this side for the

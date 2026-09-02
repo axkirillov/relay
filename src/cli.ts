@@ -8,6 +8,7 @@ import { unlatchOnExit } from "./latch.js";
 import * as about from "./about.js";
 import * as priority from "./priority.js";
 import * as queue from "./queue.js";
+import { read as readRound, type Round } from "./round.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
 import * as tasks from "./task.js";
@@ -16,6 +17,7 @@ import { attend } from "./window.js";
 const usage = `relay <file.md>
 relay --about
 relay --priority [off]
+relay --read <round>
 
 Show a markdown document to the human and wait — for as long as it takes — for
 their reply. They can edit anywhere in it; their edits are highlighted live
@@ -46,6 +48,12 @@ run in a worktree, puts that worktree's documents in front of every other
 session's however long those have been waiting; \`relay --priority off\` takes it
 back. It is theirs to set, not an agent's — nothing here changes it.
 
+\`--read\` is composer's rather than an agent's. It serves a round that already
+happened — the name of a directory in ~/.relay, or the path to one — as it looked
+the day it arrived, and prints the URL on stdout. Nothing is asked and nothing is
+answered: it joins no line, files no round, and waits until it is killed. The human
+reaches their past rounds with ⌘R, which is what runs this.
+
 Waiting for a human outlasts most command timeouts, and a queued relay waits
 longer still. If the harness running this puts a clock on a command, start relay
 in the background and read its output when it exits — a timeout that fires while
@@ -55,17 +63,25 @@ the window is open costs the human's reply.
   RELAY_DEBUG=1     let the window's own output through to stderr
 `;
 
-// Before anything that can exit. A relay that cannot even read its document has
-// still latched the agent's gate, and stays refused until this has run.
-unlatchOnExit();
-
 // A relay started from inside an Electron process — one that spawned a shell, or
 // a program that spawned this — inherits a variable telling Electron to be node.
 // That was meant for that process and not for anything downstream of it:
 // everything spawned from here, the window among them, must be what it says.
+// Every mode, `--read` included: composer spawns that one from inside Electron, and
+// the window it would start has to be a window.
 delete process.env.ELECTRON_RUN_AS_NODE;
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
+
+// Before anything that can exit. A relay that cannot even read its document has
+// still latched the agent's gate, and stays refused until this has run.
+//
+// Except a read, and that exception is the reason the arguments are parsed above it.
+// The latch is keyed on $CLAUDE_CODE_SESSION_ID, and composer inherits that variable
+// from the agent that started composer — so a `--read` process exiting would lift the
+// gate of an agent that is still waiting for an answer, in a round it has nothing to
+// do with. A read latches nothing, and so unlatches nothing.
+if (args[0] !== "--read") unlatchOnExit();
 
 // Where this task's answer goes — what the session is about, and only that. composer
 // owns the path and draws the card; relay writes nothing out of the file and only says
@@ -113,6 +129,55 @@ if (args.length <= 2 && args[0] === "--priority") {
         : "nothing is priority now — the line is by arrival again\n",
   );
   process.exit(0);
+}
+
+// A round that already happened, served to be read. composer's ⌘R lists them and
+// spawns this for the one the human picked, draws what it serves in the document
+// column, and kills it when they close it — so the URL goes to stdout, on the first
+// line, and this process then has nothing left to do but stay up.
+//
+// None of what a relay does is done here. `storage.open` would file a second round on
+// top of the one being read, `queue.enter` would put a document nobody sent in front of
+// the human, and `tasks.note` would count this as a round of the task. A read is none of
+// those things: it is the same document, on screen again, and answering it once was
+// enough.
+if (args.length === 2 && args[0] === "--read") {
+  let round: Round;
+  try {
+    round = readRound(args[1]!);
+  } catch (err) {
+    // The line is the error's, because only it knows which of the two happened — no
+    // such round, or a round that kept no document — and composer has a card row to
+    // put it under.
+    process.stderr.write(`relay: ${(err as Error).message}\n`);
+    process.exit(2);
+  }
+
+  // The one thing a read moves. A command in a past document is run *now*, and where
+  // it runs is the tree the round came from: `handleRun` starts it in `process.cwd()`,
+  // and so does the terminal pane, and so does `gf` when it looks for the file. Before
+  // the server comes up, since that is where all three read it.
+  if (round.cwd) process.chdir(round.cwd);
+
+  // `doc` is what the agent sent and `prefill` is what the human accepted, which is the
+  // whole of their own lines being lit against it: the page diffs one against the other
+  // exactly as it did while they were typing them. A round they never answered has the
+  // two the same, and lights nothing.
+  const past = await serve(round.source, round.sent, round.shown, round.dir, {
+    // composer reserves the strip over the document, as it does for a live one.
+    framed: true,
+    readOnly: true,
+    // A round whose worktree has since been torn down has nowhere to run anything, and
+    // says so in the block rather than running it somewhere else.
+    runnable: !!round.cwd,
+    ran: round.ran,
+  });
+
+  // The first line of stdout, which is what composer reads.
+  process.stdout.write(past.url + "\n");
+  // Nothing here ends on its own: there is no answer to wait for and no window to be
+  // closed. composer's SIGTERM is the end of it.
+  await new Promise(() => {});
 }
 
 const help = args.includes("-h") || args.includes("--help");

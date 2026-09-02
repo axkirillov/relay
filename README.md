@@ -57,6 +57,20 @@ as each document goes up. On its way out it also says on stderr whether the answ
 been touched since the last round — which is the one thing an agent should be told
 about its own file without having to be told by the human.
 
+## A round that already happened
+
+Every relay leaves its whole exchange in `~/.relay/<round>/`, and `relay --read
+<round>` opens one again — the id of a directory in there, or the path to one. It
+serves that round on loopback, prints the URL on the first line of stdout, and waits
+until it is killed. No window, no place in the line, no round of its own.
+
+That mode is **composer's**: `⌘R` lists the rounds behind you, and `↵` on one draws
+it in the document column as it looked the day it arrived — what you accepted, your
+own lines still lit against what the agent sent. It is read-only, and vim is still
+vim in it, so a line can be yanked out of a round from last week. A command in it
+runs in the worktree that round came from; if that tree is gone, the block says so
+rather than running it somewhere else.
+
 ## Reviewing a diff
 
 A ```` ```diff ```` block is a review you can write in. Edit the patch where it

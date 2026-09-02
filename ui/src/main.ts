@@ -33,6 +33,16 @@ const queueEl = document.getElementById("queue")!;
 const noteEl = document.getElementById("note")!;
 const overlayEl = document.getElementById("overlay")!;
 
+/**
+ * Whether this is a round being read rather than one being answered — `relay --read`,
+ * which is what composer's ⌘R spawns.
+ *
+ * Off the body, because that is the only place it can be: the page's CSP allows one
+ * script, the bundle, so there is no inline script to carry a flag and nothing to ask
+ * either — the answer is on screen before this file runs.
+ */
+const reading = document.body.dataset.read !== undefined;
+
 let view: EditorView;
 let pane: Pane;
 let editor: Editor;
@@ -217,7 +227,13 @@ async function runAtCursor() {
       body: block.command,
       signal: job.signal,
     });
-    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+    // A refusal has a line of its own, and the block is where the human is looking for
+    // it: a read whose worktree has been torn down since is told so here, by name.
+    if (!res.ok) {
+      append(`${(await res.text()).trim() || `relay could not run it: HTTP ${res.status}`}\n`);
+      return;
+    }
+    if (!res.body) throw new Error(`HTTP ${res.status}`);
     // Where relay is writing this run's output. Kept for the one moment it is
     // needed: an accept while the command is still going, which leaves it going
     // and has to name the file the rest of it lands in.
@@ -335,10 +351,15 @@ async function openLink() {
 }
 
 function bindVim(original: string) {
-  Vim.defineEx("accept", "acc", () => void accept());
-  Vim.defineEx("write", "w", () => void accept());
-  Vim.defineEx("wq", "wq", () => void accept());
-  Vim.defineEx("xit", "x", () => void accept());
+  // Every spelling of accept, and none of them defined for a round being read: there is
+  // nobody waiting for a reply to it, and a `:w` out of habit should say it does not
+  // know that command rather than post something the relay would refuse.
+  if (!reading) {
+    Vim.defineEx("accept", "acc", () => void accept());
+    Vim.defineEx("write", "w", () => void accept());
+    Vim.defineEx("wq", "wq", () => void accept());
+    Vim.defineEx("xit", "x", () => void accept());
+  }
   Vim.defineEx("quit", "q", () => window.close());
 
   // Vim leaves visual mode before an ex command runs, so the editor's own
@@ -375,8 +396,10 @@ function bindVim(original: string) {
   Vim.mapCommand("zc", "action", "relayFold", {}, { context: "normal" });
 
 
-  Vim.defineAction("relayAccept", () => void accept());
-  Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
+  if (!reading) {
+    Vim.defineAction("relayAccept", () => void accept());
+    Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
+  }
 
   // `gF` alongside `gf`: vim splits the line off between the two, this does not,
   // and a hand that has learnt either should not have to remember which.
@@ -450,6 +473,13 @@ async function boot() {
       doc: start,
       extensions: [
         vim(),
+        // Read-only, and deliberately not `EditorView.editable.of(false)`: that takes
+        // contenteditable off the content, and with it every key vim gets — including
+        // visual mode, which is how the human copies a line out of a round they are
+        // reading. This facet is the one vim itself checks before it changes anything,
+        // so the modes, the motions and the yank all still work and nothing lands in
+        // the document.
+        reading ? EditorState.readOnly.of(true) : [],
         history(),
         // Inside a ```diff block the numbers are the file's own — see diffview.ts.
         lineNumbers({ formatNumber: (n, state) => reviewNumber(state, n) ?? String(n) }),
@@ -469,7 +499,9 @@ async function boot() {
         // the one moment it is wanted.
         EditorView.updateListener.of((u) => {
           if (u.transactions.some(opened)) note("opened — :fold, or zc, puts it back");
-          if (u.docChanged) saveSoon();
+          // Only a document that is being answered has a draft worth keeping. A read
+          // has no half-written reply in it, and the relay serving it would refuse one.
+          if (u.docChanged && !reading) saveSoon();
         }),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
@@ -482,7 +514,9 @@ async function boot() {
   getCM(view)?.on("vim-mode-change", (e: { mode: string; subMode?: string }) =>
     showMode(e.mode, e.subMode),
   );
-  document.getElementById("accept")!.addEventListener("click", () => void accept());
+  // Not there at all in a read — page.ts leaves the button out, because there is
+  // nothing for it to do.
+  if (!reading) document.getElementById("accept")!.addEventListener("click", () => void accept());
 
   // Capture phase on window, not a CodeMirror keymap: the vim extension handles
   // keys from a ViewPlugin keydown handler, which runs before the keymap facet,
@@ -499,7 +533,8 @@ async function boot() {
       if (!e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
 
-      if (key === "x") {
+      // ⌃X accepts, which a read does not do. Everything else in here reads.
+      if (key === "x" && !reading) {
         e.preventDefault();
         e.stopPropagation();
         void accept();
@@ -532,7 +567,7 @@ async function boot() {
   // guaranteed to leave; and not after an accept, where the reply is the answer
   // and the relay is closing anyway.
   window.addEventListener("pagehide", () => {
-    if (sending) return;
+    if (sending || reading) return;
     const text = view.state.doc.toString();
     if (text === saved) return;
     navigator.sendBeacon("/draft", new Blob([text], { type: "text/markdown" }));
