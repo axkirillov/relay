@@ -62,7 +62,8 @@ about its own file without having to be told by the human.
 Every relay leaves its whole exchange in `~/.relay/<round>/`, and `relay --read
 <round>` opens one again — the id of a directory in there, or the path to one. It
 serves that round on loopback, prints the URL on the first line of stdout, and waits
-until it is killed. No window, no place in the line, no round of its own.
+until it is killed. No window, no place in the line, no round of its own — and
+nothing written into the round it opens, a command's output included.
 
 That mode is **composer's**: `⌘R` lists the rounds behind you, and `↵` on one draws
 it in the document column as it looked the day it arrived — what you accepted, your

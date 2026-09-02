@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { closeSync, openSync, readSync, truncateSync, unlinkSync } from "node:fs";
-import { homedir } from "node:os";
+import { closeSync, mkdtempSync, openSync, readSync, rmSync, truncateSync, unlinkSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 
 // `.ts`, unlike the bundle's own `.js` specifiers: run.ts is loaded straight by
@@ -332,4 +333,49 @@ function cut(text: string): string {
 export function tilde(path: string): string {
   const home = homedir();
   return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
+}
+
+/** The one this process was given, once it has asked for one. */
+let scratch: string | null = null;
+
+/**
+ * Where a run's output goes when the document it came from is a round being read.
+ *
+ * A read must write nothing into the round's directory. What is on disk there is what
+ * the human accepted that day, and a run's output is not part of that record — but the
+ * round's directory is the only writable place a read has in reach, and the numbering
+ * in `server.ts` starts at 1 in every process. So the first command run out of a past
+ * document opened that round's own `run-1.log` `"w"` and wrote over it, or `discard`
+ * took it away outright when the output turned out short. It is often the very file the
+ * document being read points at, by name, in the notice a long run left in it.
+ *
+ * Made the first time a command is run, because most reads run nothing at all and a
+ * read that runs nothing should leave nothing anywhere. By `mkdtemp`, because the human
+ * can have the same round open in two windows and neither is the other's log.
+ *
+ * Taken away when this process ends. The signals as well as `exit`, because a read ends
+ * by composer's SIGTERM and node's default handling of a signal is to go without
+ * running the `exit` handlers — the same reason `latch.ts` catches all three.
+ */
+export function scratchDir(): string {
+  if (scratch) return scratch;
+  const dir = mkdtempSync(join(tmpdir(), "relay-read-"));
+  scratch = dir;
+
+  const sweep = () => {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // A command let go of still holds its file open; the bytes go nowhere either way.
+    }
+  };
+  process.once("exit", sweep);
+  for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+    process.once(sig, () => {
+      sweep();
+      process.exit(sig === "SIGINT" ? 130 : 143);
+    });
+  }
+
+  return dir;
 }

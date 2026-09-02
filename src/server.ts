@@ -83,7 +83,7 @@ export async function serve(
   source: string,
   doc: string,
   prefill: string,
-  logDir: string,
+  logs: () => string,
   opts: Options = {},
 ): Promise<Relay> {
   let settle: (doc: string) => void;
@@ -189,7 +189,11 @@ export async function serve(
         const where = opts.ran ? ` — ${tilde(opts.ran)}` : "";
         return send(res, 409, "text/plain", `the worktree this round ran in is gone${where}`);
       }
-      return handleRun(req, res, running, join(logDir, `run-${++runs}.log`), screenLines(req));
+      // Asked for here rather than held as a path since the server came up. For a live
+      // relay it is the round's own directory either way; for a read it is a directory
+      // made on the spot, and a read where the human runs nothing makes none — see
+      // `scratchDir` in run.ts for why a read cannot be given the round's.
+      return handleRun(req, res, running, join(logs(), `run-${++runs}.log`), screenLines(req));
     }
     // A link the human's cursor was on. Out to the machine from this side for the
     // same reason nvim is: the page is sandboxed, and the window it is in has no

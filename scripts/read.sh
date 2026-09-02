@@ -4,6 +4,11 @@
 # would answer or file anything refuse, a command in it runs in the tree the round
 # came from — and a round whose tree has been torn down since says so instead. It
 # joins no line, writes nothing, and lifts nobody's gate latch.
+#
+# Writes nothing includes the round's own directory, which is the one writable place a
+# read has in reach and the one place a reading must not touch: a command run out of a
+# past document goes to a directory of the process's own, two reads of one round cannot
+# reach each other's, and what the document says about where the output went is true.
 set -euo pipefail
 
 WT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,7 +21,8 @@ LATCH="$RELAY_GATE_STATE/open-$CLAUDE_CODE_SESSION_ID"
 mkdir -p "$RELAY_QUEUE_DIR" "$RELAY_GATE_STATE"
 
 PID=""
-trap 'kill "${PID:-}" 2>/dev/null || true; rm -rf "$TMP"' EXIT
+PID2=""
+trap 'kill "${PID:-}" "${PID2:-}" 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 fail() {
   echo "FAIL: $*"
@@ -40,18 +46,26 @@ round() {
     >"$HOME_RELAY/$id/meta.json"
 }
 
+# The first line a read prints, once it has printed one.
+printed() {
+  local line
+  for _ in $(seq 1 100); do
+    line="$(head -1 "$1")"
+    [ -n "$line" ] && { printf '%s' "$line"; return 0; }
+    sleep 0.1
+  done
+  return 1
+}
+
 # Start a read and wait for the URL it prints. Sets URL and PID.
 reading() {
   node "$WT/dist/relay.js" --read "$1" >"$TMP/out" 2>"$TMP/err" &
   PID=$!
-  URL=""
-  for _ in $(seq 1 100); do
-    URL="$(head -1 "$TMP/out")"
-    [ -n "$URL" ] && break
-    sleep 0.1
-  done
-  [ -n "$URL" ] || fail "--read never printed a URL"
+  URL="$(printed "$TMP/out")" || fail "--read never printed a URL"
 }
+
+# The file a long run told the document its output went to.
+named() { grep -o 'all of it is in .*' "$1" | tail -1 | sed 's/^all of it is in //'; }
 
 code() { curl -s -o "$TMP/said" -w '%{http_code}' "$@"; }
 
@@ -122,6 +136,87 @@ wait "$PID" 2>/dev/null || true
 PID=""
 [ -f "$LATCH" ] || fail "a read that exited lifted a live agent's gate latch"
 
+# --- what a read writes into the round's directory: nothing -----------------------
+# A round's `run-1.log` is the file the document itself points at when a command that
+# day outgrew it — 59 of the 2,728 rounds on the machine this was written on have one.
+# The run numbering starts at 1 in every process, so a read whose output went into the
+# round's own directory opened that file `"w"` on the human's first ⌃↵, and unlinked it
+# again when the output turned out short. A read is a reading; it writes nothing there.
+KEPT=20260812-163130-spill-doc
+round "$KEPT" "$TREE" '# Which cap
+
+```sh
+pwd
+```
+'
+seq 1 3000 >"$HOME_RELAY/$KEPT/run-1.log"
+WAS="$(shasum -a 256 "$HOME_RELAY/$KEPT/run-1.log" | cut -d' ' -f1)"
+ls -1 "$HOME_RELAY/$KEPT" >"$TMP/kept"
+
+reading "$KEPT"
+# The short run, which is the one that used to take the file away.
+curl -sf -X POST -H 'Content-Type: text/plain' --data-binary 'pwd' "${URL}run?lines=40" >/dev/null \
+  || fail "a command in a read was refused"
+[ -f "$HOME_RELAY/$KEPT/run-1.log" ] || fail "a short run in a read deleted the round's own log"
+# And the long one, which is the one that used to write over it.
+curl -sf -X POST -H 'Content-Type: text/plain' --data-binary 'seq 1 60' "${URL}run?lines=40" >"$TMP/long" \
+  || fail "a long command in a read was refused"
+[ "$(shasum -a 256 "$HOME_RELAY/$KEPT/run-1.log" | cut -d' ' -f1)" = "$WAS" ] \
+  || fail "a read wrote over the round's own log"
+[ "$(wc -l <"$HOME_RELAY/$KEPT/run-1.log" | tr -d ' ')" = 3000 ] || fail "the round's log is not what it was"
+ls -1 "$HOME_RELAY/$KEPT" >"$TMP/kept-now"
+diff "$TMP/kept" "$TMP/kept-now" >/dev/null || fail "a read left a file in the round's directory"
+
+# And the notice in the document names the file the output really went to. A read that
+# claimed it was in the round's own log would be sending the human to last month's.
+LOG="$(named "$TMP/long")"
+[ -n "$LOG" ] || fail "a long run in a read did not say where its output went"
+case "$LOG" in
+  *"$KEPT"*) fail "the notice names a file in the round: $LOG" ;;
+esac
+[ "$(wc -l <"$LOG" | tr -d ' ')" = 60 ] || fail "the file the notice names does not hold the output: $LOG"
+
+# --- the same round, read twice at once -------------------------------------------
+# ⌘R can be pressed twice. Nothing keys a read's output on the round, so two of them
+# have to be unable to reach each other's file — or the round's.
+node "$WT/dist/relay.js" --read "$KEPT" >"$TMP/out2" 2>"$TMP/err2" &
+PID2=$!
+URL2="$(printed "$TMP/out2")" || fail "the second read never printed a URL"
+
+both() {
+  curl -sf -X POST -H 'Content-Type: text/plain' --data-binary "{ seq 1 60 | sed 's/^/$3-/'; sleep 1; }" \
+    "$1run?lines=40" >"$2"
+}
+# Overlapping on purpose: each sleeps a second after its sixty lines, so both runs are
+# open at the same time.
+both "$URL" "$TMP/ran-a" A & RUN_A=$!
+both "$URL2" "$TMP/ran-b" B & RUN_B=$!
+wait "$RUN_A" || fail "the first read's command failed"
+wait "$RUN_B" || fail "the second read's command failed"
+
+LOG_A="$(named "$TMP/ran-a")"
+LOG_B="$(named "$TMP/ran-b")"
+[ -n "$LOG_A" ] && [ -n "$LOG_B" ] || fail "one of the two reads did not say where its output went"
+[ "$LOG_A" != "$LOG_B" ] || fail "two reads of one round wrote to the same file: $LOG_A"
+[ "$(grep -c '^A-' "$LOG_A")" = 60 ] || fail "the first read's file does not hold its own output"
+[ "$(grep -c '^B-' "$LOG_B")" = 60 ] || fail "the second read's file does not hold its own output"
+grep -q '^B-' "$LOG_A" && fail "the second read's output landed in the first read's file"
+grep -q '^A-' "$LOG_B" && fail "the first read's output landed in the second read's file"
+[ "$(shasum -a 256 "$HOME_RELAY/$KEPT/run-1.log" | cut -d' ' -f1)" = "$WAS" ] \
+  || fail "two reads at once wrote over the round's own log"
+ls -1 "$HOME_RELAY/$KEPT" >"$TMP/kept-now"
+diff "$TMP/kept" "$TMP/kept-now" >/dev/null || fail "two reads at once left a file in the round's directory"
+
+kill "$PID" "$PID2"
+until_ok gone "$PID" || fail "the first read did not go"
+until_ok gone "$PID2" || fail "the second read did not go"
+wait "$PID" 2>/dev/null || true
+wait "$PID2" 2>/dev/null || true
+PID=""; PID2=""
+# A read's output was never part of the record, so nothing of it outlives the read.
+[ -e "$LOG_A" ] && fail "a read that has gone left its output behind: $LOG_A"
+[ -e "$LOG_B" ] && fail "a read that has gone left its output behind: $LOG_B"
+
 # --- a round they never answered --------------------------------------------------
 # 137 of the 2,702 rounds on the machine this was written on were never answered.
 # What there is to read is the agent's own question, and nothing is lit.
@@ -161,6 +256,13 @@ node "$WT/dist/relay.js" --read 20260901-080000-kept-nothing >"$TMP/out" 2>"$TMP
   && fail "a round with no document was served"
 grep -q 'kept no document' "$TMP/err" || fail "a round with no document is not named: $(cat "$TMP/err")"
 
+# `--read` with no round named at all. One argument is what an ordinary relay takes and
+# `--read` is one argument, so this used to fall all the way through to `resolve` and ask
+# the machine for a document called `--read`.
+node "$WT/dist/relay.js" --read >"$TMP/out" 2>"$TMP/err" && fail "--read with no round was served"
+grep -q 'cannot read' "$TMP/err" && fail "--read with no round went looking for a file called --read"
+grep -q -- '--read takes one round' "$TMP/err" || fail "--read with no round says nothing useful: $(cat "$TMP/err")"
+
 [ -f "$LATCH" ] || fail "a read that refused lifted a live agent's gate latch"
 
-echo "ok — read-only, out of the line, in the round's own tree, and nobody's latch touched"
+echo "ok — read-only, out of the line, in the round's own tree, nothing written into the round, and nobody's latch touched"

@@ -1,6 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { spillPath } from "./spill.ts";
 
@@ -215,6 +217,53 @@ check("reading stdin gets end-of-file", (await ran("cat")).trim(), "");
   await wait(1600);
   has("and the command went on writing to it", readFileSync(log, "utf8"), "line-5");
   check("with nothing more going into the document", doc, sent);
+}
+
+// --- where a read's output goes ----------------------------------------------
+// Anywhere but the round it came from. `run-1.log` in a round's directory is a file
+// the document being read points at, and the numbering starts at 1 in every process:
+// a read given that directory would open it `"w"` on the human's first ⌃↵, or discard
+// it when the output turned out short. So a read gets one of its own — one per
+// process, made when a run first asks for one, and gone when the process is.
+//
+// In a child process, because that is the only place the end of one can be watched.
+{
+  const script = join(logs, "read.mjs");
+  writeFileSync(
+    script,
+    `import { existsSync } from "node:fs";
+import { scratchDir } from ${JSON.stringify(fileURLToPath(new URL("./run.ts", import.meta.url)))};
+
+const dir = scratchDir();
+process.stdout.write(JSON.stringify([dir, dir === scratchDir(), existsSync(dir)]) + "\\n");
+// A read has nothing to do but stay up until composer kills it.
+if (process.argv[2] === "stay") setInterval(() => {}, 1000);
+`,
+  );
+  const said = (out: string) => JSON.parse(out) as [string, boolean, boolean];
+
+  const [dir, once, made] = said(execFileSync(process.execPath, [script], { encoding: "utf8" }));
+  check("a read's runs are given a directory of their own", made, true);
+  check("one of them, however often it is asked for", once, true);
+  check("and it is nowhere near a round", dir.startsWith(tmpdir()), true);
+  check("a read that has ended leaves none of it behind", existsSync(dir), false);
+
+  // The way a read really ends: composer's SIGTERM, which node would otherwise take
+  // without running anything registered on `exit`.
+  const child = spawn(process.execPath, [script, "stay"], { stdio: ["ignore", "pipe", "inherit"] });
+  const [staying] = said(
+    await new Promise<string>((resolve) => {
+      let out = "";
+      child.stdout.on("data", (c: Buffer) => {
+        out += c.toString("utf8");
+        if (out.includes("\n")) resolve(out);
+      });
+    }),
+  );
+  check("it is there for as long as the read is", existsSync(staying), true);
+  child.kill("SIGTERM");
+  await new Promise((resolve) => child.once("close", resolve));
+  check("and a read killed by composer still takes it away", existsSync(staying), false);
 }
 
 function wait(ms: number): Promise<void> {

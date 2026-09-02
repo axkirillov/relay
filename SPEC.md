@@ -925,6 +925,24 @@ before serving, which is where the run blocks, the terminal pane and `gf` all lo
 A round whose worktree has been torn down since has nowhere to run anything, and the
 block says which tree is missing rather than running it somewhere else.
 
+**A read writes nothing into the round's directory.** What is on disk there is what
+the human accepted that day, `run-N.log` and all, and a command run out of a past
+document is not part of that record. It very nearly was: the run numbering starts at
+1 in every process, so the first `⌃↵` in a read opened the round's own `run-1.log`
+`"w"` and wrote over it — or unlinked it, when the output turned out short enough to
+stay in the document. That file is the one the document being read points at, by
+name, in the notice a long run left in it the day it went up; 59 of the 2,728 rounds
+on the machine this was written on carry one.
+
+So a read's output goes to a directory of the process's own, `mkdtemp`ed under the
+system's temporary directory the first time a command is run and taken away when the
+process ends — on the SIGTERM composer kills it with as well as on an ordinary exit.
+On demand, because most reads run nothing at all and one that runs nothing should
+leave nothing anywhere; by `mkdtemp`, because `⌘R` can be pressed twice on one round
+and neither read is the other's log. The pointer in the document names the file the
+output really went to, which is the one in there — a read whose document claimed the
+output was in the round's own log would be sending the human to last month's.
+
 It lifts no gate latch on the way out, and that is the one thing about it that had to
 be arranged rather than left alone: the latch is keyed on `$CLAUDE_CODE_SESSION_ID`,
 composer inherits that variable from the agent that started composer, and a read

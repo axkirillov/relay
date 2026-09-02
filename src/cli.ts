@@ -9,6 +9,7 @@ import * as about from "./about.js";
 import * as priority from "./priority.js";
 import * as queue from "./queue.js";
 import { read as readRound, type Round } from "./round.js";
+import { scratchDir } from "./run.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
 import * as tasks from "./task.js";
@@ -163,7 +164,12 @@ if (args.length === 2 && args[0] === "--read") {
   // whole of their own lines being lit against it: the page diffs one against the other
   // exactly as it did while they were typing them. A round they never answered has the
   // two the same, and lights nothing.
-  const past = await serve(round.source, round.sent, round.shown, round.dir, {
+  // A run's output goes somewhere of this process's own, and not into the round. The
+  // round's directory is what the human accepted that day — `run-1.log` and all, which
+  // is a file the document being read may point at by name — and a read is not another
+  // day's writing on top of it. It also keeps two windows reading the same round out of
+  // each other's output.
+  const past = await serve(round.source, round.sent, round.shown, scratchDir, {
     // composer reserves the strip over the document, as it does for a live one.
     framed: true,
     readOnly: true,
@@ -178,6 +184,15 @@ if (args.length === 2 && args[0] === "--read") {
   // Nothing here ends on its own: there is no answer to wait for and no window to be
   // closed. composer's SIGTERM is the end of it.
   await new Promise(() => {});
+}
+
+// `--read` with no round named, or with more than one. The branch above wants exactly
+// two arguments, and without this the rest of them fall through the check below — one
+// argument is what an ordinary relay takes, and `--read` is one argument — as far as
+// `resolve(args[0])`, which asks the machine for a document called `--read`.
+if (args[0] === "--read") {
+  process.stderr.write("relay: --read takes one round — the name of a directory in ~/.relay, or the path to one\n");
+  process.exit(2);
 }
 
 const help = args.includes("-h") || args.includes("--help");
@@ -224,7 +239,7 @@ const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path, task
 
 // The round's own directory holds what a long command wrote, beside the document
 // it was run from.
-const relay = await serve(path, sent, prefill, store.dir, {
+const relay = await serve(path, sent, prefill, () => store.dir, {
   onDraft: store.draft,
   behind: () => turn?.behind() ?? 0,
   // In the line, and the task has an answer written: composer reserves 38px of bare
