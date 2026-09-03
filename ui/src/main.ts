@@ -33,14 +33,6 @@ const queueEl = document.getElementById("queue")!;
 const noteEl = document.getElementById("note")!;
 const overlayEl = document.getElementById("overlay")!;
 
-/**
- * Whether this is a round being read rather than one being answered — `relay --read`,
- * which is what composer's ⌘R spawns.
- *
- * Off the body, because that is the only place it can be: the page's CSP allows one
- * script, the bundle, so there is no inline script to carry a flag and nothing to ask
- * either — the answer is on screen before this file runs.
- */
 const reading = document.body.dataset.read !== undefined;
 
 let view: EditorView;
@@ -67,7 +59,6 @@ function showMode(mode: string, subMode?: string) {
 }
 
 let noteTimer = 0;
-/** What the footer goes back to saying — a command in flight outlasts a remark. */
 let holding = "";
 
 function note(text: string) {
@@ -97,16 +88,6 @@ function showStats(s: Stats) {
     `<span>edit${s.added + s.removed === 1 ? "" : "s"}</span>`;
 }
 
-/**
- * How much is left after this one — and, since closing the window dismisses
- * every relay in line, what closing it would take with it.
- *
- * A poll rather than something pushed. The whole of the queue is already polled
- * — the relays four times a second, the window eight — and one small integer is
- * not worth being the one thing in relay that holds a stream open. A failed
- * read says nothing rather than something out of date: the count is only ever
- * news while it is true.
- */
 function watchQueue() {
   const read = async () => {
     try {
@@ -122,11 +103,6 @@ function watchQueue() {
 
 async function accept() {
   if (sending) return;
-  // A command still going when they accept is one they would rather not wait
-  // for, so relay lets go of it rather than killing it — and the block it was
-  // writing into has to say so, or the agent reads an output that stops in the
-  // middle of the test suite as though that were the end of it. Before the
-  // document is read, because this is part of the document being sent.
   if (job && jobLog) append(`${jobWrote ? "\n" : ""}${stillRunningNotice(jobLog)}\n`);
   sending = true;
   overlay("↑", "Sending", "handing your reply to the agent…");
@@ -138,8 +114,6 @@ async function accept() {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     overlay("✓", "Accepted", "the agent has your reply — this window is closing");
-    // If the CLI is gone the window will not be closed for us; say so rather
-    // than leaving a lie on screen.
     setTimeout(() => {
       overlay("✓", "Accepted", "the agent has your reply — you can close this window now");
     }, 3000);
@@ -150,21 +124,9 @@ async function accept() {
   }
 }
 
-/**
- * What the relay is already holding for this document — the prefill it opened
- * with, and after that whatever was last saved. Text that equals it is a draft
- * already made, and posting it again would say nothing.
- */
 let saved = "";
 let draftTimer = 0;
 
-/**
- * Keep what the human has typed on the relay's side of the wire.
- *
- * This page is destroyed the moment the window loads another document or is
- * reloaded, and their words would go with it — so the relay holds them instead,
- * and `/prefill` hands them back when this document returns.
- */
 async function saveDraft(): Promise<void> {
   window.clearTimeout(draftTimer);
   const text = view.state.doc.toString();
@@ -178,29 +140,15 @@ async function saveDraft(): Promise<void> {
   saved = text;
 }
 
-/** After the typing stops rather than on every keystroke. */
 function saveSoon() {
   window.clearTimeout(draftTimer);
-  // A draft that will not save is not worth interrupting them over. The moment
-  // it actually matters — the page going — says so itself.
   draftTimer = window.setTimeout(() => void saveDraft().catch(() => {}), 400);
 }
 
-/** The command in flight, if there is one; aborting it is the human's ⌃C. */
 let job: AbortController | null = null;
-/** The file that command's output is going to, for an accept that leaves it running. */
 let jobLog: string | null = null;
-/** Whether anything of it has landed in the document yet — a blank line needs something above it. */
 let jobWrote = false;
 
-/**
- * Run the shell block the cursor is in, and write its output into the document.
- *
- * The output has to be document text, because the diff is the only thing the
- * agent gets back — it asked for the command because it wants the answer. So
- * output lands under the command as an ordinary fenced block, the human can edit
- * or delete it like anything else, and accepting sends it.
- */
 async function runAtCursor() {
   if (job) return note("something is already running — ⌃C stops it");
 
@@ -227,23 +175,15 @@ async function runAtCursor() {
       body: block.command,
       signal: job.signal,
     });
-    // A refusal has a line of its own, and the block is where the human is looking for
-    // it: a read whose worktree has been torn down since is told so here, by name.
     if (!res.ok) {
       append(`${(await res.text()).trim() || `relay could not run it: HTTP ${res.status}`}\n`);
       return;
     }
     if (!res.body) throw new Error(`HTTP ${res.status}`);
-    // Where relay is writing this run's output. Kept for the one moment it is
-    // needed: an accept while the command is still going, which leaves it going
-    // and has to name the file the rest of it lands in.
     jobLog = decodeURIComponent(res.headers.get("X-Relay-Log") ?? "") || null;
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    // Whole lines only. The closing fence sits directly below the last line of
-    // output, so writing half a line would put the fence on the end of it — and
-    // an unterminated block is not a block the fold or the agent can read.
     let partial = "";
     for (;;) {
       const { done, value } = await reader.read();
@@ -257,7 +197,6 @@ async function runAtCursor() {
     if (partial) jobWrote = append(`${partial}\n`) || jobWrote;
     if (!jobWrote) append("[no output]\n");
   } catch (err) {
-    // The stop was ours, so the server's own last word went nowhere: say it here.
     if (err instanceof DOMException && err.name === "AbortError") append("[stopped]\n");
     else append(`relay could not run it: ${err}\n`);
   } finally {
@@ -268,26 +207,10 @@ async function runAtCursor() {
   }
 }
 
-/**
- * How many lines of document this window can show at once.
- *
- * The length past which output goes to a file instead of into the document, and
- * the only side of the wire that can answer it: the window is here, and its
- * height is measured rather than configured.
- *
- * The window, not the editor's own share of it. A terminal pane dragged tall
- * leaves the editor a few lines high, and a run's output should not change where
- * it is kept because a pane happens to be open over it.
- *
- * Measured per run rather than once, because the human resizes the window and
- * moves it between screens, and the answer is only ever needed the instant a
- * command starts.
- */
 function screenLines(): number {
   return Math.max(1, Math.floor(window.innerHeight / view.defaultLineHeight));
 }
 
-/** Output goes where the sink is now — which is not where it was a keystroke ago. */
 function append(text: string): boolean {
   const at = view.state.field(sink);
   if (at === null) return false;
@@ -295,13 +218,6 @@ function append(text: string): boolean {
   return true;
 }
 
-/**
- * `gf` — follow the path under the cursor into the human's own nvim.
- *
- * A relay document is full of `src/cli.ts:42`, and until now every one of them
- * was a thing to go and look at somewhere else. In visual mode the selection is
- * the path, which is the way out of a name this cannot pick out of prose.
- */
 function gotoFile() {
   const { state } = view;
   const at = state.selection.main;
@@ -310,32 +226,14 @@ function gotoFile() {
     ? pathAt(line.text, at.head - line.from)
     : target(state.sliceDoc(at.from, at.to).trim());
   if (!found) return note("no path under the cursor");
-  // A link is path-shaped enough to reach here, and looking for one under the
-  // cwd only to report that it is not there is no longer the best answer
-  // available.
   if (url(found.path)) return note("that is a link — gx opens it");
   editor.open(found);
 }
 
-/**
- * `gx` — open the link under the cursor, wherever the machine opens links.
- *
- * A URL in a relay document was dead text: the address the paragraph was about
- * had to be retyped by hand into a browser. This is vim's own key for it, and
- * the way out is the CLI, because the page can no more open a browser than it
- * can spawn nvim.
- *
- * Nothing happens in the window — nothing here can, the browser is somewhere
- * else entirely — so the footer is the whole of what the human gets back, and it
- * says what left rather than that something did.
- */
 async function openLink() {
   const { state } = view;
   const at = state.selection.main;
   const line = state.doc.lineAt(at.head);
-  // In visual mode the link is looked for inside the selection rather than
-  // demanded of it: what is selected around an address is as likely to be the
-  // sentence it was in as the address itself.
   const found = at.empty
     ? urlAt(line.text, at.head - line.from)
     : urlAt(state.sliceDoc(at.from, at.to), 0);
@@ -343,13 +241,6 @@ async function openLink() {
   await open(found);
 }
 
-/**
- * An address out to whatever the human opens links with.
- *
- * Two things ask for this — the cursor on a link and a click on one inside a
- * rendered block — and the allow-list is checked here rather than at either of
- * them, so that both are held to the same one.
- */
 async function open(href: string) {
   const link = url(href);
   if (!link) return note(`not a link relay will open — ${href}`);
@@ -364,9 +255,6 @@ async function open(href: string) {
 }
 
 function bindVim(original: string) {
-  // Every spelling of accept, and none of them defined for a round being read: there is
-  // nobody waiting for a reply to it, and a `:w` out of habit should say it does not
-  // know that command rather than post something the relay would refuse.
   if (!reading) {
     Vim.defineEx("accept", "acc", () => void accept());
     Vim.defineEx("write", "w", () => void accept());
@@ -375,10 +263,6 @@ function bindVim(original: string) {
   }
   Vim.defineEx("quit", "q", () => window.close());
 
-  // Vim leaves visual mode before an ex command runs, so the editor's own
-  // selection is already gone by now; the range vim parsed off the command line
-  // is what is left, and it covers `'<,'>` from visual mode, an explicit
-  // `:1,4res`, and the cursor line in normal mode alike.
   Vim.defineEx("restore", "res", (_cm, params) => {
     const cursor = view.state.doc.lineAt(view.state.selection.main.head).number - 1;
     const from = params.selectionLine ?? cursor;
@@ -386,8 +270,6 @@ function bindVim(original: string) {
     note(restore(view, original, from, to) ? "restored" : "nothing to restore");
   });
 
-  // One toggle rather than an on and an off command: `:ren` would be a prefix
-  // away from `:res` on the command line.
   Vim.defineEx("raw", "raw", () => {
     const on = !isRendering(view.state);
     view.dispatch({ effects: setRendering.of(on) });
@@ -397,34 +279,24 @@ function bindVim(original: string) {
   Vim.defineEx("terminal", "term", () => pane.toggle());
   Vim.defineEx("take", "take", () => pane.take());
 
-  // `:run` rather than `:r`, which is vim's own read.
   Vim.defineEx("run", "run", () => void runAtCursor());
 
-  // Opening a fold is a click; closing it again has to be said, so it is said
-  // both ways — `:fold` next to `:raw` and `:res`, and `zc`, which is what a vim
-  // user's fingers will try first.
   const foldBack = () => note(refold(view) ? "folded" : "nothing to fold");
   Vim.defineEx("fold", "fo", foldBack);
   Vim.defineAction("relayFold", foldBack);
   Vim.mapCommand("zc", "action", "relayFold", {}, { context: "normal" });
-
 
   if (!reading) {
     Vim.defineAction("relayAccept", () => void accept());
     Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
   }
 
-  // `gF` alongside `gf`: vim splits the line off between the two, this does not,
-  // and a hand that has learnt either should not have to remember which.
   Vim.defineAction("relayGotoFile", () => gotoFile());
   for (const keys of ["gf", "gF"]) {
     Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "normal" });
     Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "visual" });
   }
 
-  // `gx` alone, unlike `gf` above: the pair there is vim's own, and collapsing
-  // two keys a hand already knows is not the same as inventing a `gX` for it to
-  // learn.
   Vim.defineAction("relayOpenLink", () => void openLink());
   Vim.mapCommand("gx", "action", "relayOpenLink", {}, { context: "normal" });
   Vim.mapCommand("gx", "action", "relayOpenLink", {}, { context: "visual" });
@@ -432,27 +304,13 @@ function bindVim(original: string) {
   copyToClipboard();
 }
 
-/**
- * What vim takes, the system clipboard gets — vim's own `clipboard=unnamed`.
- *
- * The registers live inside this page and die with it, so a line yanked to quote
- * somewhere else was going nowhere. Rather than reimplement the operators, this
- * hooks the register controller: yank, delete and change are the only three that
- * reach its pushText, and it is handed the name of the one that got it there, so
- * a yank can still be told from a cut when there is something to say about it.
- * The controller is built once, when the vim module loads, so patching the
- * instance holds for as long as the window is up.
- */
 function copyToClipboard() {
   const registers = Vim.getRegisterController();
   const push = registers.pushText.bind(registers);
 
   registers.pushText = (name, operator, text, linewise, blockwise) => {
     push(name, operator, text, linewise, blockwise);
-    // `"_` is vim's black hole — what goes into it goes nowhere.
     if (name === "_" || !text) return;
-    // Linewise, it carries its newline the way the register's own copy does, so
-    // pasting it elsewhere lands a line rather than a fragment.
     const copied = linewise && !text.endsWith("\n") ? `${text}\n` : text;
     void navigator.clipboard.writeText(copied).then(
       () => note(took(operator, copied)),
@@ -471,13 +329,9 @@ async function boot() {
   const [original, start, images] = await Promise.all([
     fetch("/doc").then((r) => r.text()),
     fetch("/prefill").then((r) => r.text()),
-    // Where the local pictures are, if there are any. An old server without the
-    // route is no reason not to open the document.
     fetch("/local").then((r) => (r.ok ? (r.json() as Promise<Images>) : {})),
   ]);
   bindVim(original);
-  // What the relay already has. On a document that has been on screen before,
-  // this is the human's own draft coming back rather than what the agent sent.
   saved = start;
 
   view = new EditorView({
@@ -486,15 +340,8 @@ async function boot() {
       doc: start,
       extensions: [
         vim(),
-        // Read-only, and deliberately not `EditorView.editable.of(false)`: that takes
-        // contenteditable off the content, and with it every key vim gets — including
-        // visual mode, which is how the human copies a line out of a round they are
-        // reading. This facet is the one vim itself checks before it changes anything,
-        // so the modes, the motions and the yank all still work and nothing lands in
-        // the document.
         reading ? EditorState.readOnly.of(true) : [],
         history(),
-        // Inside a ```diff block the numbers are the file's own — see diffview.ts.
         lineNumbers({ formatNumber: (n, state) => reviewNumber(state, n) ?? String(n) }),
         drawSelection(),
         highlightSpecialChars(),
@@ -510,12 +357,8 @@ async function boot() {
         foldOutput(),
         sink,
         liveDiff(original, showStats),
-        // The way back is not on screen once the notice is gone, so it is said at
-        // the one moment it is wanted.
         EditorView.updateListener.of((u) => {
           if (u.transactions.some(opened)) note("opened — :fold, or zc, puts it back");
-          // Only a document that is being answered has a draft worth keeping. A read
-          // has no half-written reply in it, and the relay serving it would refuse one.
           if (u.docChanged && !reading) saveSoon();
         }),
         keymap.of([...historyKeymap, ...defaultKeymap]),
@@ -529,26 +372,15 @@ async function boot() {
   getCM(view)?.on("vim-mode-change", (e: { mode: string; subMode?: string }) =>
     showMode(e.mode, e.subMode),
   );
-  // Not there at all in a read — page.ts leaves the button out, because there is
-  // nothing for it to do.
   if (!reading) document.getElementById("accept")!.addEventListener("click", () => void accept());
 
-  // Capture phase on window, not a CodeMirror keymap: the vim extension handles
-  // keys from a ViewPlugin keydown handler, which runs before the keymap facet,
-  // so even Prec.highest lost ⌃X in normal mode. Capturing at the window beats
-  // both, in every mode.
   window.addEventListener(
     "keydown",
     (e) => {
-      // ⌃X and ⌃↵ are keys a shell has its own uses for, and nvim has uses for
-      // more of them still. Inside either pane every key belongs to the child
-      // process — accepting or running from there would be relay reaching over
-      // the human's hands.
       if (inPane(e.target)) return;
       if (!e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
 
-      // ⌃X accepts, which a read does not do. Everything else in here reads.
       if (key === "x" && !reading) {
         e.preventDefault();
         e.stopPropagation();
@@ -561,8 +393,6 @@ async function boot() {
         void runAtCursor();
         return;
       }
-      // Only while something is running — otherwise ⌃C is vim's, where it stands
-      // in for Esc.
       if (key === "c" && job) {
         e.preventDefault();
         e.stopPropagation();
@@ -574,13 +404,6 @@ async function boot() {
 
   watchQueue();
 
-  // A document can lose the screen for reasons nobody asked for: the window
-  // loading the next one, a reload, the page dying. Whatever the reason, the
-  // last thing typed should be there when it comes back — so this is the catch
-  // for everything the debounce above had not got to yet. A beacon rather than a
-  // fetch, because a request started by a page that is already going is not
-  // guaranteed to leave; and not after an accept, where the reply is the answer
-  // and the relay is closing anyway.
   window.addEventListener("pagehide", () => {
     if (sending || reading) return;
     const text = view.state.doc.toString();

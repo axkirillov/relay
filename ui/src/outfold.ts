@@ -6,20 +6,8 @@ import { spillPath } from "../../src/spill";
 import { isRendering } from "./render";
 import { outputInfo } from "./runblock";
 
-/**
- * Long output, folded to its tail.
- *
- * The agent gets the whole thing — every line is really in the document, and the
- * diff carries all of it. This only decides how much of it the human has to
- * scroll past, and it is a fold rather than a truncation for exactly that
- * reason: nothing here edits the document, so there is no version of the output
- * that only one of the two of them can see.
- *
- * The tail rather than the head, because a command's verdict is at the bottom.
- */
 export const tailLines = 20;
 
-/** Below this there is nothing to gain — the notice would replace what it hides. */
 const worthFolding = tailLines + 3;
 
 type SyntaxNode = {
@@ -46,15 +34,10 @@ class Earlier extends WidgetType {
   toDOM(view: EditorView) {
     const el = document.createElement("div");
     el.className = "cm-relay-fold";
-    // An output long enough to have gone to a file names that file on a line the
-    // fold then hides, so the notice standing in front of it carries the name
-    // instead. Otherwise the one output the document really did lose is the one
-    // with nothing on screen saying where the rest of it went.
     el.textContent = this.path
       ? `… ${this.lines} earlier lines in ${this.path} — click, or :raw`
       : `… ${this.lines} earlier lines — click, or :raw, to see them`;
     el.addEventListener("mousedown", (e) => {
-      // The caret stays where it was: this is a disclosure, not a place to type.
       e.preventDefault();
       view.dispatch({ effects: expand.of(this.at) });
     });
@@ -68,19 +51,10 @@ class Earlier extends WidgetType {
 const expand = StateEffect.define<number>();
 const collapse = StateEffect.define<null>();
 
-/** Whether a transaction is the human opening a fold. */
 export function opened(tr: { effects: readonly StateEffect<unknown>[] }): boolean {
   return tr.effects.some((e) => e.is(expand));
 }
 
-/**
- * Put every opened output block back behind its notice.
- *
- * All of them rather than the one at the caret, because that is the whole of what
- * the human asked for — the document as it was before they went looking. Nothing
- * distinguishes the folds from each other to make a choice between them worth
- * making on the command line.
- */
 export function refold(view: EditorView): boolean {
   const state = view.state;
   if (!state.field(expanded).length) return false;
@@ -88,9 +62,6 @@ export function refold(view: EditorView): boolean {
   const head = state.selection.main.head;
   let anchor: number | null = null;
   for (const fence of openFolds(state)) {
-    // A notice never stands over the caret, so a caret in the stretch going back
-    // behind one has to come out with it — to the top of its own block, where the
-    // notice will be.
     if (head >= fence.range.from && head <= fence.range.to) anchor = fence.node.from;
   }
 
@@ -101,7 +72,6 @@ export function refold(view: EditorView): boolean {
   return true;
 }
 
-/** Which output blocks the human has opened, by a position inside each. */
 const expanded = StateField.define<number[]>({
   create: () => [],
   update(list, tr) {
@@ -112,7 +82,6 @@ const expanded = StateField.define<number[]>({
   },
 });
 
-/** The stretch of an output block a notice would stand in for, if one would. */
 function foldable(state: EditorState, fence: SyntaxNode) {
   const body = child(fence, "CodeText");
   if (!body) return null;
@@ -151,8 +120,6 @@ function build(state: EditorState): DecorationSet {
 
     const range = foldable(state, fence);
     if (!range) continue;
-    // Never fold the caret out of sight — the same rule that puts a rendered
-    // block back to source while it is being worked on.
     if (sel.from <= range.to && sel.to >= range.from) continue;
 
     ranges.push(
@@ -189,10 +156,6 @@ function child(node: SyntaxNode, name: string): SyntaxNode | null {
   return null;
 }
 
-/**
- * A state field, not a view plugin, for the reason renderBlocks gives: block
- * decorations have to be known before anything is drawn.
- */
 export function foldOutput() {
   const field = StateField.define<DecorationSet>({
     create: build,
