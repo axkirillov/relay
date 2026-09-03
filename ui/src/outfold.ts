@@ -151,10 +151,8 @@ function build(state: EditorState): DecorationSet {
 
     const range = foldable(state, fence);
     if (!range) continue;
-    // Never fold the caret out of sight. Unlike a rendered block, which stands
-    // for source nobody wants to edit by hand, what a fold hides is the
-    // document's own text — lines the human may well want to cut, or `:res`
-    // away — so the caret arriving is enough to show them.
+    // Never fold the caret out of sight — the same rule that puts a rendered
+    // block back to source while it is being worked on.
     if (sel.from <= range.to && sel.to >= range.from) continue;
 
     ranges.push(

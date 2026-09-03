@@ -19,11 +19,15 @@ their edits is printed to stdout.
 The document is rendered, not shown as source: markdown tables, HTML and inline
 SVG are drawn in place, so a diagram or a chart written into the document arrives
 as a picture. Images do too — `![](shot.png)` beside the document, or an `https:`
-one. What is drawn stays drawn: drag across a rendered paragraph or a table cell
-and the words highlight, double-click and one word does, and `⌘C` copies exactly
-what is lit. A link in a rendered block opens where `gx` sends one, and a
-`<details>` opens on a click. `:raw` toggles the whole thing back to source and
-out again — that is the way to the markup itself, and to edit it.
+one. A click leaves what is drawn alone, so the mouse can read it: drag across a
+rendered paragraph or a table cell and the words highlight, double-click and one
+word does, and `⌘C` copies exactly what is lit. A link in a rendered block opens
+where `gx` sends one, and a `<details>` opens on a click.
+
+To edit one, send the caret into it — `:17` to the line, or `/pattern` — and the
+block shows its source for as long as the caret is in it. `j` and `k` step over a
+rendered block rather than into it, which is why the lines are numbered. `:raw`
+toggles the whole document back to source and out again.
 
 A command the agent wants run can be run in the window. Put the cursor in any
 shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press

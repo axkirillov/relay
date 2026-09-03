@@ -420,24 +420,34 @@ export function isRendering(state: EditorState): boolean {
 /**
  * Which blocks are standing as rendered HTML right now.
  *
- * One thing puts the source back: an edit. A block is only rendered while it
- * still reads exactly as it was sent, because the live diff paints the human's
- * edits and a rendered block would hide them — so everything the human types
- * stays visible as text.
+ * Two things put the source back, and they are the same two as ever. Any edit at
+ * all: a block is only rendered while it still reads exactly as it was sent,
+ * because the live diff paints the human's edits and a rendered block would hide
+ * them. And the caret being inside it, so a block is never rendered while it is
+ * being worked on — that is what keeps this a document rather than a preview.
  *
- * The caret used to put it back too, which made the click that would select the
- * rendered words open raw HTML instead. Nobody asked to edit markup by hand, and
- * `:raw` is there for the rare time they do, so a rendered block now stays
- * rendered wherever the caret goes.
+ * What changed is how the caret can get there. It used to arrive on a click,
+ * which meant the one gesture that would select the rendered words dumped you
+ * into raw markup instead. `Rendered.ignoreEvent()` now keeps the click out of
+ * the editor entirely, so no press inside a box moves the caret and the mouse is
+ * free to read and select.
+ *
+ * The caret still arrives when it is sent — `:17` to the line, or `/pattern` —
+ * because those dispatch a selection rather than walking one. Measured: `j` and
+ * `k` step over a block rather than into it, CodeMirror having no position to
+ * offer inside a replaced range, so an addressed jump is the way in and the
+ * lines are numbered for exactly that.
  */
 function build(state: EditorState, original: string, images: Images): DecorationSet {
   if (!state.field(rendering)) return Decoration.none;
 
+  const sel = state.selection.main;
   const ranges: Range<Decoration>[] = [];
 
   for (const block of blocks(state)) {
     const from = state.doc.lineAt(block.from).from;
     const to = state.doc.lineAt(block.to).to;
+    if (sel.from <= to && sel.to >= from) continue;
     if (!original.includes(state.doc.sliceString(from, to))) continue;
     if (from >= to) continue;
     ranges.push(Decoration.replace({ widget: new Rendered(block.html, images), block: true }).range(from, to));
@@ -457,6 +467,7 @@ export function renderBlocks(original: string, images: Images = {}) {
     update(deco, tr) {
       const stale =
         tr.docChanged ||
+        tr.selection ||
         tr.effects.some((e) => e.is(setRendering)) ||
         syntaxTree(tr.startState) !== syntaxTree(tr.state);
       return stale ? build(tr.state, original, images) : deco;

@@ -76,12 +76,15 @@ Earlier drafts of this spec made agent text read-only and confined the human to
 gone.** It was the wrong model: it decided in advance where a remark was allowed
 to go. Now every character is editable and the diff records what changed.
 
-A rendered block is the one place a character is not editable *where it stands*.
-The caret arriving used to swap it back for its markup, which meant the click
-that would select the rendered words opened raw HTML instead — and nobody asked
-to hand-edit markup. So the block stays rendered, its text can be selected and
-copied like any other text on a page, and `:raw` is the way to the source. Every
-character is still editable; those ones take a command first.
+A rendered block is the one place a character is not editable *under the mouse*.
+The caret arriving still swaps it back for its markup — that rule is what keeps
+this a document rather than a preview — but the caret no longer arrives on a
+click, which is what made the one gesture that would select the rendered words
+open raw HTML instead. The mouse reads and selects; an addressed jump — `:17` to
+the line, or `/pattern` — sends the caret in to write. `j` and `k` step over a
+block rather than into it, CodeMirror having no position to offer inside a
+replaced range, which is one more reason the lines are numbered. Every character
+is still editable; those ones have to be asked for by name.
 
 ## Running a command
 
