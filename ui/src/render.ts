@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
-import { type EditorState, type Range, StateEffect, StateField } from "@codemirror/state";
+import { EditorState, type Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 
 type SyntaxNode = {
@@ -295,6 +295,25 @@ export function isRendering(state: EditorState): boolean {
   return state.field(rendering);
 }
 
+export function stepInto(state: EditorState, was: number, now: number): number | null {
+  if (!state.field(rendering)) return null;
+
+  const doc = state.doc;
+  const lineOf = (pos: number) => doc.lineAt(Math.min(Math.max(pos, 0), doc.length)).number;
+  const from = lineOf(was);
+  const to = lineOf(now);
+
+  for (const block of blocks(state)) {
+    if (block.kind !== "table") continue;
+    const top = doc.lineAt(block.from).number;
+    const bottom = doc.lineAt(block.to).number;
+    if (from === top - 1 && to > bottom) return doc.line(top).from;
+    if (from === bottom + 1 && to < top) return doc.line(bottom).from;
+  }
+
+  return null;
+}
+
 function build(state: EditorState, original: string, images: Images): DecorationSet {
   if (!state.field(rendering)) return Decoration.none;
 
@@ -327,5 +346,14 @@ export function renderBlocks(original: string, images: Images = {}) {
     provide: (f) => EditorView.decorations.from(f),
   });
 
-  return [rendering, field];
+  const walkIn = EditorState.transactionFilter.of((tr) => {
+    if (tr.docChanged || !tr.selection) return tr;
+    const was = tr.startState.selection.main;
+    const now = tr.newSelection.main;
+    if (!was.empty || !now.empty) return tr;
+    const target = stepInto(tr.startState, was.head, now.head);
+    return target === null ? tr : [tr, { selection: { anchor: target } }];
+  });
+
+  return [rendering, field, walkIn];
 }

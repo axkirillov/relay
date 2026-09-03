@@ -80,11 +80,16 @@ A rendered block is the one place a character is not editable *under the mouse*.
 The caret arriving still swaps it back for its markup — that rule is what keeps
 this a document rather than a preview — but the caret no longer arrives on a
 click, which is what made the one gesture that would select the rendered words
-open raw HTML instead. The mouse reads and selects; an addressed jump — `:17` to
-the line, or `/pattern` — sends the caret in to write. `j` and `k` step over a
-block rather than into it, CodeMirror having no position to offer inside a
-replaced range, which is one more reason the lines are numbered. Every character
-is still editable; those ones have to be asked for by name.
+open raw HTML instead. The mouse reads and selects; the caret is sent, and what
+sends it depends on what the block is. `j` and `k` step into a table, whose
+source is the table as text — one line per row, a cell being somewhere a human
+might well want to answer. They step over an HTML block or an image, whose source
+is markup nobody asked to hand-edit. CodeMirror offers no position inside a
+replaced range, so stepping in is a filter catching the move that jumped the
+block and putting the caret on its first line instead; the block un-renders under
+it, and the rest of the walk is ordinary. An addressed jump — `:17` to the line,
+or `/pattern` — gets into all three, which is one more reason the lines are
+numbered. Every character is still editable; some of them have to be asked for.
 
 ## Running a command
 

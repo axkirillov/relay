@@ -1,7 +1,7 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { codeLanguage } from "./languages.ts";
-import { bannedAttr, bannedTag, blocks, escapeHtml, localSrc, tagBalance } from "./render.ts";
+import { bannedAttr, bannedTag, blocks, escapeHtml, localSrc, renderBlocks, stepInto, tagBalance } from "./render.ts";
 
 /**
  * The editor's own markdown, languages and all. It matters that this matches
@@ -186,6 +186,35 @@ check("html: image url is escaped", html(`![c](a.png?q="x)\n`), [
 check("html: an svg is passed through whole", html('<svg viewBox="0 0 4 4"><rect width="4" height="4"/></svg>\n'), [
   '<svg viewBox="0 0 4 4"><rect width="4" height="4"/></svg>',
 ]);
+
+// --- j and k stepping into a block -------------------------------------------
+
+function walked(doc: string, was: number, now: number) {
+  const state = EditorState.create({
+    doc,
+    extensions: [markdown({ base: markdownLanguage, codeLanguages: codeLanguage }), renderBlocks(doc)],
+  });
+  const line = (n: number) => state.doc.line(n).from;
+  const target = stepInto(state, line(was), line(now));
+  return target === null ? null : state.doc.lineAt(target).number;
+}
+
+const table = "above\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\nbelow\n";
+
+check("step: down over a table lands on its first line", walked(table, 2, 6), 3);
+check("step: up over a table lands on its last line", walked(table, 6, 2), 5);
+check("step: a jump that did not skip the table is left alone", walked(table, 1, 2), null);
+check("step: a jump from further off is left alone", walked(table, 1, 7), null);
+check("step: landing inside already is left alone", walked(table, 2, 3), null);
+
+const htmlBlock = "above\n\n<div>\n  <span>x</span>\n</div>\n\nbelow\n";
+
+check("step: an html block is stepped over, not into", walked(htmlBlock, 2, 6), null);
+check("step: and stepped over going up", walked(htmlBlock, 6, 2), null);
+
+const image = "above\n\n![c](a.png)\n\nbelow\n";
+
+check("step: an image is stepped over", walked(image, 2, 4), null);
 
 console.log(fails ? `\n${fails} failing` : "\nall green");
 process.exit(fails ? 1 : 0);
