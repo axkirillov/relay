@@ -13,7 +13,6 @@ function check(name: string, got: unknown, want: unknown) {
   console.log(`FAIL ${name}\n     got  ${g}\n     want ${w}`);
 }
 
-// --- which srcs are ours to serve ---------------------------------------------
 check("refs: a markdown image", imageRefs("![shot](/tmp/a.png)\n"), ["/tmp/a.png"]);
 check("refs: relative", imageRefs("![shot](shots/a.png)\n"), ["shots/a.png"]);
 check("refs: no alt text", imageRefs("![](/tmp/a.png)\n"), ["/tmp/a.png"]);
@@ -45,14 +44,12 @@ check("refs: empty src", imageRefs("![a]()\n"), []);
 check("refs: a link is not an image", imageRefs("[a](/tmp/a.png)\n"), []);
 check("refs: prose", imageRefs("# hi\n\nnothing here\n"), []);
 
-// --- content types -----------------------------------------------------------
 check("type: png", contentType("/tmp/a.png"), "image/png");
 check("type: JPG is jpeg", contentType("/tmp/a.JPG"), "image/jpeg");
 check("type: svg", contentType("/tmp/a.svg"), "image/svg+xml");
 check("type: unknown", contentType("/tmp/a.wat"), "application/octet-stream");
 check("type: no extension", contentType("/tmp/a"), "application/octet-stream");
 
-// --- the allow-list ----------------------------------------------------------
 const dir = mkdtempSync(join(tmpdir(), "relay-images-"));
 const doc = join(dir, "note.md");
 mkdirSync(join(dir, "shots"));

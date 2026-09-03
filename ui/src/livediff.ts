@@ -18,11 +18,9 @@ const addedMark = Decoration.mark({ class: "cm-relay-add" });
 const addedLine = Decoration.line({ class: "cm-relay-add-line" });
 const touchedLine = Decoration.line({ class: "cm-relay-touched" });
 
-/** Below this, two lines are different lines rather than one line edited. */
 const refineThreshold = 0.5;
 const maxGhostLines = 30;
 
-/** Words the human took out, kept where they were, inside an edited line. */
 class Ghost extends WidgetType {
   constructor(readonly text: string) {
     super();
@@ -41,7 +39,6 @@ class Ghost extends WidgetType {
   }
 }
 
-/** Whole lines the human deleted, standing in the gap they left behind. */
 class GhostLines extends WidgetType {
   constructor(readonly lines: string[]) {
     super();
@@ -71,16 +68,6 @@ class GhostLines extends WidgetType {
   }
 }
 
-/**
- * Paints the buffer against what the agent sent, on every keystroke.
- *
- * Lines first, words second — the same order git works in. Diffing words across
- * the whole document reads badly: delete one line and the words either side get
- * paired up with words that happen to match, so a clean deletion comes back as
- * a scatter of additions and removals. So the shape of the change is decided at
- * line level, and words are only diffed inside a line that was edited rather
- * than replaced.
- */
 export function liveDiff(original: string, onStats: (s: Stats) => void) {
   const field = StateField.define<Result>({
     create: (state) => build(state.doc, original),
@@ -149,7 +136,6 @@ function ghost(lines: string[], pos: number, doc: Text): Range<Decoration> {
   return Decoration.widget({ widget: new GhostLines(lines), block: true, side }).range(pos);
 }
 
-/** Every line here is the human's; light the whole line up, not just the words. */
 function wholeLines(
   doc: Text,
   lines: string[],
@@ -165,7 +151,6 @@ function wholeLines(
   return pos;
 }
 
-/** Same number of lines, and each pair recognisably the same line, edited. */
 function pairable(gone: string[], arrived: string[]): boolean {
   if (gone.length !== arrived.length) return false;
   return gone.every((g, i) => similarity(g, arrived[i]!) >= refineThreshold);
@@ -212,7 +197,6 @@ function similarity(a: string, b: string): number {
   return same / Math.max(a.length, b.length, 1);
 }
 
-/** diffLines hands back a run of lines with their newlines; take them apart. */
 function splitLines(value: string): string[] {
   const lines = value.split("\n");
   if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();

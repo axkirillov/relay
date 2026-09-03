@@ -1,24 +1,5 @@
 import { basename } from "node:path";
 
-/**
- * The page, and whether it is going into composer's frame.
- *
- * `framed` takes this page's own header off it. Inside composer that strip's room is
- * already reserved — 38px of bare window ground for the traffic lights, where the band
- * used to be — and everything this header said is either said better by the window or
- * not worth a strip of its own: the document's *file name* is the agent's scratchpad
- * spelling of it, and `the agent is waiting` is what a document standing on the screen
- * already means. What the task is about is a card, and the human raises it with ⌘P.
- * Run on its own, with the URL opened by hand, nothing about relay changes.
- *
- * `readOnly` is a round being read rather than answered — `relay --read`, which is what
- * composer's ⌘R runs. It goes onto the body as a data attribute rather than into a
- * variable the page could read off a script tag: the CSP here is `script-src 'self'`,
- * so the only script that runs is the bundle, and an inline one carrying a flag would
- * be refused. The footer is the visible half of it — there is nothing to accept, so the
- * keys that accept are not offered — and the editor reads the same attribute for the
- * other half.
- */
 export function page(source: string, framed = false, readOnly = false): string {
   return `<!doctype html>
 <html lang="en">
@@ -56,8 +37,6 @@ export function page(source: string, framed = false, readOnly = false): string {
     overflow: hidden;
   }
 
-  /* The traffic lights sit at the far left of this bar, so the title starts
-     clear of them rather than underneath. */
   header {
     -webkit-app-region: drag;
     flex: 0 0 auto;
@@ -73,9 +52,6 @@ export function page(source: string, framed = false, readOnly = false): string {
   }
   header .name { color: var(--fg); font-weight: 600; }
 
-  /* The document and a pane share what is left between the bars, and the pane is
-     the one with a height of its own — the document takes the rest. Only one
-     pane is ever up: the shell the human opened, or the nvim a gf opened. */
   #split { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   #editor { flex: 1 1 auto; min-height: 0; position: relative; }
   .cm-editor { height: 100%; }
@@ -89,11 +65,8 @@ export function page(source: string, framed = false, readOnly = false): string {
     background: var(--bg);
     border-top: 1px solid var(--line);
   }
-  /* Reading code needs the room a shell does not, and the document below it is
-     still the point — enough of it stays visible to be visibly waiting. */
   #edit { height: 72%; min-height: 200px; }
   #term[data-hidden], #edit[data-hidden] { display: none; }
-  /* Four pixels of nothing that the pane can be dragged by. */
   #term-grip, #edit-grip {
     flex: 0 0 auto;
     height: 5px;
@@ -125,10 +98,8 @@ export function page(source: string, framed = false, readOnly = false): string {
   }
   #term-bar button:hover, #edit-bar button:hover { color: var(--fg); }
   #term-view, #edit-view { flex: 1 1 auto; min-height: 0; padding: 0 1rem .35rem; }
-  /* xterm sizes itself to what it is given, so what it is given must be exact. */
   #term-view .xterm, #edit-view .xterm { height: 100%; }
 
-  /* Wraps rather than clips: the hints run out of room in a narrow window. */
   footer {
     flex: 0 0 auto;
     display: flex;
@@ -160,8 +131,6 @@ export function page(source: string, framed = false, readOnly = false): string {
   #mode.visual { color: #ff9e64; }
   #stats .add { color: var(--add); }
   #stats .del { color: var(--del); }
-  /* The footer's own colour rather than the accent: what is in line is a
-     standing fact about the screen, not something that just happened. */
   #queue { color: var(--fg); }
   #note { color: var(--accent); }
   #accept {
@@ -175,7 +144,6 @@ export function page(source: string, framed = false, readOnly = false): string {
     cursor: pointer;
   }
 
-  /* Acceptance is a full-screen event, not a line of grey text in a corner. */
   #overlay {
     position: fixed;
     inset: 0;
@@ -242,12 +210,6 @@ export function page(source: string, framed = false, readOnly = false): string {
     <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>:raw</kbd> render on/off</span>
     ${
-      // A read has nothing to accept, so the two keys that accept and the button are
-      // not there to be pressed — the one thing the human wants of it is the way out,
-      // and it is the same one composer gives them everywhere else. What stays is
-      // everything that only reads: the count of what they changed that day, the
-      // terminal, a command they can run again, and the two gestures that leave the
-      // document for a file or a link.
       readOnly
         ? `<span><kbd>esc</kbd> or <kbd>:q</kbd> close</span>`
         : `<span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>

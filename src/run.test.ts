@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 import { spillPath } from "./spill.ts";
 
-// A plain shell, so nobody's profile can put a banner in the assertions.
 process.env.SHELL = "/bin/sh";
 
 const { defaultScreenLines, maxDocBytes, maxOutputBytes, start, tailLines } = await import("./run.ts");
@@ -28,16 +27,10 @@ const logs = mkdtempSync(join(tmpdir(), "relay-logs-"));
 let runs = 0;
 const nextLog = () => join(logs, `run-${++runs}.log`);
 
-/** Everything a command wrote into the document, once it is over. */
 async function ran(command: string, cwd = process.cwd()): Promise<string> {
   return (await both(command, cwd)).doc;
 }
 
-/**
- * The document's share of a run, and the file's if it needed one. `screen` is
- * the window the output is going into, in lines — left out where the run is
- * about something other than how tall the window is.
- */
 async function both(command: string, cwd = process.cwd(), screen?: number) {
   const log = nextLog();
   let doc = "";
@@ -54,7 +47,6 @@ async function both(command: string, cwd = process.cwd(), screen?: number) {
   return { doc, log, spilled: existsSync(log), file: existsSync(log) ? readFileSync(log, "utf8") : "" };
 }
 
-// --- what comes back ---------------------------------------------------------
 check("stdout is captured", (await ran("echo hello")).trim(), "hello");
 check("stderr is captured too", (await ran("echo boom >&2")).trim(), "boom");
 
@@ -64,19 +56,16 @@ check("stderr is captured too", (await ran("echo boom >&2")).trim(), "boom");
   has("both streams arrive: stderr", out, "err");
 }
 
-// --- how it ended ------------------------------------------------------------
 check("a clean run says nothing extra", await ran("true"), "");
 has("a failure carries its status", await ran("exit 3"), "[exit 3]");
 check("the status is only there on failure", (await ran("echo fine")).includes("[exit"), false);
 
-// --- where it ran ------------------------------------------------------------
 {
   const dir = mkdtempSync(join(tmpdir(), "relay-run-"));
   check("it runs in the relay's cwd", (await ran("pwd", dir)).trim(), realpathSync(dir));
   rmSync(dir, { recursive: true, force: true });
 }
 
-// --- stopping it -------------------------------------------------------------
 {
   let out = "";
   const job = start(
@@ -93,8 +82,6 @@ check("the status is only there on failure", (await ran("echo fine")).includes("
 }
 
 {
-  // The command, not just the shell holding it: a signal to the group is what
-  // makes this true, and a plain kill of `sh -c` would leave the sleep behind.
   const marker = mkdtempSync(join(tmpdir(), "relay-group-"));
   const job = start(`(sleep 30; touch ${marker}/survived) &  wait`, process.cwd(), () => {}, nextLog());
   await new Promise((r) => setTimeout(r, 200));
@@ -105,7 +92,6 @@ check("the status is only there on failure", (await ran("echo fine")).includes("
   rmSync(marker, { recursive: true, force: true });
 }
 
-// --- output too long for the document ----------------------------------------
 {
   const { doc, spilled } = await both("seq 1 20");
   check("a short run leaves no file behind", spilled, false);
@@ -130,9 +116,6 @@ check("the status is only there on failure", (await ran("echo fine")).includes("
   check("the document itself stays small", doc.length < maxDocBytes, true);
 }
 
-// --- the window is what "too long" means -------------------------------------
-// Not a flat hundred lines: the length past which output stops fitting on the
-// screen it landed on is the height of that screen.
 {
   const { doc, spilled } = await both("seq 1 200", process.cwd(), 40);
   check("output taller than the window goes to a file", spilled, true);
@@ -143,8 +126,6 @@ check("the status is only there on failure", (await ran("echo fine")).includes("
 }
 
 {
-  // The same output either side of the line, and nothing but the window's height
-  // between the two answers.
   check("one line over the window is already too long", (await both("seq 1 41", process.cwd(), 40)).spilled, true);
   const { doc, spilled } = await both("seq 1 60", process.cwd(), 80);
   check("and sixty lines in an eighty-line window stay put", spilled, false);
@@ -152,15 +133,11 @@ check("the status is only there on failure", (await ran("echo fine")).includes("
 }
 
 {
-  // A hundred-line output on a hundred-line window is the boundary itself: the
-  // window holds it, so nothing goes anywhere.
   const { spilled } = await both("seq 1 100", process.cwd(), 100);
   check("an output exactly a windowful long is not too long", spilled, false);
 }
 
 {
-  // A window so short that head and tail would hold the whole output anyway —
-  // the file would be a second copy of what the document already has.
   const { spilled } = await both("seq 1 22", process.cwd(), 2);
   check("a window too short to gain anything spills nothing", spilled, false);
 }
@@ -168,15 +145,12 @@ check("the status is only there on failure", (await ran("echo fine")).includes("
 has("a spilled run still carries its exit status", (await both("seq 1 5000; exit 3")).doc, "[exit 3]");
 
 {
-  // Lines are not the only way to be too long: one line of minified javascript
-  // would never reach a hundred of anything.
   const { doc, spilled } = await both("head -c 200000 /dev/zero | tr '\\0' x");
   check("one enormous line spills too", spilled, true);
   has("and what is shown of it is cut", doc, "line cut here");
   check("so the document stays small either way", doc.length < maxDocBytes * 2, true);
 }
 
-// --- output that would never end ---------------------------------------------
 {
   const { doc, file, spilled } = await both("yes relay");
   has("runaway output is capped", doc, "output passed");
@@ -185,14 +159,8 @@ has("a spilled run still carries its exit status", (await both("seq 1 5000; exit
   check("and the disk is not flooded either", file.length < maxOutputBytes * 2, true);
 }
 
-// --- a command that asks a question -----------------------------------------
-// stdin is closed rather than left hanging on a prompt nobody can see.
 check("reading stdin gets end-of-file", (await ran("cat")).trim(), "");
 
-// --- let go of, still running ------------------------------------------------
-// The human accepted rather than waiting. Nothing here reads the command again,
-// and nothing stops it: it writes on into the file, which is where the document
-// has just told the agent to look.
 {
   const log = nextLog();
   let doc = "";
@@ -219,14 +187,6 @@ check("reading stdin gets end-of-file", (await ran("cat")).trim(), "");
   check("with nothing more going into the document", doc, sent);
 }
 
-// --- where a read's output goes ----------------------------------------------
-// Anywhere but the round it came from. `run-1.log` in a round's directory is a file
-// the document being read points at, and the numbering starts at 1 in every process:
-// a read given that directory would open it `"w"` on the human's first ⌃↵, or discard
-// it when the output turned out short. So a read gets one of its own — one per
-// process, made when a run first asks for one, and gone when the process is.
-//
-// In a child process, because that is the only place the end of one can be watched.
 {
   const script = join(logs, "read.mjs");
   writeFileSync(
@@ -236,7 +196,6 @@ import { scratchDir } from ${JSON.stringify(fileURLToPath(new URL("./run.ts", im
 
 const dir = scratchDir();
 process.stdout.write(JSON.stringify([dir, dir === scratchDir(), existsSync(dir)]) + "\\n");
-// A read has nothing to do but stay up until composer kills it.
 if (process.argv[2] === "stay") setInterval(() => {}, 1000);
 `,
   );
@@ -248,8 +207,6 @@ if (process.argv[2] === "stay") setInterval(() => {}, 1000);
   check("and it is nowhere near a round", dir.startsWith(tmpdir()), true);
   check("a read that has ended leaves none of it behind", existsSync(dir), false);
 
-  // The way a read really ends: composer's SIGTERM, which node would otherwise take
-  // without running anything registered on `exit`.
   const child = spawn(process.execPath, [script, "stay"], { stdio: ["ignore", "pipe", "inherit"] });
   const [staying] = said(
     await new Promise<string>((resolve) => {

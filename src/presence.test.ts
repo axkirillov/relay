@@ -3,8 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const dir = mkdtempSync(join(tmpdir(), "relay-window-"));
-// Everything follows the queue dir, so pointing that at a temp directory puts
-// this whole relay — the window included — somewhere private.
 process.env.RELAY_QUEUE_DIR = join(dir, "queue");
 
 const { holdScreen, screenHeld, noteClosed, lastClose } = await import("./presence.ts");
@@ -20,9 +18,8 @@ function check(name: string, got: unknown, want: unknown) {
 }
 
 const file = windowFile();
-const dead = 999_999; // no such process
+const dead = 999_999;
 
-/** A window that says it is here, without being here. */
 function claim(pid: number, ageMs = 0) {
   writeFileSync(file, JSON.stringify({ pid, since: Date.now() }) + "\n");
   if (ageMs) {
@@ -34,7 +31,6 @@ function claim(pid: number, ageMs = 0) {
 check("nothing there: no window", screenHeld(), false);
 check("nothing there: beside the queue, not in it", file, join(dir, "window.json"));
 
-// --- a window of our own -----------------------------------------------------
 {
   const release = holdScreen();
   check("held: a window is up", screenHeld(), true);
@@ -47,21 +43,12 @@ check("nothing there: beside the queue, not in it", file, join(dir, "window.json
   check("released twice: still nothing", screenHeld(), false);
 }
 
-// --- a window that is not there ----------------------------------------------
 {
   claim(dead);
   check("dead pid: no window", screenHeld(), false);
 }
 
 {
-  // Alive, but nothing has touched the file: a PID recycled onto something that
-  // is not the window. A relay must not wait on it, and must not take its going
-  // for the human closing anything — but not yet, because this process started
-  // moments ago and has not been awake long enough to call anything stale. For
-  // its first ten seconds it believes the file, and `attend` keeps ticking, so a
-  // relay starting just after a window died puts one up ten seconds late rather
-  // than not at all. The rule itself, and the moment it starts biting, are in
-  // `live.test.ts`, where the clock can be handed in instead of waited out.
   claim(process.ppid, 60_000);
   check("still waking: a stale window is believed", screenHeld(), true);
 }
@@ -73,7 +60,6 @@ check("nothing there: beside the queue, not in it", file, join(dir, "window.json
   check("no pid: no window", screenHeld(), false);
 }
 
-// --- the close the window leaves behind --------------------------------------
 {
   check("never closed: nothing to be dismissed by", lastClose().at, 0);
   check("never closed: nothing was on screen", lastClose().url, undefined);
@@ -81,15 +67,10 @@ check("nothing there: beside the queue, not in it", file, join(dir, "window.json
   const before = Date.now();
   noteClosed("http://127.0.0.1:5001/");
   const close = lastClose();
-  // What a relay compares against its own arrival: a close later than it
-  // started is a close on it, and an older one cannot touch it.
   check("closed: after a relay that started before it", close.at >= before, true);
   check("closed: and not after one starting now", close.at <= Date.now(), true);
-  // What a relay compares against its own url, to know whether it was the
-  // document being read or one still in line.
   check("closed: said what was on screen", close.url, "http://127.0.0.1:5001/");
 
-  // Nothing on screen — the window went before it had anything to show.
   noteClosed(null);
   check("closed on nothing: still a close", lastClose().at > 0, true);
   check("closed on nothing: nobody was being read", lastClose().url, undefined);

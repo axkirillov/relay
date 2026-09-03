@@ -1,23 +1,6 @@
 import type { EditorView } from "@codemirror/view";
 import { diffLines } from "diff";
 
-/**
- * Which original lines belong to a stretch of the current document.
- *
- * Restoring is not just "look up the same line number" — every insertion or
- * deletion above shifts the correspondence, and a line the human deleted has no
- * current line to select at all. So the walk carries both cursors.
- *
- * Two rules do the work. Lines the human deleted count as inside the selection
- * when the gap they left sits within the selected lines or against either edge,
- * which is what makes putting the cursor beside the gap bring them back. And
- * lines they replaced are paired off with their replacements one for one, so
- * restoring the second line of an edited paragraph asks for the second line of
- * the original — not for the whole paragraph.
- *
- * Returns a half-open range of original line indices, or null if the selection
- * corresponds to nothing.
- */
 export function originalSpan(
   original: string,
   current: string,
@@ -34,7 +17,6 @@ export function originalSpan(
     if (from === null) from = a;
     to = Math.max(to, b);
   };
-  /** Lines origIdx… stood at current boundary `at` and are gone from the doc. */
   const gap = (at: number, lo: number, hi: number) => {
     if (at >= curFrom && at <= curTo + 1) take(lo, hi);
   };
@@ -51,8 +33,6 @@ export function originalSpan(
         continue;
       }
 
-      // A replacement, not a gap: pair the lines off positionally, then treat
-      // whatever is left over on either side as a gap or an insertion.
       const arrived = countLines(next.value);
       const paired = Math.min(n, arrived);
       for (let k = 0; k < paired; k++) {
@@ -84,10 +64,6 @@ export function originalSpan(
   return from === null ? null : { from, to };
 }
 
-/**
- * Put the document as it was sent back over a stretch of lines. Says whether
- * anything changed; the live diff in the footer says how much.
- */
 export function restore(
   view: EditorView,
   original: string,
@@ -96,9 +72,6 @@ export function restore(
 ): boolean {
   const { state } = view;
 
-  // CodeMirror counts a document's closing newline as one more, empty, line;
-  // the diff walk counts it as a terminator. Stay off that line so the two
-  // agree — and so restoring to the end of the document keeps the newline.
   let last = state.doc.lines - 1;
   if (last > 0 && state.doc.line(last + 1).length === 0) last -= 1;
 
@@ -114,8 +87,6 @@ export function restore(
   let to = state.doc.line(curTo + 1).to;
   let insert = text;
 
-  // Nothing stood here in what was sent: take the lines out rather than leave
-  // blank ones behind.
   if (span.from === span.to) {
     if (to < state.doc.length) to += 1;
     else if (from > 0) from -= 1;

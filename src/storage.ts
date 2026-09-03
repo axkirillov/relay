@@ -6,26 +6,10 @@ export type Store = {
   id: string;
   dir: string;
   finish(accepted: string, patch: string): void;
-  /**
-   * What the human has typed so far, kept because the document is about to leave
-   * the screen and the page it lives in is about to be destroyed. Served back as
-   * the prefill when the document returns.
-   */
   draft(text: string): void;
-  /**
-   * The window went without a reply. `shown` is whether the human ever had this
-   * document in front of them — a relay dismissed while it was still in line was
-   * never declined, and a record that says otherwise has them turning down
-   * something they never saw.
-   */
   abandon(shown: boolean): void;
 };
 
-/**
- * Every relay leaves a durable record. It matters more than it looks: the agent
- * only gets a diff back, so the document it was diffed against has to survive
- * somewhere it can be re-read.
- */
 export function open(source: string, sent: string): Store {
   const { id, dir } = claim(`${stamp()}-${slug(source)}`);
   writeFileSync(join(dir, "sent.md"), sent);
@@ -61,21 +45,6 @@ export function open(source: string, sent: string): Store {
   };
 }
 
-/**
- * A directory this round alone owns. The stamp is only good to the second, and
- * two relays on the same document really can start inside one — an agent that
- * relays twice in a row, or two of them at once. Sharing a directory is not a
- * cosmetic clash: the second round would overwrite the first's `sent.md`, which
- * is the one copy of what the first agent was diffed against.
- *
- * `mkdir` without `recursive` is the whole mechanism: it refuses a directory
- * that already exists, and it refuses atomically, so of two processes asking for
- * one name exactly one is told yes. The loser tries the next name. Names stay
- * readable — the collision costs a `-2`, not a random suffix on every round.
- *
- * Exported because it is the rule, and a test that went through `open()` could
- * only watch for the collision to happen rather than ask for one.
- */
 export function claim(base: string): { id: string; dir: string } {
   const home = relayHome();
   mkdirSync(home, { recursive: true });

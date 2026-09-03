@@ -16,7 +16,6 @@ function check(name: string, got: unknown, want: unknown) {
   console.log(`FAIL ${name}\n     got  ${g}\n     want ${w}`);
 }
 
-/** What the gate hook writes when it sees a relay being launched. */
 function latch(session: string, doc: string, ageMs = 0): string {
   const file = join(dir, `open-${session}`);
   writeFileSync(file, doc + "\n");
@@ -43,7 +42,6 @@ function log(): Record<string, unknown>[] {
   }
 }
 
-// --- the latch this relay was launched under ---------------------------------
 {
   const mine = latch("s1", "/tmp/a.md");
   session("s1");
@@ -59,11 +57,7 @@ function log(): Record<string, unknown>[] {
   check("answered: logged with the document", last?.doc, "/tmp/a.md");
 }
 
-// --- a latch that is no longer the one we started under ----------------------
 {
-  // The round we latched for ended; the next one latched again before this
-  // release ran. Taking that one down would let the agent work ahead of a live
-  // window — the whole failure this gate exists to prevent.
   latch("s2", "/tmp/b.md");
   session("s2");
   const release = unlatchOnExit();
@@ -78,13 +72,12 @@ function log(): Record<string, unknown>[] {
   session("s3");
   const release = unlatchOnExit();
 
-  const again = latch("s3", "/tmp/d.md", -5000); // same document, latched later
+  const again = latch("s3", "/tmp/d.md", -5000);
   release();
   check("relatched, same document: left alone", existsSync(again), true);
   rmSync(again);
 }
 
-// --- other sessions ----------------------------------------------------------
 {
   const theirs = latch("s4-other", "/tmp/e.md");
   latch("s4", "/tmp/f.md");
@@ -94,9 +87,7 @@ function log(): Record<string, unknown>[] {
   rmSync(theirs);
 }
 
-// --- nothing to release ------------------------------------------------------
 {
-  // Run out of a worktree or by hand: no session, so nothing ever latched.
   const untouched = latch("s5", "/tmp/g.md");
   session(undefined);
   unlatchOnExit()();
@@ -107,12 +98,11 @@ function log(): Record<string, unknown>[] {
 {
   session("s6");
   const before = log().length;
-  unlatchOnExit()(); // no latch file at all
+  unlatchOnExit()();
   check("no latch: nothing created", existsSync(join(dir, "open-s6")), false);
   check("no latch: nothing logged", log().length, before);
 }
 
-// --- releasing twice ---------------------------------------------------------
 {
   latch("s7", "/tmp/h.md");
   session("s7");

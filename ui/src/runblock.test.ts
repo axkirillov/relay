@@ -13,11 +13,6 @@ function check(name: string, got: unknown, want: unknown) {
   console.log(`FAIL ${name}\n     got  ${g}\n     want ${w}`);
 }
 
-/**
- * The editor's own markdown, languages and all — as `main.ts` builds it. A shell
- * fence is exactly the case where nesting bites: the language's tree is mounted
- * over the `CodeText` node these functions read the command out of.
- */
 function stateOf(doc: string) {
   return EditorState.create({
     doc,
@@ -25,14 +20,12 @@ function stateOf(doc: string) {
   });
 }
 
-/** `|` is the cursor. What would run with it there, or null if nothing would. */
 function withCursor(marked: string): string | null {
   const pos = marked.indexOf("|");
   const state = stateOf(marked.replace("|", ""));
   return shellBlockAt(state, pos)?.command ?? null;
 }
 
-/** The document after a run has been set up, with `→` where output will land. */
 function planned(marked: string): string {
   const pos = marked.indexOf("|");
   const doc = marked.replace("|", "");
@@ -43,7 +36,6 @@ function planned(marked: string): string {
   return `${after.slice(0, plan.at)}→${after.slice(plan.at)}`;
 }
 
-// --- which fences are commands -----------------------------------------------
 check("sh runs", isShellLang("sh"), true);
 check("bash runs", isShellLang("bash"), true);
 check("zsh runs", isShellLang("zsh"), true);
@@ -55,13 +47,11 @@ check("js does not run", isShellLang("js"), false);
 check("python does not run", isShellLang("python"), false);
 check("a fence with no language does not run", isShellLang(""), false);
 
-// --- the prompt is not part of the command -----------------------------------
 check("a $ prompt comes off", commandOf("$ pnpm test"), "pnpm test");
 check("a % prompt comes off", commandOf("% pnpm test"), "pnpm test");
 check("every line of a session", commandOf("$ cd ui\n$ pnpm test"), "cd ui\npnpm test");
 check("a variable is not a prompt", commandOf("$HOME/bin/thing"), "$HOME/bin/thing");
 check("a prompt behind indentation still comes off", commandOf("  $ echo hi"), "echo hi");
-// A shell script means its indentation; only the ends of the block are trimmed.
 check(
   "indentation inside a script survives",
   commandOf("for f in *; do\n  echo $f\ndone"),
@@ -69,7 +59,6 @@ check(
 );
 check("nothing to strip, nothing changed", commandOf("git status"), "git status");
 
-// --- finding the block the cursor is in --------------------------------------
 check("cursor in the command", withCursor("a\n\n```sh\npnpm |test\n```\n"), "pnpm test");
 check("cursor on the opening fence", withCursor("a\n\n``|`sh\npnpm test\n```\n"), "pnpm test");
 check("cursor on the closing fence", withCursor("a\n\n```sh\npnpm test\n``|`\n"), "pnpm test");
@@ -86,7 +75,6 @@ check(
   "second",
 );
 
-// --- where the output goes ---------------------------------------------------
 check(
   "output lands under the command",
   planned("```sh\npnpm |test\n```\n"),

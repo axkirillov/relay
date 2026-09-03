@@ -15,7 +15,6 @@ function check(name: string, got: unknown, want: unknown) {
   console.log(`FAIL ${name}\n     got  ${g}\n     want ${w}`);
 }
 
-/** The editor's own markdown, so what these tests read is what a window shows. */
 function state(doc: string) {
   return EditorState.create({
     doc,
@@ -23,15 +22,6 @@ function state(doc: string) {
   });
 }
 
-/**
- * What each role is called here, and one tag that lands in its rule.
- *
- * The classes a HighlightStyle generates are opaque — `ͼ4` and such — so the names
- * come back from the style itself: whatever class it gives `t.keyword` is what a
- * keyword looks like, and the assertions below are written against the real rules
- * in theme.ts rather than a second copy of them. Several tags share a rule, and so
- * share a name; that is the point, since a rule is what a reader sees.
- */
 const roles: Array<[string, Tag]> = [
   ["keyword", t.keyword],
   ["string", t.string],
@@ -56,7 +46,6 @@ for (const [role, tag] of roles) {
   if (cls && !named.has(cls)) named.set(cls, role);
 }
 
-/** Every styled stretch of a document, as [text, role]. */
 function tokens(doc: string): Array<[string, string]> {
   const out: Array<[string, string]> = [];
   highlightTree(syntaxTree(state(doc)), highlightStyle, (from, to, cls) => {
@@ -65,7 +54,6 @@ function tokens(doc: string): Array<[string, string]> {
   return out;
 }
 
-/** Just the roles a fence's body is painted in, the fence marks left out. */
 function inside(doc: string): string[] {
   const seen = new Set<string>();
   for (const [text, role] of tokens(doc)) {
@@ -75,7 +63,6 @@ function inside(doc: string): string[] {
   return [...seen].sort();
 }
 
-// --- which info strings name a language --------------------------------------
 check("names: ts", codeLanguage("ts") !== null, true);
 check("names: case is not part of it", codeLanguage("TS") !== null, true);
 check("names: padding is not part of it", codeLanguage("  bash  ") !== null, true);
@@ -84,22 +71,17 @@ check("names: built once and kept", codeLanguage("python") === codeLanguage("pyt
 check("names: tsx is not ts", codeLanguage("tsx") === codeLanguage("ts"), false);
 check("names: a language we do not have", codeLanguage("fortran"), null);
 check("names: nothing at all", codeLanguage(""), null);
-// Every name in the table resolves — a typo in an alias is otherwise silent.
 check("names: all of them resolve", fenceNames.filter((n) => !codeLanguage(n)), []);
 
-// --- which language a patched file is written in ------------------------------
-// The table is spelled in extensions, so a path needs no second list.
 check("path: an extension names the language", languageForPath("src/run.ts") === codeLanguage("ts"), true);
 check("path: a directory is not an extension", languageForPath("api/v2/Order.php") === codeLanguage("php"), true);
 check("path: case is not part of it", languageForPath("App/Order.PHP") === codeLanguage("php"), true);
 check("path: two dots, the last one counts", languageForPath("ui/src/take.test.ts") === codeLanguage("ts"), true);
-// A file named for what it is rather than for what it ends in.
 check("path: no extension at all", languageForPath("docker/Dockerfile") === codeLanguage("docker"), true);
 check("path: a dotfile is its own extension", languageForPath(".env") === codeLanguage("env"), true);
 check("path: a language we do not have", languageForPath("README.md"), null);
 check("path: nothing to go on", languageForPath("Makefile"), null);
 
-// --- a fence carries the tokens of its language ------------------------------
 check(
   "ts: every token of a declaration",
   tokens("```ts\nconst n: number = 1; // why\n```\n"),
@@ -138,8 +120,6 @@ check("html: tag and attribute", inside('```html\n<a href="x">hi</a>\n```\n'), [
 check("sql: a keyword", inside("```sql\nselect 1 from t\n```\n").includes("keyword"), true);
 check("rust: a keyword", inside("```rust\nfn main() {}\n```\n").includes("keyword"), true);
 check("go: a keyword", inside("```go\nfunc main() {}\n```\n").includes("keyword"), true);
-// A fragment, with no `<?php` above it — which is what `plain` is for, and what
-// every hunk of a patch is.
 check("php: a fragment is php and not html", inside("```php\npublic function id(): int\n```\n"), [
   "keyword",
   "name",
@@ -148,14 +128,8 @@ check("php: a fragment is php and not html", inside("```php\npublic function id(
 ]);
 check("php: a variable", inside("```php\n$order = null;\n```\n").includes("name"), true);
 
-// The cheap tier: CodeMirror 5 stream modes, which reach the same tags by a
-// different road. Worth a test each, because that road is the one that could rot.
 check("bash: a comment", inside("```bash\n# note\nls -la\n```\n").includes("comment"), true);
 check("bash: sh is the same mode", inside("```sh\n# note\n```\n").includes("comment"), true);
-// A ```diff fence is given a language that emits nothing, so that diffcode.ts can
-// paint the body in the language of the file the patch touches without a diff
-// mode colouring the same characters first. Nothing here, and not the monospace
-// green a fence with no language at all would fall back to, is the whole point.
 check("diff: the body carries no tokens of its own", inside("```diff\n+added\n-gone\n```\n"), []);
 check("diff: patch is the same", inside("```patch\n+added\n```\n"), []);
 check("diff: a blank line does not stall the parser", inside("```diff\n+a\n\n+b\n```\n"), []);
@@ -165,9 +139,6 @@ check("c: a keyword", inside("```c\nif (x) return 1;\n```\n").includes("keyword"
 check("c: a type", inside("```c\nint n = 1;\n```\n").includes("type"), true);
 check("java: a keyword", inside("```java\nclass A {}\n```\n").includes("keyword"), true);
 
-// --- a fence in a language we do not have ------------------------------------
-// It falls back to the monospace tag, which is what every fence used to get, so
-// nothing about such a block changed.
 check("unknown: falls back to plain code", tokens("```fortran\nprint *, 1\n```\n"), [
   ["```", "mark"],
   ["fortran", "lang"],
@@ -180,7 +151,6 @@ check("unknown: a fence with no language at all", tokens("```\nplain\n```\n"), [
   ["```", "mark"],
 ]);
 
-// --- the document around a fence is still a document -------------------------
 check(
   "markdown: a heading beside a fence keeps its own tags",
   tokens("# hi\n\n```ts\nlet a = 1\n```\n").filter(([, role]) => role === "heading" || role === "keyword"),
@@ -189,22 +159,16 @@ check(
     ["let", "keyword"],
   ],
 );
-// The tint is a line decoration now, but a few words mid-sentence still get the
-// tag — and the theme is what keeps the two from stacking.
 check("markdown: inline code is still inline code", tokens("a `x` b"), [
   ["`", "mark"],
   ["x", "code"],
   ["`", "mark"],
 ]);
 
-// --- which lines the tint covers ---------------------------------------------
-// Every line of the block, the ``` marks included, so it reads as one thing.
 const fence = "text\n\n```ts\nlet a = 1\n\nlet b = 2\n```\n\nafter\n";
 check("tint: the whole fence, blank line and all", codeLines(state(fence), 0, fence.length), [3, 4, 5, 6, 7]);
 check("tint: nothing when there is no code", codeLines(state("just prose\n"), 0, 11), []);
-// Indented code was tinted before any of this existed; it still is.
 check("tint: an indented block counts as code", codeLines(state("text\n\n    indented\n"), 0, 22), [3]);
-// Only what is asked for: the plugin passes the viewport, not the document.
 check("tint: clipped to the range asked for", codeLines(state(fence), 0, 20), [3, 4]);
 check(
   "tint: two fences are two blocks",

@@ -19,16 +19,12 @@ function check(name: string, got: unknown, want: unknown) {
 const rounds = () => readdirSync(home).filter((n) => n !== "queue").sort();
 const sent = (dir: string) => readFileSync(join(dir, "sent.md"), "utf8");
 
-// --- the name a round gets when another already has it -----------------------
-// The stamp only counts seconds, and two relays on one document can start inside
-// the same one, so this is asked for directly rather than waited for.
 check("the first asker gets the name it asked for", claim("20260813-194031-review").id, "20260813-194031-review");
 check("the second gets a -2", claim("20260813-194031-review").id, "20260813-194031-review-2");
 check("the third a -3", claim("20260813-194031-review").id, "20260813-194031-review-3");
 check("a name nobody holds is untouched", claim("20260813-194032-reply").id, "20260813-194032-reply");
 check("each name is a directory of its own", rounds().length, 4);
 
-// --- so two rounds are never each other's ------------------------------------
 const first = open("review.md", "one");
 const second = open("review.md", "two");
 check("two relays, two directories", first.dir === second.dir, false);

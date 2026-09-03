@@ -13,33 +13,17 @@ const whereEl = document.getElementById("term-where")!;
 const gripEl = document.getElementById("term-grip")!;
 
 export type Pane = {
-  /** Into the shell, or back to the document; opens the pane if it is shut. */
   swap(): void;
-  /** Open the pane, or put it away. */
   toggle(): void;
-  /** Selection if there is one, the last command and its output otherwise. */
   take(): void;
-  /**
-   * Give the screen up to the other pane, and hand back the way to come back.
-   * The shell keeps running behind it — a `gf` is not worth a command's life.
-   */
   stepAside(): () => void;
   open: boolean;
 };
 
-/** Whether a key belongs to the shell rather than to the document. */
 export function inTerminal(target: EventTarget | null): boolean {
   return target instanceof Node && paneEl.contains(target);
 }
 
-/**
- * A real terminal in the window, on a pty in the relay process.
- *
- * The pane is opt-in and goes away again, because the window is a document
- * first: a terminal that was always up would change what relay is. And it is
- * only worth having if what happens in it can reach the agent, which is what
- * `take` is for — see take.ts.
- */
 export function terminalPane(view: EditorView, note: (text: string) => void): Pane {
   let term: Terminal | null = null;
   let fit: FitAddon | null = null;
@@ -49,9 +33,6 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
 
   const pane: Pane = {
     open: false,
-    // Moving the caret out of the shell is not the same as being done with it —
-    // the document is often read with a command's output still on screen. So one
-    // key crosses between them and another puts the pane away.
     swap() {
       if (!pane.open) return show();
       if (inTerminal(document.activeElement)) view.focus();
@@ -101,19 +82,10 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
 
     shell.onData((data) => {
       if (dead) return restart();
-      // Enter is the human running something: the row the cursor stands on now
-      // is where that command is written, and everything under it until the next
-      // prompt is what it had to say. No shell integration to ask for, and it
-      // holds for whatever shell they use.
       if (data.includes("\r")) ran = commandStart(shell.buffer.active);
       send(data);
     });
 
-    // A selection here is a yank: into vim's unnamed register, which is where
-    // `p` looks, and on to the system clipboard by the patch main.ts puts on the
-    // register controller — the same road a yank in the document takes. Writing
-    // the clipboard directly instead would leave `p` with nothing to paste.
-    // Debounced, because dragging fires this on every cell crossed.
     let settle = 0;
     shell.onSelectionChange(() => {
       const text = shell.getSelection();
@@ -145,16 +117,12 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
     });
     stream.addEventListener("out", (e) => term.write(decode((e as MessageEvent<string>).data)));
     stream.addEventListener("exit", (e) => {
-      // Without this the browser would reconnect on the closed stream and the
-      // server would hand it a brand new shell nobody asked for.
       stream?.close();
       stream = null;
       dead = true;
       const code = (e as MessageEvent<string>).data;
       term.write(`\r\n\x1b[38;5;242m— the shell exited (${code}). What it said is still here to take; any key starts another.\x1b[0m\r\n`);
     });
-    // A stream that never opens — no working node-pty on this machine — is the
-    // one failure the pane has to explain for itself.
     stream.addEventListener("error", () => {
       if (stream?.readyState !== EventSource.CLOSED || dead) return;
       stream = null;
@@ -163,8 +131,6 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
     });
   }
 
-  // One request per burst rather than per keystroke, and never two in flight, so
-  // what the shell reads is in the order it was typed.
   let queued = "";
   let sending = false;
   function send(data: string) {
@@ -179,7 +145,6 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
       try {
         await fetch("/pty/in", { method: "POST", body });
       } catch {
-        // The CLI is gone; the stream closing says so on its own.
       }
     }
     sending = false;
@@ -198,14 +163,9 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
   dragToResize(paneEl, gripEl);
   new ResizeObserver(() => resize()).observe(viewEl);
 
-  // Capture phase on window, the same reasoning as ⌃X in main.ts: once the
-  // terminal has focus every key is the shell's, so the two that are not have to
-  // be taken before xterm sees them.
   window.addEventListener(
     "keydown",
     (e) => {
-      // These two keys are the pane's, and while nvim is up the pane is not this
-      // one. It answers them itself.
       if (editing()) return;
       if (e.ctrlKey && !e.metaKey && !e.altKey && e.code === "Backquote") {
         e.preventDefault();
@@ -228,38 +188,20 @@ export function terminalPane(view: EditorView, note: (text: string) => void): Pa
   return pane;
 }
 
-/**
- * The rows the last command and its output occupy.
- *
- * Read off the terminal's own buffer rather than the byte stream, which is the
- * point: what comes back is what the human can see — wrapping resolved, escapes
- * gone, a TUI's redraws collapsed into the screen it settled on.
- */
 function lastCommand(term: Terminal, ran: Ran | null): string[] {
   const buffer = term.buffer.active;
-  // A full-screen program has no scrollback to walk back through, and its screen
-  // is the whole of what it has to say.
   const alt = buffer.type === "alternate";
   const from = alt ? 0 : (ran?.row ?? buffer.baseY);
-  // The row the cursor is on is the prompt the shell has drawn since, so it is
-  // not part of what ran.
   const to = alt ? term.rows : buffer.baseY + buffer.cursorY;
 
   const lines = rows(buffer, from, Math.max(to, from + 1));
   return alt || !ran ? lines : withoutPrompt(lines, ran.prompt);
 }
 
-/** What the human ran, and the prompt they ran it under. */
 type Ran = { row: number; prompt: string[] };
 
-/**
- * Where the command the cursor is on starts, and what stood above it — a prompt
- * of more than one line is the rest of what stood there, and withoutPrompt needs
- * it to recognise the next one.
- */
 function commandStart(buffer: IBuffer): Ran {
   let row = buffer.baseY + buffer.cursorY;
-  // A command long enough to wrap begins on an earlier row than the cursor's.
   while (row > 0 && buffer.getLine(row)?.isWrapped) row--;
   return { row, prompt: rows(buffer, Math.max(0, row - 3), row) };
 }

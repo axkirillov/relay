@@ -9,12 +9,9 @@ function check(name: string, got: unknown, want: unknown) {
   console.log(`FAIL ${name}\n     got  ${g}\n     want ${w}`);
 }
 
-/** A document holding one diff block, written the way an agent would paste it. */
 const doc = (...body: string[]) => ["Have a look:", "", "```diff", ...body, "```", ""].join("\n");
 
-/** What each line of the block was read as, in order. */
 const kinds = (text: string) => readReview(text).map((l) => l.kind);
-/** Which line of the file each one is, as the count from the `@@` header makes it. */
 const numbers = (text: string) => readReview(text).map((l) => l.number);
 
 const patch = [
@@ -30,7 +27,6 @@ const patch = [
   " }",
 ];
 
-// --- what each line is -------------------------------------------------------
 check("a git patch reads as a strip, a hunk and its body", kinds(doc(...patch)), [
   "file",
   "file",
@@ -75,7 +71,6 @@ check(
   ["hunk", "del", "add", "nonewline"],
 );
 
-// --- the marker column decides -----------------------------------------------
 check(
   "a line starting with none of the markers is the human's",
   kinds(doc("@@ -1,2 +1,2 @@", " kept", "+added", "why no timeout here?", " kept")),
@@ -94,15 +89,12 @@ check(
   [10, 10, null, null, null, 11],
 );
 
-// The trap the design accepts: a comment written as a bullet opens with `-`, so
-// it paints red rather than yellow. Pinned here so it is changed on purpose.
 check(
   "a comment written as a bullet reads as a deletion",
   kinds(doc("@@ -1,1 +1,1 @@", " kept", "- why no timeout here?")),
   ["hunk", "context", "del"],
 );
 
-// --- where a comment is ------------------------------------------------------
 check(
   "a comment is located by the line above it",
   comments(doc(...patch, "why no timeout here?")),
@@ -167,7 +159,6 @@ check(
   ],
 );
 
-// --- which blocks are reviews ------------------------------------------------
 check("prose is not a review", readReview("Just a paragraph.\n\n- a bullet\n"), []);
 
 check(
@@ -190,7 +181,6 @@ check(
   [4, 5],
 );
 
-// --- what the agent is handed ------------------------------------------------
 check(
   "the report locates every comment under the diff",
   commentReport(

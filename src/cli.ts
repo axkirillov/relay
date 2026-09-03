@@ -64,42 +64,17 @@ the window is open costs the human's reply.
   RELAY_DEBUG=1     let the window's own output through to stderr
 `;
 
-// A relay started from inside an Electron process — one that spawned a shell, or
-// a program that spawned this — inherits a variable telling Electron to be node.
-// That was meant for that process and not for anything downstream of it:
-// everything spawned from here, the window among them, must be what it says.
-// Every mode, `--read` included: composer spawns that one from inside Electron, and
-// the window it would start has to be a window.
 delete process.env.ELECTRON_RUN_AS_NODE;
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
 
-// Before anything that can exit. A relay that cannot even read its document has
-// still latched the agent's gate, and stays refused until this has run.
-//
-// Except a read, and that exception is the reason the arguments are parsed above it.
-// The latch is keyed on $CLAUDE_CODE_SESSION_ID, and composer inherits that variable
-// from the agent that started composer — so a `--read` process exiting would lift the
-// gate of an agent that is still waiting for an answer, in a round it has nothing to
-// do with. A read latches nothing, and so unlatches nothing.
 if (args[0] !== "--read") unlatchOnExit();
 
-// Where this task's answer goes — what the session is about, and only that. composer
-// owns the path and draws the card; relay writes nothing out of the file and only says
-// on stderr whether the agent has kept it current.
 if (args.length === 1 && args[0] === "--about") {
   process.stdout.write(about.open(tasks.taskOf(process.cwd())) + "\n");
   process.exit(0);
 }
 
-// Which session's documents go first. The human's own gesture, run from inside
-// the worktree it is about — so what it marks is the directory this was run in,
-// the same thing `--about` is about, and no id has to be typed or looked up.
-//
-// A state rather than a toggle: they say which way they want it, so saying it
-// twice is not a way back to where they started. And the whole of the state is
-// printed either way, because a mark left on from yesterday reorders everything
-// and would otherwise be invisible from the session it is not on.
 if (args.length <= 2 && args[0] === "--priority") {
   const state = args[1] ?? "on";
   if (state !== "on" && state !== "off") {
@@ -132,64 +107,28 @@ if (args.length <= 2 && args[0] === "--priority") {
   process.exit(0);
 }
 
-// A round that already happened, served to be read. composer's ⌘R lists them and
-// spawns this for the one the human picked, draws what it serves in the document
-// column, and kills it when they close it — so the URL goes to stdout, on the first
-// line, and this process then has nothing left to do but stay up.
-//
-// None of what a relay does is done here. `storage.open` would file a second round on
-// top of the one being read, `queue.enter` would put a document nobody sent in front of
-// the human, and `tasks.note` would count this as a round of the task. A read is none of
-// those things: it is the same document, on screen again, and answering it once was
-// enough.
 if (args.length === 2 && args[0] === "--read") {
   let round: Round;
   try {
     round = readRound(args[1]!);
   } catch (err) {
-    // The line is the error's, because only it knows which of the two happened — no
-    // such round, or a round that kept no document — and composer has a card row to
-    // put it under.
     process.stderr.write(`relay: ${(err as Error).message}\n`);
     process.exit(2);
   }
 
-  // The one thing a read moves. A command in a past document is run *now*, and where
-  // it runs is the tree the round came from: `handleRun` starts it in `process.cwd()`,
-  // and so does the terminal pane, and so does `gf` when it looks for the file. Before
-  // the server comes up, since that is where all three read it.
   if (round.cwd) process.chdir(round.cwd);
 
-  // `doc` is what the agent sent and `prefill` is what the human accepted, which is the
-  // whole of their own lines being lit against it: the page diffs one against the other
-  // exactly as it did while they were typing them. A round they never answered has the
-  // two the same, and lights nothing.
-  // A run's output goes somewhere of this process's own, and not into the round. The
-  // round's directory is what the human accepted that day — `run-1.log` and all, which
-  // is a file the document being read may point at by name — and a read is not another
-  // day's writing on top of it. It also keeps two windows reading the same round out of
-  // each other's output.
   const past = await serve(round.source, round.sent, round.shown, scratchDir, {
-    // composer reserves the strip over the document, as it does for a live one.
     framed: true,
     readOnly: true,
-    // A round whose worktree has since been torn down has nowhere to run anything, and
-    // says so in the block rather than running it somewhere else.
     runnable: !!round.cwd,
     ran: round.ran,
   });
 
-  // The first line of stdout, which is what composer reads.
   process.stdout.write(past.url + "\n");
-  // Nothing here ends on its own: there is no answer to wait for and no window to be
-  // closed. composer's SIGTERM is the end of it.
   await new Promise(() => {});
 }
 
-// `--read` with no round named, or with more than one. The branch above wants exactly
-// two arguments, and without this the rest of them fall through the check below — one
-// argument is what an ordinary relay takes, and `--read` is one argument — as far as
-// `resolve(args[0])`, which asks the machine for a document called `--read`.
 if (args[0] === "--read") {
   process.stderr.write("relay: --read takes one round — the name of a directory in ~/.relay, or the path to one\n");
   process.exit(2);
@@ -210,14 +149,7 @@ try {
   process.exit(2);
 }
 
-// The document goes up as the agent wrote it. What the task is about is composer's
-// card now, and how far along it has got is nobody's, so nothing is stapled to
-// the text the human is editing: `sent` is what is diffed against, what is kept, and
-// what the editor opens with.
 const task = tasks.taskOf(process.cwd());
-// Once ever, and before the first read of the ledger: the rounds that were
-// relayed before relay kept one, filed under the tasks they came from. Without it
-// every task in flight would be counting from its next round.
 tasks.fill();
 const past = tasks.rounds(task);
 const wrote = about.read(task);
@@ -225,48 +157,22 @@ const wrote = about.read(task);
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
 const store = storage.open(path, sent);
-// After the count was taken, so that this round is the one it counted up to:
-// the document on screen is the task's Nth, and the ledger says N once this
-// round is in it.
 tasks.note(task, store.id);
-// Joined before the server comes up, so the line is in the order the relays were
-// run. With no window there is nothing to line up for.
-//
-// The ticket says which session this is, and the line works out from that whether
-// the human has marked it — every time it is read, so a mark made while this
-// document is already waiting moves this document rather than the next one.
 const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path, task);
 
-// The round's own directory holds what a long command wrote, beside the document
-// it was run from.
 const relay = await serve(path, sent, prefill, () => store.dir, {
   onDraft: store.draft,
   behind: () => turn?.behind() ?? 0,
-  // In the line, and the task has an answer written: composer reserves 38px of bare
-  // window ground over this document — the room the traffic lights need, and the whole
-  // of what is left of the band — so the page leaves its own 38px header off. One strip
-  // over the document, not two. Both halves matter. Nothing in the line means nobody is
-  // going to frame this and the URL is being opened by hand; and composer reserves that
-  // room on this same condition, read the same way off the same file, so a task without
-  // an answer keeps the header that holds the lights clear of the first line.
   framed: !!turn && !!wrote,
 });
-// The window reads this off the ticket. Until it is there the window waits,
-// rather than skipping ahead to someone who is already serving.
 turn?.serving(relay.url);
 
 process.stderr.write(`relay: waiting for the human — ${relay.url}\n`);
-// The one line every caller sees, and the one a timed-out caller is handed.
 process.stderr.write(
   "relay: this blocks until they answer — if a command timeout can fire first, run relay in the background\n",
 );
 
-// The one place the agent is already reading when it thinks about this task, and now
-// the only one: the card that would say the same thing is on the human's screen only
-// while they hold it up with ⌘P, and never in what relay hands back.
 const behind = wrote ? about.stale(wrote, past) : 0;
-// How many rounds went up after it was last written, this one not counted: it is
-// going up now, and it is the one being complained about.
 const missed = past.length + 1 - behind;
 const where = about.tilde(about.file(task));
 process.stderr.write(
@@ -277,17 +183,10 @@ process.stderr.write(
       : `relay: the --about for this task is ${where} — keep it current\n`,
 );
 
-// What the agent is waiting behind, and why it might be less than it looks: a
-// marked session is told so, since otherwise the count is the only thing it hears
-// and the count is the part the mark is about to change. As it stands right now —
-// the human can mark this session, or let it go, while this document waits.
 if (priority.marked(task))
   process.stderr.write("relay: this session is priority — this document goes to the front of the line\n");
 if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);
 
-// From here on the window is somebody's job, and it is this relay's for as long
-// as it is at the head of the line. Waiting its turn and watching for the human
-// closing the window are the same watch: a close dismisses everyone in line.
 const screen = turn ? attend(turn, relay.url, !!process.env.RELAY_DEBUG) : null;
 
 const accepted = relay.accepted.then((edited) => ({ edited }));
@@ -295,12 +194,8 @@ const dismissed: Promise<null> = screen ? screen.closed.then(() => null) : new P
 
 let outcome = await Promise.race([accepted, dismissed]);
 
-// The window going and a reply landing can fall within milliseconds of each
-// other; a reply already in flight wins.
 if (outcome === null) outcome = await Promise.race([accepted, wait(300).then(() => null)]);
 
-// Leaving the line is what moves the window on to the next document, so it goes
-// before the diff work rather than after it.
 turn?.leave();
 screen?.stop();
 relay.close();
@@ -321,11 +216,6 @@ if (outcome === null) {
 
   const changed = structuredPatch(name, name, sent, outcome.edited).hunks.length > 0;
   process.stdout.write(changed ? patch : "no changes — the human accepted the document as written\n");
-  // Their comments on a reviewed diff, under it and located. They arrive as
-  // added lines like everything else, so the diff alone cannot say which of the
-  // human's lines are remarks about the patch and which are the patch — this is
-  // the other half of the answer to that. Only when something changed: a comment
-  // is itself a change, so an untouched document has none.
   if (changed) process.stdout.write(commentReport(outcome.edited));
 }
 
@@ -333,7 +223,6 @@ function wait(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Drop the `Index:`/`====` preamble jsdiff prepends; git-style is enough. */
 function clean(patch: string): string {
   return patch.replace(/^(Index:.*\n)?={10,}\n/, "");
 }
