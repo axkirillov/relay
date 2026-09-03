@@ -207,6 +207,51 @@ spawn("node", ["dist/relay.js", doc], {
 - **Read the diff off the relay's stdout.** Ending with a real `⌃X` accept and
   asserting on that diff is the only assertion that tests what the agent gets.
 
+## Send the mouse the same way, and trust it less
+
+Everything above about dropped keys is true of synthetic mouse input too, and a
+drag is the worst of it: across nine runs of one suite the same drag landed six
+times and silently selected nothing three times, and each failure read exactly
+like the feature being broken. Three habits make a mouse check worth reading:
+
+- **Pair every mouse check with a control that must pass.** The same gesture on
+  ordinary, never-editable page text — the footer note is a good target — is what
+  separates "the browser will not do this here" from "the event was dropped". A
+  double click that picks a word in the footer and nothing in the widget is a
+  real finding; one that picks nothing in either is a bad run.
+- **Run it three times and say how many landed.** One run is not evidence either
+  way.
+- **Aim at the thing's own rect, not at the middle of its block.** A `<p>` is as
+  wide as the box and its text is not, so the block's centre is past the end of
+  the line and the click lands after the last character. A check written that way
+  fails for a reason that has nothing to do with the feature. Put a `Range` round
+  the word you mean and take `getBoundingClientRect()` of that.
+- **`clickCount` is what makes a double click.** Send `mouseDown`/`mouseUp` with
+  `clickCount: 1`, a beat, then the pair with `clickCount: 2`. Both clicks fire
+  `click`, then `dblclick` — so a `click` handler that opens something runs twice
+  unless it checks `event.detail`.
+
+## Measuring what the page did, from outside its world
+
+`executeJavaScript` runs in the **isolated** world, so a `window` you patch there
+is not the page's `window` — patching `fetch` to count requests reads back
+`undefined` or zero, and looks like the code never ran. The DOM is shared, so:
+
+- **`document.addEventListener` from the harness sees the page's events**,
+  `defaultPrevented` included — which is how you tell that a page handler took a
+  click without being able to see the handler.
+- **To count what actually left the machine, stand in for the program.** relay's
+  `/open` spawns the machine's opener, so a click on a rendered link opens a real
+  browser tab on the human's screen — six runs of one suite did exactly that
+  before anyone noticed. Put a logging `open` first on the relay's `PATH` with
+  `FAKE_OPEN_LOG` in *the relay's* env (`scripts/open.sh` has the pattern): the
+  tabs stop, and the log is an exact count of what was asked for.
+- **A navigation poisons every check after it.** `will-navigate` fires, the page
+  goes, and every later `querySelector` reads null — so a run reports five
+  unrelated failures for one cause. Assert `location.href` still starts with the
+  relay's url immediately after anything that could navigate, and read that line
+  first when a tail of checks fails together.
+
 ## Send keys the way the editor hears them
 
 - **Printable keys need three events: `keyDown`, `char`, `keyUp`, in that order.**

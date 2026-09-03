@@ -76,6 +76,13 @@ Earlier drafts of this spec made agent text read-only and confined the human to
 gone.** It was the wrong model: it decided in advance where a remark was allowed
 to go. Now every character is editable and the diff records what changed.
 
+A rendered block is the one place a character is not editable *where it stands*.
+The caret arriving used to swap it back for its markup, which meant the click
+that would select the rendered words opened raw HTML instead — and nobody asked
+to hand-edit markup. So the block stays rendered, its text can be selected and
+copied like any other text on a page, and `:raw` is the way to the source. Every
+character is still editable; those ones take a command first.
+
 ## Running a command
 
 An agent that wants the human to run something should not be sending them to a
@@ -198,10 +205,10 @@ left unpainted rather than painted as something else.
 
 **The view is paint, and the text underneath is untouched.** Everything else this
 window renders — tables, HTML, images, folded output — swaps the source for a
-widget and puts it back when the caret arrives, which is exactly why none of them
-can be edited where they stand. A diff must not work that way, because the point
-of showing one is that the human writes into it. So nothing is replaced: the
-lines stay the characters the agent sent and only their colour is added.
+widget, which is exactly why none of them can be edited where they stand. A diff
+must not work that way, because the point of showing one is that the human writes
+into it. So nothing is replaced: the lines stay the characters the agent sent and
+only their colour is added.
 Live-editability is not built, it is what is left by not replacing anything, and
 vim motions, the live diff and `:res` all keep working inside a patch because as
 far as they are concerned nothing happened.

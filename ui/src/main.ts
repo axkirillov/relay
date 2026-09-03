@@ -20,7 +20,7 @@ import { url, urlAt } from "./link";
 import { liveDiff, type Stats } from "./livediff";
 import { foldOutput, opened, refold } from "./outfold";
 import { inPane } from "./pane";
-import { type Images, isRendering, renderBlocks, setRendering } from "./render";
+import { followRendered, type Images, isRendering, renderBlocks, selectWords, setRendering } from "./render";
 import { restore } from "./restore";
 import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
 import { type Pane, terminalPane } from "./terminal";
@@ -340,14 +340,27 @@ async function openLink() {
     ? urlAt(line.text, at.head - line.from)
     : urlAt(state.sliceDoc(at.from, at.to), 0);
   if (!found) return note("no link under the cursor");
+  await open(found);
+}
+
+/**
+ * An address out to whatever the human opens links with.
+ *
+ * Two things ask for this — the cursor on a link and a click on one inside a
+ * rendered block — and the allow-list is checked here rather than at either of
+ * them, so that both are held to the same one.
+ */
+async function open(href: string) {
+  const link = url(href);
+  if (!link) return note(`not a link relay will open — ${href}`);
 
   try {
-    const answer = await fetch("/open", { method: "POST", body: found });
+    const answer = await fetch("/open", { method: "POST", body: link });
     if (!answer.ok) return note(await answer.text());
   } catch {
     return note("relay is not there any more");
   }
-  note(`opened ${found}`);
+  note(`opened ${link}`);
 }
 
 function bindVim(original: string) {
@@ -492,6 +505,8 @@ async function boot() {
         diffReview(),
         theme,
         renderBlocks(original, images),
+        followRendered(open),
+        selectWords(),
         foldOutput(),
         sink,
         liveDiff(original, showStats),

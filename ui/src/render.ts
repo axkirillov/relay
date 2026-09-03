@@ -1,6 +1,6 @@
 import { syntaxTree } from "@codemirror/language";
 import { type EditorState, type Range, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view";
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 
 // Structural, so the tree types need not be a direct dependency: these are the
 // only parts of a syntax node used here.
@@ -312,11 +312,95 @@ class Rendered extends WidgetType {
     }
     return el;
   }
-  // Clicks have to reach the editor: putting the caret in the block is how the
-  // source comes back for editing.
+  // Everything that happens inside the box is the page's, not the editor's.
+  // Returning true is what keeps CodeMirror out of it, and it buys three things
+  // at once: the click never becomes a caret, so the box is not swapped back for
+  // its source; the selection a drag leaves behind is left alone rather than read
+  // back as a selection in the document; and ⌘C is the browser's own copy of
+  // what is highlighted, rather than CodeMirror answering with the line the
+  // caret happens to be on somewhere else entirely. Between them, a drag across
+  // a rendered block highlights the rendered words and copies them.
   ignoreEvent() {
-    return false;
+    return true;
   }
+}
+
+function enclosingBlock(node: EventTarget | null): Element | null {
+  return element(node)?.closest(".cm-relay-render") ?? null;
+}
+
+function closestAnchor(target: EventTarget | null): Element | null {
+  return element(target)?.closest("a") ?? null;
+}
+
+function element(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  return target instanceof Node ? target.parentElement : null;
+}
+
+/**
+ * A link inside a rendered block, clicked.
+ *
+ * Nothing that happens inside a box reaches CodeMirror any more, and nothing
+ * else was stopping a click on an anchor doing what such a click does: the
+ * window left the document for the address, and what came back was a browser
+ * error page with the human's half-written answer nowhere on it. So the click is
+ * caught on the editor's own element, outside CodeMirror's routing — that is the
+ * one place it still passes — and the address goes where `gx` sends one, to
+ * whatever the human opens links with.
+ */
+export function followRendered(open: (href: string) => void) {
+  return ViewPlugin.define((view: EditorView) => {
+    const clicked = (event: MouseEvent) => {
+      const anchor = closestAnchor(event.target);
+      if (!anchor || !enclosingBlock(anchor)) return;
+      event.preventDefault();
+      // Both halves of a double click are clicks. Both have to be stopped, or
+      // the second one takes the window off the document; only the first is
+      // worth an address, or the human gets two of whatever opened it.
+      if (event.detail > 1) return;
+      open(anchor.getAttribute("href") ?? "");
+    };
+    view.dom.addEventListener("click", clicked);
+    return { destroy: () => view.dom.removeEventListener("click", clicked) };
+  });
+}
+
+/**
+ * A word inside a rendered block, double-clicked.
+ *
+ * A box is a `contenteditable="false"` island inside an editor that is
+ * `contenteditable="true"`, and Chrome will not widen a selection to a word in
+ * one: the first click leaves a caret exactly where it was aimed, and the second
+ * does nothing at all. Measured against a control — the same synthetic double
+ * click on ordinary page text picks its word — so it is the island, not the
+ * input. No stylesheet moves it either: `-webkit-user-modify: read-only`,
+ * `user-select: text`, spelling `contenteditable="false"` on the box, even making
+ * the whole editor uneditable, all leave the selection empty.
+ *
+ * What does work is asking for the widening by hand. The caret the first click
+ * left is in the right place, so a word is one step back and one step forward
+ * from it.
+ *
+ * Starting the gesture on a link is the exception. A press on an anchor in such
+ * an island leaves no caret at all — Chrome has taken it for dragging the link,
+ * and `-webkit-user-drag: none` does not give it back — so there is nothing here
+ * to widen, and a drag that begins there selects nothing either. A drag that
+ * begins in the prose runs across the link's words perfectly well, which is the
+ * gesture that matters; the link is a thing to click.
+ */
+export function selectWords() {
+  return ViewPlugin.define((view: EditorView) => {
+    const doubled = (event: MouseEvent) => {
+      if (!enclosingBlock(event.target)) return;
+      const selection = view.dom.ownerDocument.getSelection();
+      if (!selection?.focusNode || !enclosingBlock(selection.focusNode)) return;
+      selection.modify("move", "backward", "word");
+      selection.modify("extend", "forward", "word");
+    };
+    view.dom.addEventListener("dblclick", doubled);
+    return { destroy: () => view.dom.removeEventListener("dblclick", doubled) };
+  });
 }
 
 export const setRendering = StateEffect.define<boolean>();
@@ -336,23 +420,24 @@ export function isRendering(state: EditorState): boolean {
 /**
  * Which blocks are standing as rendered HTML right now.
  *
- * Two things put the source back. The caret being inside a block, so a block is
- * never rendered while it is being worked on — that is what keeps this a
- * document rather than a preview. And any edit at all: a block is only rendered
- * while it still reads exactly as it was sent, because the live diff paints the
- * human's edits and a rendered block would hide them. Between them, everything
- * the human types stays visible as text.
+ * One thing puts the source back: an edit. A block is only rendered while it
+ * still reads exactly as it was sent, because the live diff paints the human's
+ * edits and a rendered block would hide them — so everything the human types
+ * stays visible as text.
+ *
+ * The caret used to put it back too, which made the click that would select the
+ * rendered words open raw HTML instead. Nobody asked to edit markup by hand, and
+ * `:raw` is there for the rare time they do, so a rendered block now stays
+ * rendered wherever the caret goes.
  */
 function build(state: EditorState, original: string, images: Images): DecorationSet {
   if (!state.field(rendering)) return Decoration.none;
 
-  const sel = state.selection.main;
   const ranges: Range<Decoration>[] = [];
 
   for (const block of blocks(state)) {
     const from = state.doc.lineAt(block.from).from;
     const to = state.doc.lineAt(block.to).to;
-    if (sel.from <= to && sel.to >= from) continue;
     if (!original.includes(state.doc.sliceString(from, to))) continue;
     if (from >= to) continue;
     ranges.push(Decoration.replace({ widget: new Rendered(block.html, images), block: true }).range(from, to));
@@ -372,7 +457,6 @@ export function renderBlocks(original: string, images: Images = {}) {
     update(deco, tr) {
       const stale =
         tr.docChanged ||
-        tr.selection ||
         tr.effects.some((e) => e.is(setRendering)) ||
         syntaxTree(tr.startState) !== syntaxTree(tr.state);
       return stale ? build(tr.state, original, images) : deco;
