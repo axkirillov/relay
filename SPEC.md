@@ -278,6 +278,14 @@ editing. They are never boxed into options the agent thought of.
 
 ## What the session is about is composer's now
 
+**Retired, and the whole section is history.** The card is gone and so is `--about`:
+composer keeps a **notebook** per session instead — the whole document, prompt and goal
+and where every subtask stands, opened in the pane a document opens in and edited
+there. `⌘P` opens it. Nothing here is a flag of relay's any more, and relay says
+nothing about it on stderr: a document the human edits and hands back cannot also be
+the thing relay nags about. What survives is the ledger, below, which composer still
+reads. The rest of this section says what was true until then.
+
 Every document used to open with what the task is and where it has got to — the
 agent's own overview and to-do list, which relay read out of the task's `plan.md`
 and stapled above the text. It is **composer's** card now: a window of its own
@@ -977,12 +985,12 @@ gate.
 - **relay runs no command of the human's.** It shows a document and prints an
   answer to the agent that asked for one. A gesture that starts work belongs to
   the window that holds the documents — composer — not to the document.
-- **What the session is about is always reachable.** Reversed since it was
-  written: it used to be carried above every document by relay, on the argument
-  that an obligation every document carries cannot rest on an agent remembering.
-  It is composer's card now, on `⌘P`, which keeps the obligation off the agent
-  without putting it in the text the human is editing. Writing the answer is still
-  the agent's; relay only says on stderr when the file has stopped keeping up.
+- **What the session is about is always reachable.** Reversed twice. It used to be
+  carried above every document by relay, on the argument that an obligation every
+  document carries cannot rest on an agent remembering; then it was composer's card
+  on `⌘P`, one question answered in prose. It is composer's **notebook** now, on the
+  same key — a document the human can edit and hand back, not a card they can only
+  read. relay has no flag for it and says nothing about it.
 - **One document at a time.** The next appears the moment the current one is
   answered. No tabs, no list of what is waiting.
 - **Closing the window dismisses everything**, not only the document on screen.

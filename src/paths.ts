@@ -27,10 +27,6 @@ export function taskHome(): string {
   return q ? join(dirname(q), "task") : join(homedir(), ".task");
 }
 
-export function aboutDir(): string {
-  return join(taskHome(), "about");
-}
-
 export function tasksDir(): string {
   return join(relayHome(), "tasks");
 }
