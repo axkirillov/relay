@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { closeSync, mkdtempSync, openSync, readSync, rmSync, truncateSync, unlinkSync } from "node:fs";
+import { closeSync, mkdtempSync, openSync, readSync, rmSync, truncateSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
@@ -34,7 +34,8 @@ export function start(
 
   const shell = process.env.SHELL || "/bin/sh";
   const out = openSync(logPath, "w");
-  const child = spawn(shell, ["-c", command], {
+  const statusPath = `${logPath}.status`;
+  const child = spawn(shell, ["-c", '"$1" -c "$2"; code=$?; printf "%s" "$code" > "$3"; exit "$code"', "relay-run", shell, command, statusPath], {
     cwd,
     stdio: ["ignore", out, out],
     detached: true,
@@ -159,6 +160,7 @@ export function start(
         closeSync(rfd);
       } catch {
       }
+      if (!detached) writeFileSync(statusPath, String(status ?? "stopped"));
       resolve(status);
     };
   });

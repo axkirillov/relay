@@ -38,7 +38,10 @@ shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
 block, so the diff carries it back. Running another fence while one is active
 asks whether to Queue or run in Parallel. Queued fences use the commands as they
 were when queued and run in order only while each preceding command succeeds;
-a failure or stop skips the rest of that chain. `⌃C` stops the latest active run,
+a failure or stop skips the rest of that chain. Accept does not wait: pending
+queued commands continue in the background, with their progress and output paths
+in the queue report named under each queued fence. Closing without accepting
+cancels the queue. `⌃C` stops the latest active run,
 running the block again replaces its last output, and `:res` takes an output you would rather not send
 back out. Long output is folded to its last twenty lines — every line is still
 there. Clicking the `… N earlier lines` notice opens the fold, `zc` or `:fold`
@@ -181,7 +184,7 @@ and the shell is a real pty, so neither is a Windows story.
 
 ```
 pnpm install
-pnpm build        # dist/relay.js, dist/shell.cjs (the window), and the editor bundle
+pnpm build        # dist/relay.js, dist/shell.cjs, dist/queue-worker.js, and the editor bundle
 pnpm check        # types
 pnpm test         # the line arithmetic behind :res, the queue, the window's presence, a real pty
 pnpm smoke        # end to end, no window: two relays of one task, the second carrying the first

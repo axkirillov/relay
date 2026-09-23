@@ -36,6 +36,17 @@ await build({
 });
 
 await build({
+  entryPoints: ["src/queue-worker.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node22",
+  outfile: "dist/queue-worker.js",
+  minify: !dev,
+  logLevel: "info",
+});
+
+await build({
   entryPoints: ["ui/src/main.ts"],
   bundle: true,
   format: "iife",

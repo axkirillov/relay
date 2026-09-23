@@ -132,7 +132,9 @@ exit adds `[exit 3]`; `⌃C` stops the most recently started run and adds `[stop
 Running another fence while a run is active asks whether to Queue or Parallel.
 Queued commands keep the text they had when queued, start in order after their
 predecessor succeeds, and are skipped together if one fails or is stopped.
-Parallel runs have independent output blocks.
+Parallel runs have independent output blocks. The chooser offers `[Q]ueue` and
+`[P]arallel`; Q/P select directly, arrows move focus, Enter confirms, and Esc
+cancels.
 
 Long output is **folded, not truncated**: past twenty lines the head is replaced
 by a notice the human can click, while every line stays in the document. The
@@ -168,7 +170,11 @@ closing the window kills whatever is still going.
 **Accepting does not.** A command that takes longer than the human is willing to
 sit there should not have to be killed for them to answer, so accepting with one
 still running lets go of it rather than stopping it: relay prints their diff and
-exits, and the command carries on. The block it was filling ends with the line
+exits, and the command carries on. Queued commands continue in a detached runner
+after Accept; each pending block names `queue-report.json`, which records the
+commands' waiting, running, succeeded, failed or skipped states and the output
+file for every command that ran. Closing without accepting instead cancels the
+queue and returns no diff. The block it was filling ends with the line
 
 ```
 … still running when this was sent — its output is in ~/.relay/<round>/run-2.log
