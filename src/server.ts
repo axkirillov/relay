@@ -49,6 +49,7 @@ export async function serve(
   let editor: pty.Session | null = null;
   const running = new Set<Running>();
   let runs = 0;
+  const statuses = new Map<number, number | null>();
 
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
@@ -96,12 +97,20 @@ export async function serve(
         () => send(res, 413, "text/plain", "document too large"),
       );
     }
+    if (req.method === "GET" && path === "/run/status") {
+      const id = Number(new URL(req.url!, "http://localhost").searchParams.get("id"));
+      if (!statuses.has(id)) return send(res, 404, "text/plain", "run status unavailable");
+      const status = statuses.get(id);
+      statuses.delete(id);
+      return send(res, 200, "application/json; charset=utf-8", JSON.stringify({ status }));
+    }
     if (req.method === "POST" && path === "/run") {
       if (opts.runnable === false) {
         const where = opts.ran ? ` — ${tilde(opts.ran)}` : "";
         return send(res, 409, "text/plain", `the worktree this round ran in is gone${where}`);
       }
-      return handleRun(req, res, running, join(logs(), `run-${++runs}.log`), screenLines(req));
+      const id = ++runs;
+      return handleRun(req, res, running, join(logs(), `run-${id}.log`), screenLines(req), id, statuses);
     }
     if (req.method === "POST" && path === "/open") return handleOpen(req, res);
 
@@ -291,6 +300,8 @@ function handleRun(
   running: Set<Running>,
   logPath: string,
   screenLines: number | undefined,
+  id: number,
+  statuses: Map<number, number | null>,
 ) {
   read(req, maxCommandBytes).then(
     (command) => {
@@ -300,6 +311,7 @@ function handleRun(
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
         "X-Relay-Log": encodeURIComponent(tilde(logPath)),
+        "X-Relay-Run": String(id),
       });
       res.flushHeaders();
 
@@ -316,6 +328,7 @@ function handleRun(
           screenLines,
         );
       } catch (err) {
+        statuses.set(id, null);
         res.write(`relay could not run it: ${(err as Error).message}\n`);
         return res.end();
       }
@@ -325,9 +338,10 @@ function handleRun(
         if (!over) job.kill();
       });
 
-      void job.done.then(() => {
+      void job.done.then((status) => {
         over = true;
         running.delete(job);
+        if (!res.destroyed) statuses.set(id, status);
         res.end();
       });
     },

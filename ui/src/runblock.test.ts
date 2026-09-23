@@ -2,7 +2,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 
 import { codeLanguage } from "./languages.ts";
-import { commandOf, isShellLang, shellBlockAt, startOutput } from "./runblock.ts";
+import { commandOf, isShellLang, setSink, shellBlockAt, sink, startOutput } from "./runblock.ts";
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -100,5 +100,14 @@ check(
   planned("```sh\npnpm |test\n```\n\n```sh\nsomething else\n```\n"),
   "```sh\npnpm test\n```\n\n````output\n→````\n\n```sh\nsomething else\n```\n",
 );
+
+{
+  let state = EditorState.create({ doc: "one\ntwo", extensions: [sink] });
+  state = state.update({ effects: [setSink.of({ id: 1, at: 3 }), setSink.of({ id: 2, at: 7 })] }).state;
+  state = state.update({ changes: { from: 3, insert: "!" } }).state;
+  check("two output positions move independently", [...state.field(sink)], [[1, 4], [2, 8]]);
+  state = state.update({ effects: setSink.of({ id: 1, at: null }) }).state;
+  check("clearing one output keeps the other", [...state.field(sink)], [[2, 8]]);
+}
 
 process.exit(fails ? 1 : 0);

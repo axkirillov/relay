@@ -35,8 +35,11 @@ and out again.
 A command the agent wants run can be run in the window. Put the cursor in any
 shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
 `⌃↵` (or `:run`); its output streams in directly below as a ```` ````output ````
-block, so the diff carries it back. `⌃C` stops it, running the block again
-replaces its last output, and `:res` takes an output you would rather not send
+block, so the diff carries it back. Running another fence while one is active
+asks whether to Queue or run in Parallel. Queued fences use the commands as they
+were when queued and run in order only while each preceding command succeeds;
+a failure or stop skips the rest of that chain. `⌃C` stops the latest active run,
+running the block again replaces its last output, and `:res` takes an output you would rather not send
 back out. Long output is folded to its last twenty lines — every line is still
 there. Clicking the `… N earlier lines` notice opens the fold, `zc` or `:fold`
 closes it again, and `:raw` shows the lot. Output taller than the window goes to

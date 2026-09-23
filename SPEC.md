@@ -128,7 +128,11 @@ block's old output instead of stacking a second copy under it.
 question is answered with end-of-file rather than hanging on a prompt nobody can
 see. It runs in the relay's own cwd — the directory the agent asked from. stdout
 and stderr are merged, because that is the order they happened in. A non-zero
-exit adds `[exit 3]`; `⌃C` stops it and adds `[stopped]`.
+exit adds `[exit 3]`; `⌃C` stops the most recently started run and adds `[stopped]`.
+Running another fence while a run is active asks whether to Queue or Parallel.
+Queued commands keep the text they had when queued, start in order after their
+predecessor succeeds, and are skipped together if one fails or is stopped.
+Parallel runs have independent output blocks.
 
 Long output is **folded, not truncated**: past twenty lines the head is replaced
 by a notice the human can click, while every line stays in the document. The
@@ -156,9 +160,10 @@ saying where the rest of it went. Output that would never end is capped at 8 MB
 — a bound on the disk, not the document — and the command is stopped there and
 told so.
 
-The response *is* the run — there is no run id and nothing to poll — so the page
-hanging up is the human's ⌃C, and closing the window kills whatever is still
-going.
+Each run streams its output in its own response. The response header identifies
+the run, and a status request after the stream ends gives its exit code so queued
+runs can start only after success. Hanging up a stream is the human's ⌃C, and
+closing the window kills whatever is still going.
 
 **Accepting does not.** A command that takes longer than the human is willing to
 sit there should not have to be killed for them to answer, so accepting with one

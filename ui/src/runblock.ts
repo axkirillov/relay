@@ -104,13 +104,18 @@ function nextFence(state: EditorState, after: number): SyntaxNode | null {
   return found;
 }
 
-export const setSink = StateEffect.define<number | null>();
+export const setSink = StateEffect.define<{ id: number; at: number | null }>();
 
-export const sink = StateField.define<number | null>({
-  create: () => null,
-  update(pos, tr) {
-    for (const e of tr.effects) if (e.is(setSink)) return e.value;
-    if (pos === null) return null;
-    return tr.changes.mapPos(pos, 1);
+export const sink = StateField.define<Map<number, number>>({
+  create: () => new Map(),
+  update(positions, tr) {
+    const next = new Map<number, number>();
+    for (const [id, pos] of positions) next.set(id, tr.changes.mapPos(pos, 1));
+    for (const effect of tr.effects) {
+      if (!effect.is(setSink)) continue;
+      if (effect.value.at === null) next.delete(effect.value.id);
+      else next.set(effect.value.id, effect.value.at);
+    }
+    return next;
   },
 });

@@ -144,6 +144,25 @@ export function page(source: string, framed = false, readOnly = false): string {
     cursor: pointer;
   }
 
+  #run-choice {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(22, 22, 30, .8);
+    z-index: 9;
+  }
+  #run-choice[data-show] { display: flex; }
+  #run-choice .card {
+    padding: 1.5rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--fg);
+  }
+  #run-choice button { margin: .75rem .5rem 0 0; padding: .5rem 1rem; cursor: pointer; }
+
   #overlay {
     position: fixed;
     inset: 0;
@@ -217,6 +236,15 @@ export function page(source: string, framed = false, readOnly = false): string {
     <button id="accept">Accept</button>`
     }
   </footer>
+
+  <div id="run-choice" role="dialog" aria-modal="true" aria-label="Run command">
+    <div class="card">
+      <div>Another command is running. How should this one run?</div>
+      <button data-choice="queue">Queue</button>
+      <button data-choice="parallel">Parallel</button>
+      <button data-choice="cancel">Cancel</button>
+    </div>
+  </div>
 
   <div id="overlay">
     <div class="mark"></div>
