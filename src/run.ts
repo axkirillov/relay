@@ -20,7 +20,7 @@ const pollMs = 50;
 export type Running = {
   kill(): void;
   detach(): void;
-  done: Promise<void>;
+  done: Promise<number | null>;
 };
 
 export function start(
@@ -148,10 +148,10 @@ export function start(
     write(`${end.map(cut).join("\n")}\n`);
   };
 
-  let over!: () => void;
-  const done = new Promise<void>((resolve) => {
+  let over!: (status: number | null) => void;
+  const done = new Promise<number | null>((resolve) => {
     let settled = false;
-    over = () => {
+    over = (status) => {
       if (settled) return;
       settled = true;
       clearInterval(timer);
@@ -159,14 +159,14 @@ export function start(
         closeSync(rfd);
       } catch {
       }
-      resolve();
+      resolve(status);
     };
   });
 
   child.once("error", (err) => {
     write(`relay could not run it: ${err.message}\n`);
     discard();
-    over();
+    over(null);
   });
   child.once("close", (code, sig) => {
     if (detached) return;
@@ -179,13 +179,13 @@ export function start(
         truncateSync(logPath, maxOutputBytes);
       } catch {
       }
-      return over();
+      return over(null);
     }
     if (spilled) rest();
     else discard();
     if (stopped || sig) write("\n[stopped]\n");
     else if (code) write(`\n[exit ${code}]\n`);
-    over();
+    over(stopped || sig ? null : code);
   });
 
   return {
@@ -198,7 +198,7 @@ export function start(
       if (detached) return;
       detached = true;
       child.unref();
-      over();
+      over(null);
     },
     done,
   };
