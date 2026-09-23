@@ -105,16 +105,24 @@ function watchQueue() {
 
 async function accept() {
   if (sending) return;
-  for (const run of active.values()) {
-    if (run.log) append(run.id, `${run.wrote ? "\n" : ""}${stillRunningNotice(run.log)}\n`);
-  }
   sending = true;
+  const waiting = [...pending.values()];
   overlay("↑", "Sending", "handing your reply to the agent…");
   try {
+    if (waiting.length) {
+      const report = await fetch("/run/report").then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      });
+      for (const item of waiting) append(item.id, `… queued when this was sent — results will be in ${report}\n`);
+    }
+    for (const run of active.values()) {
+      if (run.log) append(run.id, `${run.wrote ? "\n" : ""}${stillRunningNotice(run.log)}\n`);
+    }
     const res = await fetch("/accept", {
       method: "POST",
-      headers: { "Content-Type": "text/markdown" },
-      body: view.state.doc.toString(),
+      headers: { "Content-Type": "application/vnd.relay.accept+json" },
+      body: JSON.stringify({ doc: view.state.doc.toString(), waiting, finished: Object.fromEntries(finished) }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     overlay("✓", "Accepted", "the agent has your reply — this window is closing");
@@ -152,13 +160,17 @@ function saveSoon() {
 type Run = { id: number; controller: AbortController; log: string | null; wrote: boolean };
 const active = new Map<number, Run>();
 const inFlight = new Map<number, Promise<boolean>>();
+const pending = new Map<number, { id: number; command: string; previous: number }>();
+const finished = new Map<number, boolean>();
 let nextRun = 0;
 let tail: Promise<boolean> | null = null;
+let tailId: number | null = null;
 
-function chooseRun(): Promise<"queue" | "parallel" | "cancel"> {
+function chooseRun(command: string): Promise<"queue" | "parallel" | "cancel"> {
   return new Promise((resolve) => {
     choiceEl.dataset.show = "";
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    choiceEl.querySelector("#run-preview")!.textContent = `$ ${command.split("\n")[0]}`;
     const buttons = choiceEl.querySelectorAll<HTMLButtonElement>("button[data-choice]");
     buttons[0]!.focus();
     const finish = (choice: "queue" | "parallel" | "cancel") => {
@@ -170,8 +182,15 @@ function chooseRun(): Promise<"queue" | "parallel" | "cancel"> {
     };
     const click = (e: Event) => finish((e.currentTarget as HTMLButtonElement).dataset.choice as "queue" | "parallel" | "cancel");
     const keydown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") finish("cancel");
-      else if (e.key === "Tab") return;
+      const key = e.key.toLowerCase();
+      if (key === "escape") finish("cancel");
+      else if (!e.metaKey && !e.ctrlKey && !e.altKey && key === "q") finish("queue");
+      else if (!e.metaKey && !e.ctrlKey && !e.altKey && key === "p") finish("parallel");
+      else if (["arrowleft", "arrowright", "arrowup", "arrowdown"].includes(key)) {
+        buttons[document.activeElement === buttons[0] ? 1 : 0]!.focus();
+      } else if (key === "tab") {
+        buttons[document.activeElement === buttons[0] ? 1 : 0]!.focus();
+      } else if (key === "enter" || key === " ") return;
       else return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -185,8 +204,9 @@ async function runAtCursor() {
   if (choiceEl.dataset.show !== undefined) return;
   const block = shellBlockAt(view.state, view.state.selection.main.head);
   if (!block) return note("no command here — put the cursor in a ```sh block");
-  const predecessor = tail ?? [...inFlight.values()].at(-1) ?? null;
-  const choice = predecessor ? await chooseRun() : "parallel";
+  const predecessorId = tail ? tailId : [...inFlight.keys()].at(-1) ?? null;
+  const predecessor = predecessorId === null ? null : inFlight.get(predecessorId) ?? null;
+  const choice = predecessor ? await chooseRun(block.command) : "parallel";
   if (choice === "cancel" || sending) return;
 
   const id = ++nextRun;
@@ -198,29 +218,39 @@ async function runAtCursor() {
 
   const first = block.command.split("\n")[0]!;
   const label = `${first}${block.command.includes("\n") ? " …" : ""}`;
-  if (choice === "queue") note(`queued ${label}`);
+  if (choice === "queue" && predecessorId !== null) {
+    note(`queued ${label}`);
+    pending.set(id, { id, command: block.command, previous: predecessorId });
+  }
   const task = choice === "queue" && predecessor
     ? queueAfter(predecessor.then((success) => success && !sending), () => execute(id, block.command, label), () => {
-        append(id, "[skipped — previous command failed or was stopped]\n");
+        pending.delete(id);
+        if (!sending) append(id, "[skipped — previous command failed or was stopped]\n");
         view.dispatch({ effects: setSink.of({ id, at: null }) });
       })
     : execute(id, block.command, label);
   tail = task;
+  tailId = id;
   inFlight.set(id, task);
-  void task.finally(() => {
+  void task.then((success) => {
+    finished.set(id, success);
     inFlight.delete(id);
-    if (tail === task) tail = null;
+    if (tail === task) {
+      tail = null;
+      tailId = null;
+    }
   });
 }
 
 async function execute(id: number, command: string, label: string): Promise<boolean> {
+  pending.delete(id);
   const run: Run = { id, controller: new AbortController(), log: null, wrote: false };
   active.set(id, run);
   hold(`running ${label} — ⌃C stops the latest run, accepting does not`);
   try {
     const res = await fetch(`/run?lines=${screenLines()}`, {
       method: "POST",
-      headers: { "Content-Type": "text/plain" },
+      headers: { "Content-Type": "text/plain", "X-Relay-Client": String(id) },
       body: command,
       signal: run.controller.signal,
     });
