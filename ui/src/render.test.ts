@@ -1,5 +1,7 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import type { Diagrams } from "./diagram.ts";
 import { codeLanguage } from "./languages.ts";
 import { bannedAttr, bannedTag, blocks, escapeHtml, localSrc, renderBlocks, stepInto, tagBalance } from "./render.ts";
 
@@ -183,6 +185,71 @@ check("step: and stepped over going up", walked(htmlBlock, 6, 2), null);
 const image = "above\n\n![c](a.png)\n\nbelow\n";
 
 check("step: an image is stepped over", walked(image, 2, 4), null);
+
+const code = "classDiagram\n  A <|-- B";
+const fenced = `above\n\n\`\`\`mermaid\n${code}\n\`\`\`\n\nbelow\n`;
+const svg = '<svg id="relay-diagram-0"><g></g></svg>';
+const drawn: Diagrams = new Map([[code, { svg }]]);
+const broken: Diagrams = new Map([
+  [code, { error: "Parse error on line 2:\n...\n---^\nExpecting 'STR', got 'NEWLINE'" }],
+]);
+
+function diagrams(doc: string, given: Diagrams) {
+  return blocks(parsed(doc), given).map((b) => [b.kind, doc.slice(b.from, b.to), b.html]);
+}
+
+check("diagram: a drawn fence is a diagram block", diagrams(fenced, drawn), [
+  ["diagram", `\`\`\`mermaid\n${code}\n\`\`\``, `<div class="cm-relay-diagram">${svg}</div>`],
+]);
+check("diagram: a broken fence is not a block", diagrams(fenced, broken), []);
+check("diagram: a fence nobody drew is not a block", diagrams(fenced, new Map()), []);
+check("diagram: without the drawings a fence stays code", found(fenced), []);
+check("diagram: a drawing of other text is not this fence's", diagrams(fenced, new Map([["pie", { svg }]])), []);
+
+function decorated(original: string, doc: string, given: Diagrams, caretLine = 1) {
+  const state = EditorState.create({
+    doc,
+    selection: { anchor: 0 },
+    extensions: [markdown({ base: markdownLanguage, codeLanguages: codeLanguage }), renderBlocks(original, {}, given)],
+  });
+  const moved = state.update({ selection: { anchor: state.doc.line(caretLine).from } }).state;
+  const out: unknown[] = [];
+  for (const set of moved.facet(EditorView.decorations)) {
+    if (typeof set === "function") continue;
+    set.between(0, moved.doc.length, (from, to, deco) => {
+      const widget = deco.spec.widget as { text?: string } | undefined;
+      if (widget?.text) out.push(["failed", moved.doc.lineAt(from).number, widget.text]);
+      else out.push(["drawn", moved.doc.sliceString(from, to)]);
+    });
+  }
+  return out;
+}
+
+check("drawn: the whole fence is replaced", decorated(fenced, fenced, drawn), [
+  ["drawn", `\`\`\`mermaid\n${code}\n\`\`\``],
+]);
+check("drawn: the caret inside shows the code", decorated(fenced, fenced, drawn, 4), []);
+check(
+  "drawn: an edited fence line keeps it code",
+  decorated(fenced, fenced.replace("```mermaid", "```mermaid title"), drawn),
+  [],
+);
+check("broken: the error goes under the closing fence", decorated(fenced, fenced, broken), [
+  ["failed", 6, "diagram not drawn — line 5: Expecting 'STR', got 'NEWLINE'"],
+]);
+check("broken: the error stays while the caret is inside", decorated(fenced, fenced, broken, 4), [
+  ["failed", 6, "diagram not drawn — line 5: Expecting 'STR', got 'NEWLINE'"],
+]);
+check("broken: lines added above move the line it names", decorated(fenced, `new\nlines\n${fenced}`, broken), [
+  ["failed", 8, "diagram not drawn — line 7: Expecting 'STR', got 'NEWLINE'"],
+]);
+check(
+  "broken: an edited fence loses its error",
+  decorated(fenced, fenced.replace("```mermaid", "```mermaid title"), broken),
+  [],
+);
+
+check("step: a diagram is stepped over", walked(fenced, 2, 7), null);
 
 console.log(fails ? `\n${fails} failing` : "\nall green");
 process.exit(fails ? 1 : 0);

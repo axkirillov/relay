@@ -83,13 +83,23 @@ click, which is what made the one gesture that would select the rendered words
 open raw HTML instead. The mouse reads and selects; the caret is sent, and what
 sends it depends on what the block is. `j` and `k` step into a table, whose
 source is the table as text — one line per row, a cell being somewhere a human
-might well want to answer. They step over an HTML block or an image, whose source
-is markup nobody asked to hand-edit. CodeMirror offers no position inside a
-replaced range, so stepping in is a filter catching the move that jumped the
-block and putting the caret on its first line instead; the block un-renders under
-it, and the rest of the walk is ordinary. An addressed jump — `:17` to the line,
-or `/pattern` — gets into all three, which is one more reason the lines are
-numbered. Every character is still editable; some of them have to be asked for.
+might well want to answer. They step over an HTML block, a diagram or an image,
+whose source is markup nobody asked to hand-edit. CodeMirror offers no position
+inside a replaced range, so stepping in is a filter catching the move that jumped
+the block and putting the caret on its first line instead; the block un-renders
+under it, and the rest of the walk is ordinary. An addressed jump — `:17` to the
+line, or `/pattern` — gets into all of them, which is one more reason the lines
+are numbered. Every character is still editable; some of them have to be asked for.
+
+A diagram is a ```` ```mermaid ```` fence, drawn before the document is shown so
+nothing moves once it is on screen. One Mermaid cannot draw is not a block: it
+stays as code, and a line under its closing fence gives Mermaid's reason with the
+line number turned into the document's. Mermaid counts from the first line inside
+the fence and after it has dropped front matter, `%%{…}%%` directives and `%%`
+comment lines, so the number it gives is replayed through the same four steps to
+find the line it meant. That line is worked out afresh on every edit, so it still
+names the mistake after lines are added above the fence; it goes when the fence
+itself is edited, since Mermaid has not read that text.
 
 ## Running a command
 
@@ -212,11 +222,11 @@ and where a file's extension is one this editor has no language for, its hunks a
 left unpainted rather than painted as something else.
 
 **The view is paint, and the text underneath is untouched.** Everything else this
-window renders — tables, HTML, images, folded output — swaps the source for a
-widget, which is exactly why none of them can be edited where they stand. A diff
-must not work that way, because the point of showing one is that the human writes
-into it. So nothing is replaced: the lines stay the characters the agent sent and
-only their colour is added.
+window renders — tables, HTML, diagrams, images, folded output — swaps the source
+for a widget, which is exactly why none of them can be edited where they stand. A
+diff must not work that way, because the point of showing one is that the human
+writes into it. So nothing is replaced: the lines stay the characters the agent
+sent and only their colour is added.
 Live-editability is not built, it is what is left by not replacing anything, and
 vim motions, the live diff and `:res` all keep working inside a patch because as
 far as they are concerned nothing happened.
@@ -992,6 +1002,18 @@ gate.
   The next one appearing is the whole signal.
 - **Markdown for v1.** Richer artifact-style documents are the eventual goal,
   but HTML is heavy and models are still poor at SVG, so: markdown now.
+- **Diagrams are Mermaid, drawn in the window, laid out with dagre.** Agents
+  already write Mermaid well and GitHub draws the same fence. PlantUML needs Java
+  on the machine or sends the text to a server; nomnoml is smaller, but its traps
+  draw a wrong picture with no error; D2 is the largest, needs the page's content
+  policy loosened, and drew the tallest picture. dagre over ELK: the same nine
+  classes came out 849 px tall against 967, drawn twice as fast, and leaving ELK
+  out of the bundle saves 1.5 MB. Mermaid is its own 3.6 MB script, fetched only
+  by a document that has a fence, so a document without one opens as fast as
+  before. A diagram cannot change the colours, the font, the layout or
+  `securityLevel`, which stays `strict`: those keys are in Mermaid's `secure`
+  list, which strips them from a `%%{init}%%` line and from front matter. The
+  picture then goes through the same cleaner as any HTML block.
 - **One shell per window, and only if it is asked for.** No tabs, no splits, no
   session to reattach to. The pane exists to answer the question on screen.
 - **`gf` opens the human's real editor, not a preview of the file.** A viewer

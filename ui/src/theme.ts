@@ -163,6 +163,8 @@ export const theme = EditorView.theme(
     ".cm-relay-render code": { fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', color: green },
     ".cm-relay-render summary": { cursor: "pointer", color: cyan },
     ".cm-relay-blocked": { color: orange, fontStyle: "italic" },
+    ".cm-relay-diagram svg": { display: "block", margin: "0 auto" },
+    ".cm-relay-failed": { padding: "0 0.75rem", color: red, whiteSpace: "pre-wrap" },
 
     ".cm-panels": { backgroundColor: panel, color: fg },
     ".cm-panel.cm-search input, .cm-panel.cm-search button": {

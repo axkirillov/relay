@@ -15,6 +15,7 @@ const maxInputBytes = 1 << 20;
 const maxCommandBytes = 64 << 10;
 const bundle = fileURLToPath(new URL("./assets/relay.js", import.meta.url));
 const styles = fileURLToPath(new URL("./assets/relay.css", import.meta.url));
+const diagrams = fileURLToPath(new URL("./assets/mermaid.js", import.meta.url));
 
 export type Relay = {
   url: string;
@@ -60,6 +61,13 @@ export async function serve(
       readFile(bundle).then(
         (js) => send(res, 200, "text/javascript; charset=utf-8", js),
         () => send(res, 500, "text/plain", "editor bundle missing — run `pnpm build`"),
+      );
+      return;
+    }
+    if (req.method === "GET" && path === "/assets/mermaid.js") {
+      readFile(diagrams).then(
+        (js) => send(res, 200, "text/javascript; charset=utf-8", js),
+        () => send(res, 500, "text/plain", "diagram bundle missing — run `pnpm build`"),
       );
       return;
     }

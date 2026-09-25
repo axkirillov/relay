@@ -2,6 +2,8 @@ import { syntaxTree } from "@codemirror/language";
 import { EditorState, type Range, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 
+import { type Diagrams, failure, mermaidFence, mermaidFences } from "./diagram.ts";
+
 type SyntaxNode = {
   name: string;
   from: number;
@@ -12,7 +14,7 @@ type SyntaxNode = {
 };
 
 export type Block = { from: number; to: number; html: string; kind: Kind };
-type Kind = "html" | "table" | "image";
+type Kind = "html" | "table" | "image" | "diagram";
 
 export type Images = Record<string, string>;
 
@@ -78,11 +80,24 @@ export function tagBalance(html: string): number {
   return depth;
 }
 
-export function blocks(state: EditorState): Block[] {
+export function blocks(state: EditorState, diagrams: Diagrams = new Map()): Block[] {
   const found: Block[] = [];
 
   syntaxTree(state).iterate({
     enter: (node) => {
+      if (node.name === "FencedCode") {
+        const fence = mermaidFence(state, node.node);
+        const drawn = fence && diagrams.get(fence.code);
+        if (fence && drawn && "svg" in drawn) {
+          found.push({
+            from: fence.from,
+            to: fence.to,
+            html: `<div class="cm-relay-diagram">${drawn.svg}</div>`,
+            kind: "diagram",
+          });
+        }
+        return false;
+      }
       if (node.name === "HTMLBlock") {
         found.push({
           from: node.from,
@@ -240,6 +255,23 @@ class Rendered extends WidgetType {
   }
 }
 
+class Failed extends WidgetType {
+  text: string;
+  constructor(text: string) {
+    super();
+    this.text = text;
+  }
+  eq(other: Failed) {
+    return other.text === this.text;
+  }
+  toDOM() {
+    const el = document.createElement("div");
+    el.className = "cm-relay-failed";
+    el.textContent = this.text;
+    return el;
+  }
+}
+
 function enclosingBlock(node: EventTarget | null): Element | null {
   return element(node)?.closest(".cm-relay-render") ?? null;
 }
@@ -314,13 +346,13 @@ export function stepInto(state: EditorState, was: number, now: number): number |
   return null;
 }
 
-function build(state: EditorState, original: string, images: Images): DecorationSet {
+function build(state: EditorState, original: string, images: Images, diagrams: Diagrams): DecorationSet {
   if (!state.field(rendering)) return Decoration.none;
 
   const sel = state.selection.main;
   const ranges: Range<Decoration>[] = [];
 
-  for (const block of blocks(state)) {
+  for (const block of blocks(state, diagrams)) {
     const from = state.doc.lineAt(block.from).from;
     const to = state.doc.lineAt(block.to).to;
     if (sel.from <= to && sel.to >= from) continue;
@@ -329,19 +361,29 @@ function build(state: EditorState, original: string, images: Images): Decoration
     ranges.push(Decoration.replace({ widget: new Rendered(block.html, images), block: true }).range(from, to));
   }
 
+  for (const fence of diagrams.size ? mermaidFences(state) : []) {
+    const drawn = diagrams.get(fence.code);
+    if (!drawn || !("error" in drawn)) continue;
+    const top = state.doc.lineAt(fence.from);
+    const to = state.doc.lineAt(fence.to).to;
+    if (!original.includes(state.doc.sliceString(top.from, to))) continue;
+    const widget = new Failed(failure(drawn.error, fence.code, top.number));
+    ranges.push(Decoration.widget({ widget, block: true, side: 1 }).range(to));
+  }
+
   return Decoration.set(ranges, true);
 }
 
-export function renderBlocks(original: string, images: Images = {}) {
+export function renderBlocks(original: string, images: Images = {}, diagrams: Diagrams = new Map()) {
   const field = StateField.define<DecorationSet>({
-    create: (state) => build(state, original, images),
+    create: (state) => build(state, original, images, diagrams),
     update(deco, tr) {
       const stale =
         tr.docChanged ||
         tr.selection ||
         tr.effects.some((e) => e.is(setRendering)) ||
         syntaxTree(tr.startState) !== syntaxTree(tr.state);
-      return stale ? build(tr.state, original, images) : deco;
+      return stale ? build(tr.state, original, images, diagrams) : deco;
     },
     provide: (f) => EditorView.decorations.from(f),
   });

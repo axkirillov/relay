@@ -18,19 +18,23 @@ their edits is printed to stdout.
 
 The document is rendered, not shown as source: markdown tables, HTML and inline
 SVG are drawn in place, so a diagram or a chart written into the document arrives
-as a picture. Images do too — `![](shot.png)` beside the document, or an `https:`
-one. A click leaves what is drawn alone, so the mouse can read it: drag across a
-rendered paragraph or a table cell and the words highlight, double-click and one
-word does, and `⌘C` copies exactly what is lit. A link in a rendered block opens
-where `gx` sends one, and a `<details>` opens on a click.
+as a picture. So is a ```` ```mermaid ```` fence — a class diagram, a flowchart, a
+sequence diagram — in the window's own colours. One Mermaid cannot draw stays as
+code, with Mermaid's reason in red under it and the document's line number in
+that, so `:N` goes to the mistake. Images do too — `![](shot.png)` beside the
+document, or an `https:` one. A click leaves what is drawn alone, so the mouse
+can read it: drag across a rendered paragraph or a table cell and the words
+highlight, double-click and one word does, and `⌘C` copies exactly what is lit. A
+link in a rendered block opens where `gx` sends one, and a `<details>` opens on a
+click.
 
 To edit one, get the caret in, and a block shows its source for as long as the
 caret is there. `j` and `k` step into a table, because a table's source is the
 table as text — one line per row, and a cell is a place to type. They step over
-an HTML block or an image, because that source is markup. An addressed jump gets
-into any of the three: `:17` to the line, or `/pattern` to the words, which is
-what the line numbers are for. `:raw` toggles the whole document back to source
-and out again.
+an HTML block, a diagram or an image, because that source is markup. An addressed
+jump gets into any of them: `:17` to the line, or `/pattern` to the words, which
+is what the line numbers are for. `:raw` toggles the whole document back to
+source and out again.
 
 A command the agent wants run can be run in the window. Put the cursor in any
 shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
@@ -183,7 +187,7 @@ and the shell is a real pty, so neither is a Windows story.
 
 ```
 pnpm install
-pnpm build        # dist/relay.js, dist/shell.cjs (the window), and the editor bundle
+pnpm build        # dist/relay.js, dist/shell.cjs (the window), the editor bundle, and Mermaid's
 pnpm check        # types
 pnpm test         # the line arithmetic behind :res, the queue, the window's presence, a real pty
 pnpm smoke        # end to end, no window: two relays of one task, the second carrying the first

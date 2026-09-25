@@ -45,3 +45,22 @@ await build({
   sourcemap: dev,
   logLevel: "info",
 });
+
+await build({
+  entryPoints: ["ui/src/mermaid.ts"],
+  bundle: true,
+  format: "iife",
+  target: "es2022",
+  outfile: "dist/assets/mermaid.js",
+  minify: !dev,
+  logLevel: "info",
+  plugins: [
+    {
+      name: "no-elk",
+      setup(b) {
+        b.onResolve({ filter: /^elkjs\/lib\/elk\.bundled\.js$/ }, () => ({ path: "elk", namespace: "no-elk" }));
+        b.onLoad({ filter: /.*/, namespace: "no-elk" }, () => ({ contents: "export default class ELK {}" }));
+      },
+    },
+  ],
+});

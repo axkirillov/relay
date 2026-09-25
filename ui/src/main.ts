@@ -11,6 +11,7 @@ import {
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { stillRunningNotice } from "../../src/spill";
+import { drawDiagrams } from "./diagram";
 import { diffReview, reviewNumber } from "./diffview";
 import { type Editor, editorPane } from "./editor";
 import { fenceBackground } from "./fence";
@@ -331,6 +332,7 @@ async function boot() {
     fetch("/prefill").then((r) => r.text()),
     fetch("/local").then((r) => (r.ok ? (r.json() as Promise<Images>) : {})),
   ]);
+  const diagrams = await drawDiagrams(original);
   bindVim(original);
   saved = start;
 
@@ -351,7 +353,7 @@ async function boot() {
         fenceBackground,
         diffReview(),
         theme,
-        renderBlocks(original, images),
+        renderBlocks(original, images, diagrams),
         followRendered(open),
         selectWords(),
         foldOutput(),
