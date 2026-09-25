@@ -39,8 +39,14 @@ source and out again.
 A command the agent wants run can be run in the window. Put the cursor in any
 shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
 `⌃↵` (or `:run`); its output streams in directly below as a ```` ````output ````
-block, so the diff carries it back. `⌃C` stops it, running the block again
-replaces its last output, and `:res` takes an output you would rather not send
+block, so the diff carries it back. Running another fence while one is active
+asks whether to Queue or run in Parallel. Queued fences use the commands as they
+were when queued and run in order only while each preceding command succeeds;
+a failure or stop skips the rest of that chain. Accept does not wait: pending
+queued commands continue in the background, with their progress and output paths
+in the queue report named under each queued fence. Closing without accepting
+cancels the queue. `⌃C` stops the latest active run,
+running the block again replaces its last output, and `:res` takes an output you would rather not send
 back out. Long output is folded to its last twenty lines — every line is still
 there. Clicking the `… N earlier lines` notice opens the fold, `zc` or `:fold`
 closes it again, and `:raw` shows the lot. Output taller than the window goes to
@@ -57,20 +63,15 @@ with you.
 
 ## The task, and where the answer lives
 
-relay does not put the task above the document any more — **composer** does, as a card
-floating in the middle of the window that comes up on `⌘P` and at no other time. It
-answers one question, *what is this session about*, and the file behind it is the
-agent's own prose answering exactly that and holding nothing else.
+relay does not put the task above the document any more, and it no longer has a flag for
+it either. **composer** keeps a notebook per session — what prompted the task, the goal,
+and where every subtask stands — and opens it on `⌘P` in the same pane a document opens
+in. The human edits it there and hands it back, so it is not something relay can nag
+about: `composer --notebook` prints the path, and that is composer's side of it entirely.
 
-`relay --about` prints that file — `~/.task/about/<worktree>-<hash>.md`, one per
-worktree — and `composer --about` prints the same path. The two have to agree
-exactly, which is why the slug is the same six hex of the same hash on both sides.
-
-What relay keeps is the ledger the card counts rounds from: `~/.relay/tasks/` holds
-a directory per task with a symlink per round, and relay files its own round there
-as each document goes up. On its way out it also says on stderr whether the answer has
-been touched since the last round — which is the one thing an agent should be told
-about its own file without having to be told by the human.
+What relay keeps is the ledger: `~/.relay/tasks/` holds a directory per task with a
+symlink per round, and relay files its own round there as each document goes up. composer
+reads it; nothing is copied.
 
 ## A round that already happened
 
@@ -187,7 +188,7 @@ and the shell is a real pty, so neither is a Windows story.
 
 ```
 pnpm install
-pnpm build        # dist/relay.js, dist/shell.cjs (the window), the editor bundle, and Mermaid's
+pnpm build        # dist/relay.js, dist/shell.cjs, dist/queue-worker.js, the editor bundle, and Mermaid's
 pnpm check        # types
 pnpm test         # the line arithmetic behind :res, the queue, the window's presence, a real pty
 pnpm smoke        # end to end, no window: two relays of one task, the second carrying the first

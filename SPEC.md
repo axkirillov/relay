@@ -138,7 +138,13 @@ block's old output instead of stacking a second copy under it.
 question is answered with end-of-file rather than hanging on a prompt nobody can
 see. It runs in the relay's own cwd — the directory the agent asked from. stdout
 and stderr are merged, because that is the order they happened in. A non-zero
-exit adds `[exit 3]`; `⌃C` stops it and adds `[stopped]`.
+exit adds `[exit 3]`; `⌃C` stops the most recently started run and adds `[stopped]`.
+Running another fence while a run is active asks whether to Queue or Parallel.
+Queued commands keep the text they had when queued, start in order after their
+predecessor succeeds, and are skipped together if one fails or is stopped.
+Parallel runs have independent output blocks. The chooser offers `[Q]ueue` and
+`[P]arallel`; Q/P select directly, arrows move focus, Enter confirms, and Esc
+cancels.
 
 Long output is **folded, not truncated**: past twenty lines the head is replaced
 by a notice the human can click, while every line stays in the document. The
@@ -166,14 +172,19 @@ saying where the rest of it went. Output that would never end is capped at 8 MB
 — a bound on the disk, not the document — and the command is stopped there and
 told so.
 
-The response *is* the run — there is no run id and nothing to poll — so the page
-hanging up is the human's ⌃C, and closing the window kills whatever is still
-going.
+Each run streams its output in its own response. The response header identifies
+the run, and a status request after the stream ends gives its exit code so queued
+runs can start only after success. Hanging up a stream is the human's ⌃C, and
+closing the window kills whatever is still going.
 
 **Accepting does not.** A command that takes longer than the human is willing to
 sit there should not have to be killed for them to answer, so accepting with one
 still running lets go of it rather than stopping it: relay prints their diff and
-exits, and the command carries on. The block it was filling ends with the line
+exits, and the command carries on. Queued commands continue in a detached runner
+after Accept; each pending block names `queue-report.json`, which records the
+commands' waiting, running, succeeded, failed or skipped states and the output
+file for every command that ran. Closing without accepting instead cancels the
+queue and returns no diff. The block it was filling ends with the line
 
 ```
 … still running when this was sent — its output is in ~/.relay/<round>/run-2.log
@@ -287,6 +298,14 @@ No widgets, no schema. The agent asks in ordinary text; the human answers by
 editing. They are never boxed into options the agent thought of.
 
 ## What the session is about is composer's now
+
+**Retired, and the whole section is history.** The card is gone and so is `--about`:
+composer keeps a **notebook** per session instead — the whole document, prompt and goal
+and where every subtask stands, opened in the pane a document opens in and edited
+there. `⌘P` opens it. Nothing here is a flag of relay's any more, and relay says
+nothing about it on stderr: a document the human edits and hands back cannot also be
+the thing relay nags about. What survives is the ledger, below, which composer still
+reads. The rest of this section says what was true until then.
 
 Every document used to open with what the task is and where it has got to — the
 agent's own overview and to-do list, which relay read out of the task's `plan.md`
@@ -987,12 +1006,12 @@ gate.
 - **relay runs no command of the human's.** It shows a document and prints an
   answer to the agent that asked for one. A gesture that starts work belongs to
   the window that holds the documents — composer — not to the document.
-- **What the session is about is always reachable.** Reversed since it was
-  written: it used to be carried above every document by relay, on the argument
-  that an obligation every document carries cannot rest on an agent remembering.
-  It is composer's card now, on `⌘P`, which keeps the obligation off the agent
-  without putting it in the text the human is editing. Writing the answer is still
-  the agent's; relay only says on stderr when the file has stopped keeping up.
+- **What the session is about is always reachable.** Reversed twice. It used to be
+  carried above every document by relay, on the argument that an obligation every
+  document carries cannot rest on an agent remembering; then it was composer's card
+  on `⌘P`, one question answered in prose. It is composer's **notebook** now, on the
+  same key — a document the human can edit and hand back, not a card they can only
+  read. relay has no flag for it and says nothing about it.
 - **One document at a time.** The next appears the moment the current one is
   answered. No tabs, no list of what is waiting.
 - **Closing the window dismisses everything**, not only the document on screen.

@@ -57,6 +57,15 @@ check("stderr is captured too", (await ran("echo boom >&2")).trim(), "boom");
 }
 
 check("a clean run says nothing extra", await ran("true"), "");
+{
+  const status = async (command: string) => start(command, process.cwd(), () => {}, nextLog()).done;
+  check("a successful run reports zero", await status("true"), 0);
+  check("a failed run reports its exit code", await status("exit 7"), 7);
+  const log = nextLog();
+  const job = start("exit 6", process.cwd(), () => {}, log);
+  await job.done;
+  check("the exit status survives relay in a file", readFileSync(`${log}.status`, "utf8"), "6");
+}
 has("a failure carries its status", await ran("exit 3"), "[exit 3]");
 check("the status is only there on failure", (await ran("echo fine")).includes("[exit"), false);
 
@@ -77,7 +86,7 @@ check("the status is only there on failure", (await ran("echo fine")).includes("
     nextLog(),
   );
   job.kill();
-  await job.done;
+  check("a stopped run does not succeed", await job.done, null);
   has("a stopped command says so", out, "[stopped]");
 }
 

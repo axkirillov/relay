@@ -5,7 +5,6 @@ import { createTwoFilesPatch, structuredPatch } from "diff";
 
 import { commentReport } from "./diff.js";
 import { unlatchOnExit } from "./latch.js";
-import * as about from "./about.js";
 import * as priority from "./priority.js";
 import * as queue from "./queue.js";
 import { read as readRound, type Round } from "./round.js";
@@ -16,7 +15,6 @@ import * as tasks from "./task.js";
 import { attend } from "./window.js";
 
 const usage = `relay <file.md>
-relay --about
 relay --priority [off]
 relay --read <round>
 
@@ -30,15 +28,6 @@ On accept, the unified diff of their edits is printed to stdout and relay exits
 A \`\`\`diff block is shown as a review the human can write in. They edit the patch
 where it stands, and any line they write that does not open with a diff marker is
 a comment — those come back under the diff, each one located as file:line.
-
-What this session is about — the answer to that one question, in your own prose, and
-nothing else in the file — is drawn by composer as a card the human raises with ⌘P.
-Not by relay, and not over the document unasked. \`--about\` prints the file to write
-it in, one per worktree; \`composer --about\` prints the same one and is the flag to
-reach for.
-
-Update it before every relay. The card says when you last wrote it, and once a round
-has gone by untouched it says that too, to the human reading it.
 
 There is one relay window. Documents go through it one at a time, in the order
 their relays started, so this one appears once those ahead of it are done —
@@ -69,11 +58,6 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 const args = process.argv.slice(2).filter((a) => a !== "--");
 
 if (args[0] !== "--read") unlatchOnExit();
-
-if (args.length === 1 && args[0] === "--about") {
-  process.stdout.write(about.open(tasks.taskOf(process.cwd())) + "\n");
-  process.exit(0);
-}
 
 if (args.length <= 2 && args[0] === "--priority") {
   const state = args[1] ?? "on";
@@ -151,8 +135,6 @@ try {
 
 const task = tasks.taskOf(process.cwd());
 tasks.fill();
-const past = tasks.rounds(task);
-const wrote = about.read(task);
 
 const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PREFILL, "utf8") : sent;
 
@@ -163,24 +145,13 @@ const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path, task
 const relay = await serve(path, sent, prefill, () => store.dir, {
   onDraft: store.draft,
   behind: () => turn?.behind() ?? 0,
-  framed: !!turn && !!wrote,
+  framed: !!turn,
 });
 turn?.serving(relay.url);
 
 process.stderr.write(`relay: waiting for the human — ${relay.url}\n`);
 process.stderr.write(
   "relay: this blocks until they answer — if a command timeout can fire first, run relay in the background\n",
-);
-
-const behind = wrote ? about.stale(wrote, past) : 0;
-const missed = past.length + 1 - behind;
-const where = about.tilde(about.file(task));
-process.stderr.write(
-  !wrote
-    ? `relay: this task has no --about — write what this session is about at ${where}, and ⌘P puts it on the human's screen over every document\n`
-    : behind
-      ? `relay: the --about for this task has not been touched in ${missed} round${missed === 1 ? "" : "s"} — the card says so the moment they press ⌘P; update ${where}\n`
-      : `relay: the --about for this task is ${where} — keep it current\n`,
 );
 
 if (priority.marked(task))

@@ -144,6 +144,45 @@ export function page(source: string, framed = false, readOnly = false): string {
     cursor: pointer;
   }
 
+  #run-choice {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(22, 22, 30, .8);
+    z-index: 9;
+  }
+  #run-choice[data-show] { display: flex; }
+  #run-choice .card {
+    width: min(440px, calc(100vw - 40px));
+    padding: 1.4rem;
+    background: #1b1c29;
+    border: 1px solid #414968;
+    border-radius: 12px;
+    box-shadow: 0 24px 80px #0009;
+    color: var(--fg);
+  }
+  #run-choice .eyebrow { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  #run-choice h2 { margin: .4rem 0 .25rem; font-size: 19px; }
+  #run-choice .preview { color: var(--dim); font: 12px/1.5 ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #run-choice .choices { display: flex; gap: .7rem; margin-top: 1.2rem; }
+  #run-choice button {
+    flex: 1;
+    text-align: left;
+    padding: .8rem;
+    color: var(--fg);
+    background: #232638;
+    border: 1px solid #414968;
+    border-radius: 7px;
+    cursor: pointer;
+    font: inherit;
+  }
+  #run-choice button:hover, #run-choice button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; background: #303851; }
+  #run-choice button kbd { color: var(--accent); font: 700 13px ui-monospace, monospace; }
+  #run-choice button small { display: block; margin-top: .3rem; color: var(--dim); font-size: 11px; }
+  #run-choice .hint { margin-top: 1rem; color: var(--dim); font-size: 11px; text-align: center; }
+
   #overlay {
     position: fixed;
     inset: 0;
@@ -217,6 +256,19 @@ export function page(source: string, framed = false, readOnly = false): string {
     <button id="accept">Accept</button>`
     }
   </footer>
+
+  <div id="run-choice" role="dialog" aria-modal="true" aria-label="Run command">
+    <div class="card">
+      <div class="eyebrow">Another command is in progress</div>
+      <h2>Run this command</h2>
+      <div class="preview" id="run-preview"></div>
+      <div class="choices">
+        <button data-choice="queue"><kbd>[Q]</kbd>ueue<small>After the previous run succeeds</small></button>
+        <button data-choice="parallel"><kbd>[P]</kbd>arallel<small>Start now, independently</small></button>
+      </div>
+      <div class="hint">← → choose · Enter confirm · Esc cancel</div>
+    </div>
+  </div>
 
   <div id="overlay">
     <div class="mark"></div>

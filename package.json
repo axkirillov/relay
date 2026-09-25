@@ -31,6 +31,7 @@
     "smoke:dismiss": "bash scripts/dismiss.sh",
     "smoke:latch": "bash scripts/latch.sh",
     "smoke:detach": "bash scripts/detach.sh",
+    "smoke:queue-handoff": "bash scripts/queue-handoff.sh",
     "smoke:read": "bash scripts/read.sh"
   },
   "dependencies": {

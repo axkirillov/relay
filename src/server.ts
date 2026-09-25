@@ -1,4 +1,6 @@
+import { spawn } from "node:child_process";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +10,7 @@ import { contentType, type Images, localImages } from "./images.js";
 import { launch, openable, opener } from "./open.js";
 import { page } from "./page.js";
 import * as pty from "./pty.js";
+import type { QueuePlan, Waiting } from "./queue-worker.js";
 import { type Running, start, tilde } from "./run.js";
 
 const maxDocBytes = 8 << 20;
@@ -50,6 +53,8 @@ export async function serve(
   let editor: pty.Session | null = null;
   const running = new Set<Running>();
   let runs = 0;
+  const statuses = new Map<number, number | null>();
+  const clientRuns = new Map<number, number>();
 
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
@@ -88,7 +93,24 @@ export async function serve(
     }
     if (req.method === "POST" && path === "/accept") {
       if (opts.readOnly) return send(res, 409, "text/plain", "this round is being read, not answered");
-      return handleAccept(req, res, settle, () => {
+      return handleAccept(req, res, settle, (waiting, finished) => {
+        if (waiting.length) {
+          const plan: QueuePlan = {
+            cwd: process.cwd(),
+            dir: logs(),
+            waiting,
+            finished,
+            started: Object.fromEntries([...clientRuns].map(([client, id]) => [client, join(logs(), `run-${id}.log.status`)])),
+          };
+          writeFileSync(join(logs(), "queue-plan.json"), JSON.stringify(plan));
+          writeFileSync(join(logs(), "queue-report.json"), JSON.stringify(waiting.map(({ id, command }) => ({ id, command, status: "waiting", output: null })), null, 2) + "\n");
+          const worker = spawn(process.execPath, [fileURLToPath(new URL("./queue-worker.js", import.meta.url)), join(logs(), "queue-plan.json")], {
+            cwd: process.cwd(),
+            detached: true,
+            stdio: "ignore",
+          });
+          worker.unref();
+        }
         for (const job of running) job.detach();
         running.clear();
       });
@@ -104,12 +126,23 @@ export async function serve(
         () => send(res, 413, "text/plain", "document too large"),
       );
     }
+    if (req.method === "GET" && path === "/run/report") {
+      return send(res, 200, "text/plain; charset=utf-8", tilde(join(logs(), "queue-report.json")));
+    }
+    if (req.method === "GET" && path === "/run/status") {
+      const id = Number(new URL(req.url!, "http://localhost").searchParams.get("id"));
+      if (!statuses.has(id)) return send(res, 404, "text/plain", "run status unavailable");
+      const status = statuses.get(id);
+      statuses.delete(id);
+      return send(res, 200, "application/json; charset=utf-8", JSON.stringify({ status }));
+    }
     if (req.method === "POST" && path === "/run") {
       if (opts.runnable === false) {
         const where = opts.ran ? ` — ${tilde(opts.ran)}` : "";
         return send(res, 409, "text/plain", `the worktree this round ran in is gone${where}`);
       }
-      return handleRun(req, res, running, join(logs(), `run-${++runs}.log`), screenLines(req));
+      const id = ++runs;
+      return handleRun(req, res, running, join(logs(), `run-${id}.log`), screenLines(req), id, statuses, clientRuns);
     }
     if (req.method === "POST" && path === "/open") return handleOpen(req, res);
 
@@ -299,15 +332,21 @@ function handleRun(
   running: Set<Running>,
   logPath: string,
   screenLines: number | undefined,
+  id: number,
+  statuses: Map<number, number | null>,
+  clientRuns: Map<number, number>,
 ) {
   read(req, maxCommandBytes).then(
     (command) => {
       if (!command.trim()) return send(res, 400, "text/plain", "no command");
+      const client = Number(req.headers["x-relay-client"]);
+      if (Number.isSafeInteger(client) && client > 0) clientRuns.set(client, id);
 
       res.writeHead(200, {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
         "X-Relay-Log": encodeURIComponent(tilde(logPath)),
+        "X-Relay-Run": String(id),
       });
       res.flushHeaders();
 
@@ -324,6 +363,8 @@ function handleRun(
           screenLines,
         );
       } catch (err) {
+        statuses.set(id, null);
+        writeFileSync(`${logPath}.status`, "stopped");
         res.write(`relay could not run it: ${(err as Error).message}\n`);
         return res.end();
       }
@@ -333,9 +374,10 @@ function handleRun(
         if (!over) job.kill();
       });
 
-      void job.done.then(() => {
+      void job.done.then((status) => {
         over = true;
         running.delete(job);
+        if (!res.destroyed) statuses.set(id, status);
         res.end();
       });
     },
@@ -377,7 +419,7 @@ function handleAccept(
   req: IncomingMessage,
   res: ServerResponse,
   settle: (doc: string) => void,
-  letGo: () => void,
+  letGo: (waiting: Waiting[], finished: Record<number, boolean>) => void,
 ) {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -395,10 +437,31 @@ function handleAccept(
   req.on("end", () => {
     if (res.writableEnded) return;
     if (taken) return send(res, 409, "text/plain", "already accepted");
-    taken = true;
-    letGo();
     const body = Buffer.concat(chunks).toString("utf8");
-    res.writeHead(204).end(() => settle(body));
+    let doc = body;
+    let waiting: Waiting[] = [];
+    let finished: Record<number, boolean> = {};
+    if (req.headers["content-type"] === "application/vnd.relay.accept+json") {
+      try {
+        const payload = JSON.parse(body) as { doc: string; waiting: Waiting[]; finished: Record<number, boolean> };
+        if (typeof payload.doc !== "string" || !Array.isArray(payload.waiting) || typeof payload.finished !== "object" ||
+          payload.waiting.some((item) => !Number.isSafeInteger(item.id) || !Number.isSafeInteger(item.previous) ||
+            typeof item.command !== "string" || item.command.length > maxCommandBytes)) throw new Error("invalid queue");
+        doc = payload.doc;
+        waiting = payload.waiting;
+        finished = payload.finished;
+      } catch {
+        return send(res, 400, "text/plain", "invalid queued commands");
+      }
+    }
+    taken = true;
+    try {
+      letGo(waiting, finished);
+    } catch (err) {
+      taken = false;
+      return send(res, 500, "text/plain", `could not hand off queued commands: ${(err as Error).message}`);
+    }
+    res.writeHead(204).end(() => settle(doc));
   });
 }
 
