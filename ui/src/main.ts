@@ -192,6 +192,8 @@ function chooseRun(command: string): Promise<"queue" | "parallel" | "cancel"> {
         buttons[document.activeElement === buttons[0] ? 1 : 0]!.focus();
       } else if (key === "tab") {
         buttons[document.activeElement === buttons[0] ? 1 : 0]!.focus();
+      } else if (e.ctrlKey && !e.metaKey && !e.altKey && key === "j") {
+        if (document.activeElement instanceof HTMLButtonElement) document.activeElement.click();
       } else if (key === "enter" || key === " ") return;
       else return;
       e.preventDefault();
@@ -478,16 +480,13 @@ async function boot() {
         void accept();
         return;
       }
-      if (e.key === "Enter") {
+      if (key === "j") {
         e.preventDefault();
         e.stopPropagation();
-        void runAtCursor();
-        return;
-      }
-      if (key === "j" && !reading) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!toggleAtCursor(view)) note("no checkbox here — put the cursor on a - [ ] line");
+        if (choiceEl.dataset.show !== undefined) return;
+        if (!reading && toggleAtCursor(view)) return;
+        if (reading || shellBlockAt(view.state, view.state.selection.main.head)) void runAtCursor();
+        else note("nothing here — put the cursor on a - [ ] line or in a ```sh block");
         return;
       }
       if (key === "c" && active.size) {

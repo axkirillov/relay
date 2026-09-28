@@ -140,7 +140,7 @@ PID=""
 # A round's `run-1.log` is the file the document itself points at when a command that
 # day outgrew it — 59 of the 2,728 rounds on the machine this was written on have one.
 # The run numbering starts at 1 in every process, so a read whose output went into the
-# round's own directory opened that file `"w"` on the human's first ⌃↵, and unlinked it
+# round's own directory opened that file `"w"` on the human's first ⌃J, and unlinked it
 # again when the output turned out short. A read is a reading; it writes nothing there.
 KEPT=20260812-163130-spill-doc
 round "$KEPT" "$TREE" '# Which cap

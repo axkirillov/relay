@@ -105,9 +105,10 @@ itself is edited, since Mermaid has not read that text.
 
 An agent that wants the human to run something should not be sending them to a
 terminal. Any fence whose language is a shell — `sh`, `bash`, `zsh`, `shell`,
-`console` — is a command the human can run where it stands: `⌃↵` with the cursor
-in the block, or `:run`. Nothing new for an agent to learn, and every document
-already sent would have been runnable.
+`console` — is a command the human can run where it stands: `⌃J` with the cursor
+in the block, or `:run`. `⌃J` is the same key as a checkbox tick; a box inside a
+fence is code, so the two never meet on one line. Nothing new for
+an agent to learn, and every document already sent would have been runnable.
 
 **The output goes into the document.** That is the whole design, and it follows
 from the diff being the only channel back: the agent asked for the command
@@ -622,7 +623,7 @@ path, which is the way out of a name this cannot pick out of prose.
 and `gF`; there is no reason here to want the line thrown away, so both keys do
 the same thing and a hand that learnt either need not remember which.
 
-Paths resolve against the directory relay was run from — the same one a `⌃↵`
+Paths resolve against the directory relay was run from — the same one a `⌃J`
 command runs in — with `~` and absolute paths as written. **No file, no jump**: a
 line in the footer saying what was looked for, nothing opened and nothing
 created. A directory counts, because nvim opens one as a listing and vim's own
@@ -632,13 +633,13 @@ created. A directory counts, because nvim opens one as a listing and vim's own
 because a picture's path never comes back off the wire and the agent named every
 file it meant; a path the human's cursor is on comes back off the wire by
 definition. There is also nothing to protect: it is their machine, their key, and
-they can already run any command they like in this window with `⌃↵` or the shell
+they can already run any command they like in this window with `⌃J` or the shell
 pane. Being shown a file is strictly less than that.
 
 ### Inside nvim, every key is nvim's
 
 Even more so than in the shell — `⌃X`, `⌃C`, `⌃D`, `⌃R`, `⌃W`, `⌃O` all mean
-something in there. So `⌃X` does not accept and `⌃↵` does not run while nvim has
+something in there. So `⌃X` does not accept and `⌃J` does not run while nvim has
 the pane, and `gf` inside nvim is nvim's own, which is why a second one of these
 can never be opened from in there.
 
@@ -667,7 +668,7 @@ nvim itself offers next time is there.
 
 ### Inside the terminal, every key is the shell's
 
-`⌃X` accepts and `⌃↵` runs a block; from the pane they do nothing. A shell has
+`⌃X` accepts and `⌃J` runs a block; from the pane they do nothing. A shell has
 its own uses for `⌃X`, `⌃C`, `⌃D` and the rest, and a terminal that quietly kept
 a few back would not be a terminal. The two exceptions are the ones that have to be:
 `⌃\`` to leave, and `⌘Y` (`⌃⇧Y` off a Mac) to take — chosen because they are keys
@@ -985,7 +986,7 @@ block says which tree is missing rather than running it somewhere else.
 **A read writes nothing into the round's directory.** What is on disk there is what
 the human accepted that day, `run-N.log` and all, and a command run out of a past
 document is not part of that record. It very nearly was: the run numbering starts at
-1 in every process, so the first `⌃↵` in a read opened the round's own `run-1.log`
+1 in every process, so the first `⌃J` in a read opened the round's own `run-1.log`
 `"w"` and wrote over it — or unlinked it, when the output turned out short enough to
 stay in the document. That file is the one the document being read points at, by
 name, in the notice a long run left in it the day it went up; 59 of the 2,728 rounds

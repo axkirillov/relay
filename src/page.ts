@@ -243,7 +243,7 @@ export function page(source: string, framed = false, readOnly = false): string {
     <span id="note"></span>
     <span class="spacer"></span>
     <span><kbd>⌃\`</kbd> terminal</span>
-    <span><kbd>⌃↵</kbd> run a command</span>
+    <span><kbd>⌃J</kbd> run a command</span>
     <span><kbd>gf</kbd> open the file</span>
     <span><kbd>gx</kbd> open the link</span>
     <span><kbd>:res</kbd> put a line back</span>

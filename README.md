@@ -38,7 +38,7 @@ source and out again.
 
 A command the agent wants run can be run in the window. Put the cursor in any
 shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
-`⌃↵` (or `:run`); its output streams in directly below as a ```` ````output ````
+`⌃J` (or `:run`); its output streams in directly below as a ```` ````output ````
 block, so the diff carries it back. Running another fence while one is active
 asks whether to Queue or run in Parallel. Queued fences use the commands as they
 were when queued and run in order only while each preceding command succeeds;
@@ -133,7 +133,7 @@ text. If there is no link under the cursor the footer says so, and nothing opens
 run from — for everything a run block cannot do: colours, TUIs, `⌃C`, `git rebase
 -i`, a command that asks a question. `⌃\`` again crosses back to the document
 with the pane still up; `:term` opens and closes it. Inside it every key belongs
-to the shell, so `⌃X` does not accept and `⌃↵` does not run from there.
+to the shell, so `⌃X` does not accept and `⌃J` does not run from there.
 
 The point of it is getting what happened back to the agent, which only ever sees
 the diff:
