@@ -11,6 +11,7 @@ import {
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { stillRunningNotice } from "../../src/spill";
+import { checkboxes, toggleAtCursor } from "./checkbox";
 import { drawDiagrams } from "./diagram";
 import { diffReview, reviewNumber } from "./diffview";
 import { type Editor, editorPane } from "./editor";
@@ -438,6 +439,7 @@ async function boot() {
         markdown({ base: markdownLanguage, codeLanguages: codeLanguage }),
         markdownHighlight,
         fenceBackground,
+        checkboxes,
         diffReview(),
         theme,
         renderBlocks(original, images, diagrams),
@@ -480,6 +482,12 @@ async function boot() {
         e.preventDefault();
         e.stopPropagation();
         void runAtCursor();
+        return;
+      }
+      if (key === "j" && !reading) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!toggleAtCursor(view)) note("no checkbox here — put the cursor on a - [ ] line");
         return;
       }
       if (key === "c" && active.size) {

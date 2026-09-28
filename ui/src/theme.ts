@@ -137,6 +137,19 @@ export const theme = EditorView.theme(
     },
     ".cm-relay-fold:hover": { color: orange },
 
+    ".cm-relay-tick": {
+      display: "inline-block",
+      width: "1em",
+      height: "1em",
+      lineHeight: "1em",
+      border: `1px solid ${dim}`,
+      borderRadius: "3px",
+      verticalAlign: "-0.15em",
+      textAlign: "center",
+      fontSize: "0.9em",
+    },
+    ".cm-relay-ticked": { borderColor: green, background: green, color: bg },
+
     ".cm-relay-render": { padding: "0.4rem 0.75rem" },
     ".cm-relay-box": {
       padding: "0.7rem 0.9rem",

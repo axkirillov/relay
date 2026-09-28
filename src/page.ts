@@ -251,7 +251,8 @@ export function page(source: string, framed = false, readOnly = false): string {
     ${
       readOnly
         ? `<span><kbd>esc</kbd> or <kbd>:q</kbd> close</span>`
-        : `<span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
+        : `<span><kbd>⌃J</kbd> tick a box</span>
+    <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
     <span><kbd>:q</kbd> close without replying</span>
     <button id="accept">Accept</button>`
     }

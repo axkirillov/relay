@@ -53,6 +53,12 @@ closes it again, and `:raw` shows the lot. Output taller than the window goes to
 `~/.relay/<round>/run-N.log` instead, and the block keeps a windowful of it, a
 pointer to that file, and its last twenty lines.
 
+A question with options can be answered without typing. A markdown task list —
+`- [ ] yes`, `- [ ] no` — is drawn as boxes, and `⌃J` on an item's line ticks or
+unticks it, in normal mode or insert mode. The tick is the text `[x]`, so the
+diff carries it back like any other edit, and a question can still be answered in
+words anywhere around it.
+
 In the window: `⌃X` or `ZZ` accepts — `:w`, `:wq`, `:x` and `:acc` do too — `:q`
 closes without replying, and `:res` puts a stretch of the document back the way
 it arrived: the cursor line in normal mode, the selection in visual mode, or a

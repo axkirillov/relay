@@ -294,8 +294,21 @@ the headers above it say which file and which line it is against.
 
 ## Questions are prose
 
-No widgets, no schema. The agent asks in ordinary text; the human answers by
-editing. They are never boxed into options the agent thought of.
+No schema. The agent asks in ordinary text; the human answers by editing. They
+are never boxed into options the agent thought of.
+
+**A widget only writes text.** A question with options is a markdown task list,
+which GitHub draws the same way and agents already write. Each `[ ]` or `[x]` is
+drawn as a box, and `⌃J` with the cursor on its line swaps the one character
+between the brackets. That swap is the whole answer: the diff carries
+`-- [ ] yes` / `+- [x] yes`, which cannot be misread, and nothing else about the
+document changes, so words written beside the list come back too. There is no
+radio button, because `( )` is not markdown and "pick one" is the agent's to say
+in the question. There is no click either: the human answers from the keyboard,
+like every other gesture in the window, and a mouse that could tick would tick
+what it was only meant to read. A box inside a code fence is code, not a box.
+The caret between the brackets shows them as text, so they can still be edited
+by hand.
 
 ## What the session is about is composer's now
 
@@ -1057,6 +1070,6 @@ gate.
   — but it is a feature about all of them rather than part of any one, so it
   waits.
 - Structured JSON return
-- Widgets (radio, checkbox, text field)
+- Widgets beyond the task-list box (radio, text field)
 - Live-preview markdown rendering
 - An index UI browsing past relays
