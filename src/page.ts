@@ -56,50 +56,6 @@ export function page(source: string, framed = false, readOnly = false): string {
   #editor { flex: 1 1 auto; min-height: 0; position: relative; }
   .cm-editor { height: 100%; }
 
-  #term, #edit {
-    flex: 0 0 auto;
-    height: 42%;
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg);
-    border-top: 1px solid var(--line);
-  }
-  #edit { height: 72%; min-height: 200px; }
-  #term[data-hidden], #edit[data-hidden] { display: none; }
-  #term-grip, #edit-grip {
-    flex: 0 0 auto;
-    height: 5px;
-    margin-top: -3px;
-    cursor: row-resize;
-  }
-  #term-grip:hover, #edit-grip:hover { background: var(--accent); opacity: .5; }
-  #term-bar, #edit-bar {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: baseline;
-    gap: .75rem;
-    padding: .15rem 1rem .3rem;
-    color: var(--dim);
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  #term-where, #edit-where { color: var(--fg); overflow: hidden; text-overflow: ellipsis; }
-  #term-bar .spacer, #edit-bar .spacer { flex: 1 1 auto; }
-  #term-bar button, #edit-bar button {
-    -webkit-app-region: no-drag;
-    font: inherit;
-    color: var(--dim);
-    background: none;
-    border: 0;
-    padding: 0;
-    cursor: pointer;
-  }
-  #term-bar button:hover, #edit-bar button:hover { color: var(--fg); }
-  #term-view, #edit-view { flex: 1 1 auto; min-height: 0; padding: 0 1rem .35rem; }
-  #term-view .xterm, #edit-view .xterm { height: 100%; }
-
   footer {
     flex: 0 0 auto;
     display: flex;
@@ -211,29 +167,6 @@ export function page(source: string, framed = false, readOnly = false): string {
   <div id="split">
     <div id="editor"></div>
 
-    <div id="term" data-hidden>
-      <div id="term-grip"></div>
-      <div id="term-bar">
-        <span id="term-where"></span>
-        <span class="spacer"></span>
-        <button id="term-take"><kbd id="term-keys">⌘Y</kbd> take into the document</button>
-        <span><kbd>⌃\`</kbd> back to the document</span>
-        <button id="term-close">✕</button>
-      </div>
-      <div id="term-view"></div>
-    </div>
-
-    <div id="edit" data-hidden>
-      <div id="edit-grip"></div>
-      <div id="edit-bar">
-        <span id="edit-where"></span>
-        <span class="spacer"></span>
-        <button id="edit-take"><kbd id="edit-keys">⌘Y</kbd> take the selection</button>
-        <span><kbd>⌃\`</kbd> back to the document</span>
-        <span><kbd>:q</kbd> leaves nvim</span>
-      </div>
-      <div id="edit-view"></div>
-    </div>
   </div>
 
   <footer>
@@ -242,9 +175,7 @@ export function page(source: string, framed = false, readOnly = false): string {
     <span id="queue"></span>
     <span id="note"></span>
     <span class="spacer"></span>
-    <span><kbd>⌃\`</kbd> terminal</span>
     <span><kbd>⌃J</kbd> run a command</span>
-    <span><kbd>gf</kbd> open the file</span>
     <span><kbd>gx</kbd> open the link</span>
     <span><kbd>:res</kbd> put a line back</span>
     <span><kbd>:raw</kbd> render on/off</span>

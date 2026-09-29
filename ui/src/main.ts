@@ -14,19 +14,16 @@ import { stillRunningNotice } from "../../src/spill";
 import { checkboxes, toggleAtCursor } from "./checkbox";
 import { drawDiagrams } from "./diagram";
 import { diffReview, reviewNumber } from "./diffview";
-import { type Editor, editorPane } from "./editor";
 import { fenceBackground } from "./fence";
-import { pathAt, target } from "./goto";
 import { codeLanguage } from "./languages";
 import { url, urlAt } from "./link";
 import { liveDiff, type Stats } from "./livediff";
 import { foldOutput, opened, refold } from "./outfold";
-import { inPane } from "./pane";
 import { followRendered, type Images, isRendering, renderBlocks, selectWords, setRendering } from "./render";
 import { restore } from "./restore";
 import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
 import { queueAfter } from "./runqueue";
-import { type Pane, terminalPane } from "./terminal";
+import { fence, insertion } from "./take";
 import { markdownHighlight, theme } from "./theme";
 
 const mount = document.getElementById("editor")!;
@@ -40,8 +37,6 @@ const choiceEl = document.getElementById("run-choice")!;
 const reading = document.body.dataset.read !== undefined;
 
 let view: EditorView;
-let pane: Pane;
-let editor: Editor;
 let sending = false;
 
 function overlay(mark: string, title: string, note: string, tone: "ok" | "error" = "ok") {
@@ -309,18 +304,6 @@ function append(id: number, text: string): boolean {
   return true;
 }
 
-function gotoFile() {
-  const { state } = view;
-  const at = state.selection.main;
-  const line = state.doc.lineAt(at.head);
-  const found = at.empty
-    ? pathAt(line.text, at.head - line.from)
-    : target(state.sliceDoc(at.from, at.to).trim());
-  if (!found) return note("no path under the cursor");
-  if (url(found.path)) return note("that is a link — gx opens it");
-  editor.open(found);
-}
-
 async function openLink() {
   const { state } = view;
   const at = state.selection.main;
@@ -367,9 +350,6 @@ function bindVim(original: string) {
     note(on ? "rendered" : "source");
   });
 
-  Vim.defineEx("terminal", "term", () => pane.toggle());
-  Vim.defineEx("take", "take", () => pane.take());
-
   Vim.defineEx("run", "run", () => void runAtCursor());
 
   const foldBack = () => note(refold(view) ? "folded" : "nothing to fold");
@@ -380,12 +360,6 @@ function bindVim(original: string) {
   if (!reading) {
     Vim.defineAction("relayAccept", () => void accept());
     Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
-  }
-
-  Vim.defineAction("relayGotoFile", () => gotoFile());
-  for (const keys of ["gf", "gF"]) {
-    Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "normal" });
-    Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "visual" });
   }
 
   Vim.defineAction("relayOpenLink", () => void openLink());
@@ -460,8 +434,16 @@ async function boot() {
   });
 
   view.focus();
-  pane = terminalPane(view, note);
-  editor = editorPane(view, note, pane);
+  const bridge = (window as unknown as { composerDocument?: { onTerminalOutput(fn: (text: string) => void): void } }).composerDocument;
+  bridge?.onTerminalOutput((text) => {
+    if (reading) return note("this document is read-only");
+    const block = fence(text.split("\n"));
+    if (!block) return;
+    const { from, insert } = insertion(view.state.doc.toString(), view.state.selection.main.head, block);
+    view.dispatch({ changes: { from, insert }, selection: { anchor: from + insert.length }, scrollIntoView: true });
+    view.focus();
+    note("terminal output taken into the document");
+  });
   getCM(view)?.on("vim-mode-change", (e: { mode: string; subMode?: string }) =>
     showMode(e.mode, e.subMode),
   );
@@ -470,7 +452,6 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
-      if (inPane(e.target)) return;
       if (!e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
 

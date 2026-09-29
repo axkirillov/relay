@@ -23,8 +23,6 @@
     "check": "tsc --noEmit",
     "test": "for t in ui/src/*.test.ts src/*.test.ts; do echo \"— $t\"; node --no-warnings \"$t\" || exit 1; done",
     "smoke": "bash scripts/smoke.sh",
-    "smoke:pty": "bash scripts/pty.sh",
-    "smoke:goto": "bash scripts/goto.sh",
     "smoke:open": "bash scripts/open.sh",
     "smoke:queue": "bash scripts/queue.sh",
     "smoke:priority": "bash scripts/priority.sh",
@@ -54,18 +52,14 @@
     "@codemirror/view": "^6.43.8",
     "@lezer/highlight": "^1.2.1",
     "@replit/codemirror-vim": "^6.4.0",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
     "diff": "^8.0.2",
     "electron": "^43.3.0",
-    "mermaid": "^12.0.0",
-    "node-pty": "^1.1.0"
+    "mermaid": "^12.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
-      "electron",
-      "node-pty"
+      "electron"
     ]
   },
   "devDependencies": {

@@ -117,8 +117,8 @@ kill -0 "$PID" 2>/dev/null || fail "the read exited when a route was refused"
 
 # --- a command runs where the round ran -------------------------------------------
 # The one thing a read moves: `--read` chdirs into the round's own tree, so the
-# command, the terminal pane and `gf` all land in the worktree the document was
-# written for rather than wherever composer happened to be started from.
+# command lands in the worktree the document was written for rather than wherever
+# composer happened to be started from.
 curl -sf -X POST -H 'Content-Type: text/plain' --data-binary 'pwd' "${URL}run?lines=40" >"$TMP/ran" \
   || fail "a command in a round with its tree still there was refused"
 grep -qx "$(cd "$TREE" && pwd -P)" "$TMP/ran" || fail "the command ran in $(cat "$TMP/ran"), not the round's own tree"

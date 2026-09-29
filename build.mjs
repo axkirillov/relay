@@ -10,7 +10,7 @@ await build({
   format: "esm",
   target: "node22",
   outfile: "dist/relay.js",
-  external: ["electron", "node-pty"],
+  external: ["electron"],
   banner: { js: "#!/usr/bin/env node" },
   minify: !dev,
   logLevel: "info",

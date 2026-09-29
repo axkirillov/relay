@@ -32,9 +32,7 @@ check("closing it is the gesture it is everywhere else", reading.includes("<kbd>
 
 check("how much they changed that day still stands there", reading.includes(`<span id="stats">unchanged</span>`), true);
 for (const [what, hint] of [
-  ["the terminal", "terminal</span>"],
   ["a command it can still run", "run a command</span>"],
-  ["the file under the cursor", "open the file</span>"],
   ["the link under the cursor", "open the link</span>"],
   ["putting a line back", "put a line back</span>"],
   ["the rendering", "render on/off</span>"],
@@ -42,7 +40,10 @@ for (const [what, hint] of [
   check(`a read keeps ${what}`, reading.includes(hint), true);
 }
 
-check("both panes are there to be opened", [reading.includes(`id="term"`), reading.includes(`id="edit"`)], [true, true]);
+for (const document of [waiting, framed, reading]) {
+  check("terminal and Neovim panes no longer belong to Relay", [document.includes(`id="term"`), document.includes(`id="edit"`)], [false, false]);
+  check("removed pane shortcuts are not advertised", [document.includes("terminal</span>"), document.includes("open the file</span>")], [false, false]);
+}
 check("and the editor bundle is the same one", reading.includes(`<script src="/assets/relay.js"></script>`), true);
 
 process.exit(fails ? 1 : 0);
