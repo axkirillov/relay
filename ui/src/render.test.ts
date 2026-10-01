@@ -129,6 +129,31 @@ check("html: table cells are escaped", html("| a |\n| - |\n| <b> |\n"), [
   "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>&lt;b&gt;</td></tr></tbody></table>",
 ]);
 
+function cell(md: string) {
+  const got = html(`| h |\n| - |\n| ${md} |\n`)[0] ?? "";
+  return /<td>(.*)<\/td>/.exec(got)?.[1];
+}
+
+check("cell: code loses its backticks", cell("`src/main.ts`"), "<code>src/main.ts</code>");
+check("cell: a link is an anchor", cell("[build](https://example.com/build)"), `<a href="https://example.com/build">build</a>`);
+check("cell: bold", cell("**b**"), "<strong>b</strong>");
+check("cell: italic", cell("_i_"), "<em>i</em>");
+check("cell: strikethrough", cell("~~s~~"), "<del>s</del>");
+check("cell: nested inside a link", cell("[**b** `c`](u)"), `<a href="u"><strong>b</strong> <code>c</code></a>`);
+check("cell: text around the markup stays", cell("see `x` now"), "see <code>x</code> now");
+check("cell: an escaped pipe is a pipe", cell("a \\| b"), "a | b");
+check("cell: an escaped pipe in code is a pipe", cell("`a\\|b`"), "<code>a|b</code>");
+check("cell: an autolink", cell("<https://x.y>"), `<a href="https://x.y">https://x.y</a>`);
+check("cell: a bare url", cell("https://a.b"), `<a href="https://a.b">https://a.b</a>`);
+check("cell: a www address opens over https", cell("www.example.com"), `<a href="https://www.example.com">www.example.com</a>`);
+check("cell: a link title is dropped", cell(`[t](u "title")`), `<a href="u">t</a>`);
+check("cell: html inside code is escaped", cell("`<b>`"), "<code>&lt;b&gt;</code>");
+check("cell: html in link text is escaped", cell("[<i>x</i>](u)"), `<a href="u">&lt;i&gt;x&lt;/i&gt;</a>`);
+check("cell: a quote in an address is escaped", cell(`[t](u"onclick=x)`), `<a href="u&quot;onclick=x">t</a>`);
+check("cell: an unresolved reference stays text", cell("[r][r]"), "[r][r]");
+check("cell: an unmatched star stays", cell("a * b"), "a * b");
+check("header: markup renders in a heading cell too", html("| `a` |\n| - |\n| 1 |\n")[0]?.includes("<th><code>a</code></th>"), true);
+
 check("html: local image", html("![cat](cat.png)\n"), [`<img src="cat.png" alt="cat">`]);
 
 check("html: angle brackets are markdown, not path", html("![cat](<cat.png>)\n"), [
