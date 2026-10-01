@@ -101,13 +101,36 @@ find the line it meant. That line is worked out afresh on every edit, so it stil
 names the mistake after lines are added above the fence; it goes when the fence
 itself is edited, since Mermaid has not read that text.
 
+## Contextual footer and Help
+
+The narrow, centred document layout stays unchanged. The footer has two rows:
+mode, edit count, Help and Accept stay in the first; the second holds a contextual
+action, status messages and the count of documents waiting behind this one.
+Messages do not move Accept or change the footer's height.
+
+The contextual action follows the cursor and the existing key priority: a task
+list offers Tick or Untick, a shell fence offers Run, and a link offers Open link
+outside insert mode. Otherwise it offers Edit in normal mode or a return to
+normal mode. Each action shows its key and can be clicked without losing the
+editor selection. The keys themselves are unchanged.
+
+Help, also opened by `:help`, lists Relay's shortcuts in a modal dialog. Focus
+stays there until it closes; document run, stop and accept shortcuts do nothing
+while it is open. Closing Help returns focus to the editor.
+
+A saved round instead shows Read only and Close. Its Help leaves out editing and
+acceptance actions and offers Back to round. Composer handles Escape before the
+page in that view: it closes the whole saved round, including when Help is open.
+No Composer layout or key handling changes are part of this footer.
+
 ## Running a command
 
 An agent that wants the human to run something should not be sending them to a
 terminal. Any fence whose language is a shell — `sh`, `bash`, `zsh`, `shell`,
-`console` — is a command the human can run where it stands: `⌃↵` with the cursor
-in the block, or `:run`. Nothing new for an agent to learn, and every document
-already sent would have been runnable.
+`console` — is a command the human can run where it stands: `⌃J` with the cursor
+in the block, or `:run`. `⌃J` is the same key as a checkbox tick; a box inside a
+fence is code, so the two never meet on one line. Nothing new for
+an agent to learn, and every document already sent would have been runnable.
 
 **The output goes into the document.** That is the whole design, and it follows
 from the diff being the only channel back: the agent asked for the command
@@ -142,9 +165,30 @@ exit adds `[exit 3]`; `⌃C` stops the most recently started run and adds `[stop
 Running another fence while a run is active asks whether to Queue or Parallel.
 Queued commands keep the text they had when queued, start in order after their
 predecessor succeeds, and are skipped together if one fails or is stopped.
-Parallel runs have independent output blocks. The chooser offers `[Q]ueue` and
+Parallel runs in different fences have independent output blocks. Overlapping
+runs of the same fence share its replacement output block; each retains its own
+status and Stop action. The chooser offers `[Q]ueue` and
 `[P]arallel`; Q/P select directly, arrows move focus, Enter confirms, and Esc
 cancels.
+
+**The state stays beside the command.** A badge below each run block shows its
+run number and Queued, Running, Succeeded, Failed, Stopped or Skipped. Queued
+badges show waiting time; running badges show execution time, frozen when the
+run finishes. A running badge has a Stop button targeting that run, even while
+other commands run in parallel. `⌃C` continues to stop the latest active run.
+Stopping a predecessor still skips its queued chain; stopping a parallel run
+does not stop other active runs.
+
+Badges move with edits above and inside their shell fence. A changed command
+is labelled "command edited", and the tooltip keeps the snapshot that was
+started or queued. A rerun removes older completed badges on that block, but
+keeps badges for overlapping active runs. Removing the fence removes its
+badges, not the process; `⌃C` can still stop the latest active run.
+
+These labels, times and buttons are view state, never document text. They do
+not add edits or appear in the accepted diff, and reopening a round does not
+recreate them. Output, failure notices and acceptance handoff paths remain
+ordinary document text with the same behaviour as before.
 
 Long output is **folded, not truncated**: past twenty lines the head is replaced
 by a notice the human can click, while every line stays in the document. The
@@ -163,7 +207,7 @@ whole answer; the file has every line for when it is not. A flat hundred was a
 number picked out of the air, and on a window that shows forty it meant scrolling
 past sixty lines to find out the answer had been written to a file all along. It
 is the window that is measured and not the editor's share of it, so a terminal
-pane dragged tall does not change where a run's output is kept. The pointer is
+under the document does not change where a run's output is kept. The pointer is
 written the moment the spill starts rather than at the end, so a `⌃C` cannot leave
 a cut-off block with no file named. The fold hides that pointer along with the
 rest of the head, so the notice standing in its place names the file too — the one
@@ -304,9 +348,9 @@ between the brackets. That swap is the whole answer: the diff carries
 `-- [ ] yes` / `+- [x] yes`, which cannot be misread, and nothing else about the
 document changes, so words written beside the list come back too. There is no
 radio button, because `( )` is not markdown and "pick one" is the agent's to say
-in the question. There is no click either: the human answers from the keyboard,
-like every other gesture in the window, and a mouse that could tick would tick
-what it was only meant to read. A box inside a code fence is code, not a box.
+in the question. Clicking the box itself still does not tick it; the contextual
+footer's Tick or Untick button is the explicit mouse action for the cursor's
+line. A box inside a code fence is code, not a box.
 The caret between the brackets shows them as text, so they can still be edited
 by hand.
 
@@ -425,7 +469,7 @@ relay leaves its own name in its task's directory as a symlink to itself:
 
 Nothing said under a document is copied in there, so there is no second copy of
 anything to go stale — and the task is then a directory, walkable, which is what
-lets `gf` on one path open the rounds and everything each round kept. The answer is
+lets one path hold the rounds and everything each round kept. The answer is
 `~/.task/about/relay-task-timeline-e01e2c.md`, named for this same directory. The name is what the human calls the task, and six
 characters of the full path's hash, because two checkouts really can end in the
 same two segments and quietly pouring two tasks into one directory is the one
@@ -517,161 +561,24 @@ they type, after a pause rather than on every keystroke. Between the two, the
 most a lost save costs is the typing of the last moment rather than the
 paragraph.
 
-## A terminal in the window
+## The terminal is composer's
 
 A run block answers what the agent thought to ask. It cannot answer what the
 human thinks of next — the command that was nearly right, the one that needs a
-question answered, the `git rebase -i` — and alt-tabbing to a terminal for those
-is the friction. So the window has one: `⌃\`` opens a
-pane at the bottom on a real pty, in the directory relay was run from, and `⌃\``
-again crosses back to the document without putting the pane away — `:term` does
-that, as does the ✕ in its bar. Colours, TUIs, `⌃C`, `git rebase -i`: a shell,
-not a command runner. The pane is opt-in, and nothing is spawned until it is
-opened for the first time — the window is a document first, and a terminal that
-was always up would change what relay is.
+question answered, the `git rebase -i`. relay used to keep a shell pane for those,
+on a pty in the CLI process, with a second pty for a `gf` into their own neovim.
+Both are gone. The shell is composer's now: `⌃\`` opens it under the document, in
+the tree relay was run from, and it outlives the document, so the next one from
+the same tree finds it where it was left. One shell per window died with the
+window; one per tree does not, and that is the point of moving it.
 
-The pty lives in the **CLI process**, not the page. That is forced — the page has
-`contextIsolation: true, nodeIntegration: false` and could not spawn a process if
-it tried — and it is the good outcome: the CLI is plain node, so `node-pty` loads
-the prebuild for the system ABI and nothing has to be rebuilt against Electron's.
-The bridge is three routes on the loopback server already there: `GET /pty` is an
-event stream of output, `POST /pty/in` is a burst of typing, `POST /pty/size` is
-the new size. Base64 on the way out, because a pty speaks in the carriage returns
-an event stream is delimited by. Server-sent events rather than a socket upgrade
-because it costs no framing code, and the page only ever listens on it.
-
-Everything dies with the window. `relay` kills the shell as it shuts the server,
-and if relay is killed outright the pty master closes and the shell gets its
-`SIGHUP` from the OS, the way a terminal emulator's children always have.
-
-### Getting what happened in there back to the agent
-
-This is the feature's whole justification, not a nicety. **A pty's scrollback is
-not document text, and the diff is relay's only channel back** — so an agent that
-asked the human to run something, and got a terminal widget for its trouble, is
-no better off than before, and the human is back to copy-pasting.
-
-Two roads out, and they are both the same road the document already uses:
-
-- **`⌘Y` takes the last command and its output into the document** as a fenced
-  block, at the caret, where the diff will carry it. With something selected in
-  the terminal, it takes the selection instead. This is the one the feature is
-  for: one key, from inside the shell, and what the agent asked to see is in the
-  reply.
-- **A selection in the terminal is a yank.** It goes into vim's unnamed register
-  and on to the system clipboard from there, so `p` pastes it into the document
-  and `⌘V` pastes it anywhere else — exactly what a yank in the document does.
-
-Which rows are "the last command and its output" is read off the terminal's own
-buffer rather than the byte stream, so what comes back is what the human can see:
-wrapping resolved, escapes gone, a TUI's redraws collapsed into the screen it
-settled on. The region starts at the row the cursor was on when they last pressed
-Enter and ends above the prompt the shell has drawn since. A prompt of more than
-one line leaves its upper lines inside that region, and there is no shell
-integration to ask, so they are recognised instead: a prompt repeats itself, and
-what stood above the command when it ran is what to look for at the end of its
-output. A prompt that changed in between — the command was a `cd` — is not
-recognised and stays, which is the harmless way round. On the alternate screen a
-full-screen program has no scrollback to walk, and its screen is the whole of
-what it has to say, so that is what is taken.
-
-## `gf` opens the file, in their own neovim
-
-A relay document is full of `src/cli.ts:42`, and until now every one of them was
-a thing to go and look at somewhere else. `gf` on one opens **a real neovim, in
-this window, on that file, on that line** — their config, their LSP, their
-plugins. `:q` and it is gone, and they are back in the document with their edits
-and their cursor exactly where they left them.
-
-Three cheaper things were on the table first — a read-only peek rendered in the
-window, pushing the file to the nvim next door in tmux, and `open` — and all
-three were turned down for the same reason: what is wanted at that moment is
-*an editor*, and the human already has one they have spent years on.
-
-So this is not a viewer, and the spec should not imply one. It is their nvim on
-the real file: they can change it, `:w` it, and that is a consequence of what was
-asked for rather than a hole in it.
-
-**It is nvim's own pty, not a shell that runs nvim.** The difference is what
-happens when they quit: the process ends, the pty ends, the pane goes. A shell in
-between would still be sitting there afterwards, holding a prompt in a pane that
-was supposed to disappear. nvim by name rather than `$EDITOR`, because what was
-asked for was *their neovim*, and `$EDITOR` is as likely to be something that
-opens a window of its own or has no use for `+42`.
-
-**A second pty, beside the shell's.** The most likely moment for a `gf` is while
-reading something in the terminal pane, so refusing one then would be refusing it
-exactly when it is wanted; and taking the shell's pty away would kill whatever it
-was in the middle of. So nvim gets its own, the shell keeps running behind it,
-and the pane it was occupying comes back when nvim quits. This is not the tabs
-and splits the terminal pane rules out — there is still one shell, and this one
-lives for one file.
-
-### What counts as a path
-
-The path-ish text under the cursor — or, if the cursor is not on one, the next
-one along the line, which is what vim does and what makes `gf` a key rather than
-an aiming exercise. A path in prose arrives wrapped, in backticks, in a markdown
-link, in quotes, in a table cell, with the sentence's full stop stuck to the end,
-and none of that wrapping is part of the name; so none of it is in the class of
-characters a path is made of, and `` `src/cli.ts` ``, `[cli](src/cli.ts)` and a
-bare `src/cli.ts` all come out the same. In visual mode the selection is the
-path, which is the way out of a name this cannot pick out of prose.
-
-`:42` is honoured, and `:42:7` takes the column too. vim splits that across `gf`
-and `gF`; there is no reason here to want the line thrown away, so both keys do
-the same thing and a hand that learnt either need not remember which.
-
-Paths resolve against the directory relay was run from — the same one a `⌃↵`
-command runs in — with `~` and absolute paths as written. **No file, no jump**: a
-line in the footer saying what was looked for, nothing opened and nothing
-created. A directory counts, because nvim opens one as a listing and vim's own
-`gf` does the same.
-
-**There is no allow-list, and the absence is deliberate.** Pictures get one,
-because a picture's path never comes back off the wire and the agent named every
-file it meant; a path the human's cursor is on comes back off the wire by
-definition. There is also nothing to protect: it is their machine, their key, and
-they can already run any command they like in this window with `⌃↵` or the shell
-pane. Being shown a file is strictly less than that.
-
-### Inside nvim, every key is nvim's
-
-Even more so than in the shell — `⌃X`, `⌃C`, `⌃D`, `⌃R`, `⌃W`, `⌃O` all mean
-something in there. So `⌃X` does not accept and `⌃↵` does not run while nvim has
-the pane, and `gf` inside nvim is nvim's own, which is why a second one of these
-can never be opened from in there.
-
-Two keys are kept back, the same two the shell pane keeps:
-
-- **`⌃\`` crosses to the document and back**, without disturbing nvim. The
-  document is on screen the whole time — the pane leaves it room deliberately —
-  so a reply can be typed with the file still up.
-- **`⌘Y` takes the selection into the document.** nvim has the mouse, so a plain
-  drag is nvim's own visual selection; the drag that selects rows for the
-  terminal instead is **`⌥-drag` on a Mac and `⇧-drag` everywhere else** — that
-  is xterm's own override and it is not the same key on both, which is why the
-  footer says whichever one is theirs. Those rows land in the document as a
-  fenced block, the same crossing the shell pane's take is. There is no "last
-  command" in an editor, so without a selection there is nothing to take.
-
-There is no third, and in particular no ✕ and no `:term`: **closing this pane is
-`:q`**, which is nvim's word for it and already in their hands. A pane that could
-be dismissed out from under a buffer with unsaved changes would be a way to lose
-work quietly.
-
-Accepting the relay while nvim is still open kills it along with everything else
-the window started. That is SIGHUP, which is the signal nvim has always taken as
-"the terminal is going" — it writes its swap file on the way out, so the recovery
-nvim itself offers next time is there.
-
-### Inside the terminal, every key is the shell's
-
-`⌃X` accepts and `⌃↵` runs a block; from the pane they do nothing. A shell has
-its own uses for `⌃X`, `⌃C`, `⌃D` and the rest, and a terminal that quietly kept
-a few back would not be a terminal. The two exceptions are the ones that have to be:
-`⌃\`` to leave, and `⌘Y` (`⌃⇧Y` off a Mac) to take — chosen because they are keys
-a shell has no use for.
+relay's part is the road back. **A pty's scrollback is not document text, and
+the diff is relay's only channel back**, so composer's `⌘Y` hands the selection,
+or the last command and its output, to the page through `composerDocument`, a
+bridge composer's preload puts on the window. The page puts it at the caret as a
+`console` fence, where the diff will carry it, and a read-only document refuses
+it with a line in the footer. A page opened without composer has no bridge and
+listens for nothing.
 
 ## `gx` opens the link, wherever they open links
 
@@ -681,8 +588,8 @@ retyped into a browser by hand. `gx` is vim's own key for it and does what vim's
 does: hands the link under the cursor to whatever this machine opens links with.
 
 **The CLI opens it, not the window.** The page is sandboxed and the window has no
-handler for opening one either, so a link goes out over the same loopback bridge
-nvim comes back on. `open` on a Mac, `xdg-open` elsewhere — the machine's own
+handler for opening one either, so a link goes out over the loopback bridge the
+page already talks to. `open` on a Mac, `xdg-open` elsewhere — the machine's own
 default rather than a browser named here — spawned with the address as one
 argument. Nothing puts it near a shell: an address is data, and a `$(…)` in a
 query string is a character of it and not a command.
@@ -698,14 +605,14 @@ Nothing of this happens in the window — the browser is somewhere else entirely
 so the footer is the whole of the feedback, and it waits until the opener has
 taken the link before it says it went. An opener that refuses says so there.
 
-**And the footer says the key exists**, next to `gf` where the rest of them are.
-A URL was not dead text for want of a way to open it — nobody had been told there
-was one — so a `gx` that only the spec knows about is the same silence in a new
-coat.
+**The footer shows Open link and `gx` when a link is at the cursor**, unless a
+checkbox or shell command has priority. The key is always listed in Help. A URL
+was not dead text for want of a way to open it — nobody had been told there was
+one — so a `gx` that only the spec knows about is the same silence in a new coat.
 
 ### What counts as a link
 
-The same reading `gf` does of a path: the link under the cursor, or the next one
+The link under the cursor, or the next one
 along the line, with the wrapping the document put around it left behind — an
 autolink's `<>`, a markdown link's parentheses, backticks, a table cell, the
 sentence's full stop, the `**` of emphasis. Where an address ends is its own
@@ -714,14 +621,10 @@ comes out whole, while the `)` that closes `[fold](…)` does not. In visual mod
 the link is looked for *inside* the selection rather than demanded of it — what a
 hand selects around an address is as likely to be the sentence it sat in.
 
-**`gx` alone, where `gf` has `gF`.** That pair is vim's own and relay collapses
-it; `gX` is not a key any hand has learnt, and inventing one is not the same
-thing.
+**`gx` alone.** `gX` is not a key any hand has learnt, and inventing one is not
+the same thing.
 
-**No link, nothing opened**: a line in the footer and no more, which is the
-answer `gf` gives to the same question. A link under `gf` is told it is one
-rather than looked for as a file — the two keys are a shift apart and the
-document has both kinds of thing in it.
+**No link, nothing opened**: a line in the footer and no more.
 
 ## Window
 
@@ -821,7 +724,7 @@ everything today from a session the human is not looking at.
 ### How much is left
 
 The footer says how many documents are still in line behind the one on screen —
-`3 more waiting`, after the edit count, in the footer's own colour rather than
+`3 more waiting`, on the contextual row, in the footer's own colour rather than
 the accent, which is for things that have just happened. It answers the question
 the human has while they are reading: *is this the last one, or am I ten deep?*
 So it counts what is behind this document rather than how long the line is, and
@@ -966,8 +869,8 @@ it when the human closes it.
 What it serves is the round as it looked the day it arrived: the document is what
 they accepted, diffed against what the agent sent, so their own lines are lit
 against the agent's exactly as they were while they were typing them — and a round
-they never answered shows the question, with nothing lit. Rendered markdown, the
-panes, `gf`, `gx`, `:raw`, and vim, so a line can be yanked out of it.
+they never answered shows the question, with nothing lit. Rendered markdown, `gx`,
+`:raw`, and vim, so a line can be yanked out of it.
 
 Read-only means the human's keys still arrive and their edits do not land:
 `EditorState.readOnly`, which vim itself checks before it changes anything, and not
@@ -978,14 +881,14 @@ it, and `/accept` and `/draft` refuse as well: a page is a page, and the gate on
 thing that must not happen belongs on the server too.
 
 A command in it still runs, in the tree the round came from — the read chdirs there
-before serving, which is where the run blocks, the terminal pane and `gf` all look.
+before serving, which is where the run blocks look.
 A round whose worktree has been torn down since has nowhere to run anything, and the
 block says which tree is missing rather than running it somewhere else.
 
 **A read writes nothing into the round's directory.** What is on disk there is what
 the human accepted that day, `run-N.log` and all, and a command run out of a past
 document is not part of that record. It very nearly was: the run numbering starts at
-1 in every process, so the first `⌃↵` in a read opened the round's own `run-1.log`
+1 in every process, so the first `⌃J` in a read opened the round's own `run-1.log`
 `"w"` and wrote over it — or unlinked it, when the output turned out short enough to
 stay in the document. That file is the one the document being read points at, by
 name, in the notice a long run left in it the day it went up; 59 of the 2,728 rounds
@@ -1046,10 +949,8 @@ gate.
   `securityLevel`, which stays `strict`: those keys are in Mermaid's `secure`
   list, which strips them from a `%%{init}%%` line and from front matter. The
   picture then goes through the same cleaner as any HTML block.
-- **One shell per window, and only if it is asked for.** No tabs, no splits, no
-  session to reattach to. The pane exists to answer the question on screen.
-- **`gf` opens the human's real editor, not a preview of the file.** A viewer
-  would have been cheaper and was turned down.
+- **The terminal is composer's, not relay's.** relay only takes what it hands
+  over into the document.
 - **`gx` hands the link to the machine**, rather than relay having any opinion
   about which browser or opening one in the window. What it will hand over is an
   allow-list of schemes, checked in the page and again in the CLI.

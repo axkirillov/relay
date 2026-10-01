@@ -14,19 +14,19 @@ import { stillRunningNotice } from "../../src/spill";
 import { checkboxes, toggleAtCursor } from "./checkbox";
 import { drawDiagrams } from "./diagram";
 import { diffReview, reviewNumber } from "./diffview";
-import { type Editor, editorPane } from "./editor";
+import { type Draft, draftKeeper } from "./draft";
 import { fenceBackground } from "./fence";
-import { pathAt, target } from "./goto";
+import { contextAction, shortcutHelp } from "./footer";
 import { codeLanguage } from "./languages";
 import { url, urlAt } from "./link";
 import { liveDiff, type Stats } from "./livediff";
 import { foldOutput, opened, refold } from "./outfold";
-import { inPane } from "./pane";
 import { followRendered, type Images, isRendering, renderBlocks, selectWords, setRendering } from "./render";
 import { restore } from "./restore";
 import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
 import { queueAfter } from "./runqueue";
-import { type Pane, terminalPane } from "./terminal";
+import { beginRun, type RunPhase, runStatuses, updateRun } from "./runstatus";
+import { fence, insertion } from "./take";
 import { markdownHighlight, theme } from "./theme";
 
 const mount = document.getElementById("editor")!;
@@ -36,13 +36,33 @@ const queueEl = document.getElementById("queue")!;
 const noteEl = document.getElementById("note")!;
 const overlayEl = document.getElementById("overlay")!;
 const choiceEl = document.getElementById("run-choice")!;
+const unsavedEl = document.getElementById("unsaved")!;
 
 const reading = document.body.dataset.read !== undefined;
 
 let view: EditorView;
-let pane: Pane;
-let editor: Editor;
 let sending = false;
+let currentMode = "normal";
+const help = shortcutHelp(() => view?.focus());
+
+function showContext(state: EditorState) {
+  const action = contextAction(state, currentMode, reading);
+  document.getElementById("context-key")!.textContent = action.key;
+  document.getElementById("context-label")!.textContent = action.label;
+}
+
+function useContext() {
+  const action = contextAction(view.state, currentMode, reading);
+  view.focus();
+  if (action.kind === "run") void runAtCursor();
+  else if (action.kind === "tick") toggleAtCursor(view);
+  else if (action.kind === "link") void openLink();
+  else if (action.kind === "close") window.close();
+  else {
+    const cm = getCM(view);
+    if (cm) Vim.handleKey(cm, action.kind === "edit" ? "i" : "<Esc>", "user");
+  }
+}
 
 function overlay(mark: string, title: string, note: string, tone: "ok" | "error" = "ok") {
   overlayEl.querySelector(".mark")!.textContent = mark;
@@ -57,9 +77,12 @@ function hideOverlay() {
 }
 
 function showMode(mode: string, subMode?: string) {
+  currentMode = mode;
   const label = mode === "visual" ? `VISUAL${subMode === "linewise" ? " LINE" : subMode === "blockwise" ? " BLOCK" : ""}` : mode.toUpperCase();
-  modeEl.textContent = label;
+  modeEl.textContent = reading && mode === "normal" ? "READ ONLY" : label;
+  modeEl.title = modeEl.textContent;
   modeEl.className = mode === "insert" ? "insert" : mode === "visual" ? "visual" : "";
+  showContext(view.state);
 }
 
 let noteTimer = 0;
@@ -67,19 +90,26 @@ let holding = "";
 
 function note(text: string) {
   noteEl.textContent = text;
+  noteEl.title = text;
   window.clearTimeout(noteTimer);
-  noteTimer = window.setTimeout(() => (noteEl.textContent = holding), 4000);
+  noteTimer = window.setTimeout(() => {
+    noteEl.textContent = holding;
+    noteEl.title = holding;
+  }, 4000);
 }
 
 function hold(text: string) {
   holding = text;
   noteEl.textContent = text;
+  noteEl.title = text;
   window.clearTimeout(noteTimer);
 }
 
 function release() {
   holding = "";
   noteEl.textContent = "";
+  noteEl.title = "";
+  window.clearTimeout(noteTimer);
 }
 
 function showStats(s: Stats) {
@@ -138,25 +168,35 @@ async function accept() {
   }
 }
 
-let saved = "";
+let draft: Draft;
 let draftTimer = 0;
 
-async function saveDraft(): Promise<void> {
+function saveDraft(): Promise<boolean> {
   window.clearTimeout(draftTimer);
-  const text = view.state.doc.toString();
-  if (text === saved) return;
+  return draft.save();
+}
+
+async function postDraft(text: string): Promise<void> {
   const res = await fetch("/draft", {
     method: "POST",
     headers: { "Content-Type": "text/markdown" },
     body: text,
+    signal: AbortSignal.timeout(5000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  saved = text;
+}
+
+function showUnsaved(unsaved: boolean) {
+  unsavedEl.hidden = !unsaved;
 }
 
 function saveSoon() {
   window.clearTimeout(draftTimer);
-  draftTimer = window.setTimeout(() => void saveDraft().catch(() => {}), 400);
+  draftTimer = window.setTimeout(() => void saveDraft(), 400);
+}
+
+async function saveNow() {
+  if (await saveDraft()) note("draft saved");
 }
 
 type Run = { id: number; controller: AbortController; log: string | null; wrote: boolean };
@@ -167,6 +207,16 @@ const finished = new Map<number, boolean>();
 let nextRun = 0;
 let tail: Promise<boolean> | null = null;
 let tailId: number | null = null;
+
+function showRuns() {
+  const counts = [active.size ? `${active.size} running` : "", pending.size ? `${pending.size} queued` : ""].filter(Boolean);
+  if (counts.length) hold(`${counts.join(" · ")} — ${reading ? "closing stops them" : "accepting does not stop them"}`);
+  else release();
+}
+
+function stopRun(id: number) {
+  if (!sending) active.get(id)?.controller.abort();
+}
 
 function chooseRun(command: string): Promise<"queue" | "parallel" | "cancel"> {
   return new Promise((resolve) => {
@@ -192,6 +242,8 @@ function chooseRun(command: string): Promise<"queue" | "parallel" | "cancel"> {
         buttons[document.activeElement === buttons[0] ? 1 : 0]!.focus();
       } else if (key === "tab") {
         buttons[document.activeElement === buttons[0] ? 1 : 0]!.focus();
+      } else if (e.ctrlKey && !e.metaKey && !e.altKey && key === "j") {
+        if (document.activeElement instanceof HTMLButtonElement) document.activeElement.click();
       } else if (key === "enter" || key === " ") return;
       else return;
       e.preventDefault();
@@ -203,34 +255,42 @@ function chooseRun(command: string): Promise<"queue" | "parallel" | "cancel"> {
 }
 
 async function runAtCursor() {
-  if (choiceEl.dataset.show !== undefined) return;
-  const block = shellBlockAt(view.state, view.state.selection.main.head);
-  if (!block) return note("no command here — put the cursor in a ```sh block");
+  if (choiceEl.dataset.show !== undefined || help.isOpen() || sending) return;
+  const preview = shellBlockAt(view.state, view.state.selection.main.head);
+  if (!preview) return note("no command here — put the cursor in a ```sh block");
   const predecessorId = tail ? tailId : [...inFlight.keys()].at(-1) ?? null;
   const predecessor = predecessorId === null ? null : inFlight.get(predecessorId) ?? null;
-  const choice = predecessor ? await chooseRun(block.command) : "parallel";
+  const choice = predecessor ? await chooseRun(preview.command) : "parallel";
   if (choice === "cancel" || sending) return;
+  const block = shellBlockAt(view.state, view.state.selection.main.head);
+  if (!block) return note("the command block is no longer here");
 
   const id = ++nextRun;
   const plan = startOutput(view.state, block);
+  const continuing = [...view.state.field(sink)].filter(([, at]) => at > plan.from && at < plan.to).map(([id]) => id);
   view.dispatch({
     changes: { from: plan.from, to: plan.to, insert: plan.insert },
-    effects: setSink.of({ id, at: plan.at }),
+    effects: [
+      ...[...continuing, id].map((id) => setSink.of({ id, at: plan.at })),
+      beginRun.of({ id, from: block.from, to: block.to, command: block.command, phase: "queued", queuedAt: Date.now(), startedAt: null, finishedAt: null }),
+    ],
   });
 
-  const first = block.command.split("\n")[0]!;
-  const label = `${first}${block.command.includes("\n") ? " …" : ""}`;
   if (choice === "queue" && predecessorId !== null) {
-    note(`queued ${label}`);
     pending.set(id, { id, command: block.command, previous: predecessorId });
+    showRuns();
   }
   const task = choice === "queue" && predecessor
-    ? queueAfter(predecessor.then((success) => success && !sending), () => execute(id, block.command, label), () => {
+    ? queueAfter(predecessor.then((success) => success && !sending), () => execute(id, block.command), () => {
         pending.delete(id);
-        if (!sending) append(id, "[skipped — previous command failed or was stopped]\n");
+        if (!sending) {
+          append(id, "[skipped — previous command failed or was stopped]\n");
+          view.dispatch({ effects: updateRun.of({ id, phase: "skipped", at: Date.now() }) });
+        }
         view.dispatch({ effects: setSink.of({ id, at: null }) });
+        showRuns();
       })
-    : execute(id, block.command, label);
+    : execute(id, block.command);
   tail = task;
   tailId = id;
   inFlight.set(id, task);
@@ -244,11 +304,13 @@ async function runAtCursor() {
   });
 }
 
-async function execute(id: number, command: string, label: string): Promise<boolean> {
+async function execute(id: number, command: string): Promise<boolean> {
   pending.delete(id);
   const run: Run = { id, controller: new AbortController(), log: null, wrote: false };
   active.set(id, run);
-  hold(`running ${label} — ⌃C stops the latest run, accepting does not`);
+  let phase: RunPhase = "failed";
+  view.dispatch({ effects: updateRun.of({ id, phase: "running", at: Date.now() }) });
+  showRuns();
   try {
     const res = await fetch(`/run?lines=${screenLines()}`, {
       method: "POST",
@@ -284,15 +346,18 @@ async function execute(id: number, command: string, label: string): Promise<bool
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json() as Promise<{ status: number | null }>;
     });
+    phase = status.status === 0 ? "succeeded" : "failed";
     return status.status === 0;
   } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") append(id, "[stopped]\n");
-    else append(id, `relay could not run it: ${err}\n`);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      phase = "stopped";
+      append(id, "[stopped]\n");
+    } else append(id, `relay could not run it: ${err}\n`);
     return false;
   } finally {
     active.delete(id);
-    if (!active.size) release();
-    view.dispatch({ effects: setSink.of({ id, at: null }) });
+    showRuns();
+    view.dispatch({ effects: [setSink.of({ id, at: null }), updateRun.of({ id, phase, at: Date.now() })] });
   }
 }
 
@@ -305,18 +370,6 @@ function append(id: number, text: string): boolean {
   if (at === undefined) return false;
   view.dispatch({ changes: { from: at, insert: text } });
   return true;
-}
-
-function gotoFile() {
-  const { state } = view;
-  const at = state.selection.main;
-  const line = state.doc.lineAt(at.head);
-  const found = at.empty
-    ? pathAt(line.text, at.head - line.from)
-    : target(state.sliceDoc(at.from, at.to).trim());
-  if (!found) return note("no path under the cursor");
-  if (url(found.path)) return note("that is a link — gx opens it");
-  editor.open(found);
 }
 
 async function openLink() {
@@ -346,11 +399,12 @@ async function open(href: string) {
 function bindVim(original: string) {
   if (!reading) {
     Vim.defineEx("accept", "acc", () => void accept());
-    Vim.defineEx("write", "w", () => void accept());
+    Vim.defineEx("write", "w", () => void saveNow());
     Vim.defineEx("wq", "wq", () => void accept());
     Vim.defineEx("xit", "x", () => void accept());
   }
   Vim.defineEx("quit", "q", () => window.close());
+  Vim.defineEx("help", "h", () => help.open());
 
   Vim.defineEx("restore", "res", (_cm, params) => {
     const cursor = view.state.doc.lineAt(view.state.selection.main.head).number - 1;
@@ -365,9 +419,6 @@ function bindVim(original: string) {
     note(on ? "rendered" : "source");
   });
 
-  Vim.defineEx("terminal", "term", () => pane.toggle());
-  Vim.defineEx("take", "take", () => pane.take());
-
   Vim.defineEx("run", "run", () => void runAtCursor());
 
   const foldBack = () => note(refold(view) ? "folded" : "nothing to fold");
@@ -378,12 +429,6 @@ function bindVim(original: string) {
   if (!reading) {
     Vim.defineAction("relayAccept", () => void accept());
     Vim.mapCommand("ZZ", "action", "relayAccept", {}, { context: "normal" });
-  }
-
-  Vim.defineAction("relayGotoFile", () => gotoFile());
-  for (const keys of ["gf", "gF"]) {
-    Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "normal" });
-    Vim.mapCommand(keys, "action", "relayGotoFile", {}, { context: "visual" });
   }
 
   Vim.defineAction("relayOpenLink", () => void openLink());
@@ -422,7 +467,6 @@ async function boot() {
   ]);
   const diagrams = await drawDiagrams(original);
   bindVim(original);
-  saved = start;
 
   view = new EditorView({
     parent: mount,
@@ -447,29 +491,46 @@ async function boot() {
         selectWords(),
         foldOutput(),
         sink,
+        runStatuses(stopRun),
         liveDiff(original, showStats),
         EditorView.updateListener.of((u) => {
           if (u.transactions.some(opened)) note("opened — :fold, or zc, puts it back");
           if (u.docChanged && !reading) saveSoon();
+          showContext(u.state);
         }),
         keymap.of([...historyKeymap, ...defaultKeymap]),
       ],
     }),
   });
 
+  draft = draftKeeper(start, () => view.state.doc.toString(), postDraft, showUnsaved);
   view.focus();
-  pane = terminalPane(view, note);
-  editor = editorPane(view, note, pane);
+  const bridge = (window as unknown as { composerDocument?: { onTerminalOutput(fn: (text: string) => void): void } }).composerDocument;
+  bridge?.onTerminalOutput((text) => {
+    if (reading) return note("this document is read-only");
+    const block = fence(text.split("\n"));
+    if (!block) return;
+    const { from, insert } = insertion(view.state.doc.toString(), view.state.selection.main.head, block);
+    view.dispatch({ changes: { from, insert }, selection: { anchor: from + insert.length }, scrollIntoView: true });
+    view.focus();
+    note("terminal output taken into the document");
+  });
   getCM(view)?.on("vim-mode-change", (e: { mode: string; subMode?: string }) =>
     showMode(e.mode, e.subMode),
   );
-  if (!reading) document.getElementById("accept")!.addEventListener("click", () => void accept());
+  showMode("normal");
+  document.getElementById("context-action")!.addEventListener("mousedown", (event) => event.preventDefault());
+  document.getElementById("context-action")!.addEventListener("click", useContext);
+  if (!reading) {
+    document.getElementById("accept")!.addEventListener("click", () => void accept());
+    document.getElementById("retry")!.addEventListener("click", () => void saveNow());
+  }
+  else document.getElementById("close")!.addEventListener("click", () => window.close());
 
   window.addEventListener(
     "keydown",
     (e) => {
-      if (inPane(e.target)) return;
-      if (!e.ctrlKey || e.metaKey || e.altKey) return;
+      if (help.isOpen() || !e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
 
       if (key === "x" && !reading) {
@@ -478,22 +539,19 @@ async function boot() {
         void accept();
         return;
       }
-      if (e.key === "Enter") {
+      if (key === "j") {
         e.preventDefault();
         e.stopPropagation();
-        void runAtCursor();
-        return;
-      }
-      if (key === "j" && !reading) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!toggleAtCursor(view)) note("no checkbox here — put the cursor on a - [ ] line");
+        if (choiceEl.dataset.show !== undefined) return;
+        if (!reading && toggleAtCursor(view)) return;
+        if (reading || shellBlockAt(view.state, view.state.selection.main.head)) void runAtCursor();
+        else note("nothing here — put the cursor on a - [ ] line or in a ```sh block");
         return;
       }
       if (key === "c" && active.size) {
         e.preventDefault();
         e.stopPropagation();
-        [...active.values()].at(-1)!.controller.abort();
+        stopRun([...active.keys()].at(-1)!);
       }
     },
     true,
@@ -504,7 +562,7 @@ async function boot() {
   window.addEventListener("pagehide", () => {
     if (sending || reading) return;
     const text = view.state.doc.toString();
-    if (text === saved) return;
+    if (text === draft.saved()) return;
     navigator.sendBeacon("/draft", new Blob([text], { type: "text/markdown" }));
   });
 }

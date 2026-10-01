@@ -97,8 +97,8 @@ reading 20260901-091200-which-cap
 curl -sf "$URL" >"$TMP/page" || fail "the page is not served"
 grep -q '<body data-read>' "$TMP/page" || fail "the page is not marked as a read"
 grep -q 'id="accept"' "$TMP/page" && fail "a round being read offers an accept"
-grep -q '<kbd>esc</kbd> or <kbd>:q</kbd> close' "$TMP/page" || fail "the footer does not say how to close it"
-grep -q 'run a command' "$TMP/page" || fail "the footer dropped the command it can still run"
+grep -q 'id="close"' "$TMP/page" || fail "the footer has no close control"
+grep -q 'Run the shell block under the cursor' "$TMP/page" || fail "shortcut help dropped the command it can still run"
 grep -q '<span id="stats">' "$TMP/page" || fail "the footer dropped what they changed that day"
 
 # Both texts, and this way round: the baseline is what the agent sent, so the page
@@ -117,8 +117,8 @@ kill -0 "$PID" 2>/dev/null || fail "the read exited when a route was refused"
 
 # --- a command runs where the round ran -------------------------------------------
 # The one thing a read moves: `--read` chdirs into the round's own tree, so the
-# command, the terminal pane and `gf` all land in the worktree the document was
-# written for rather than wherever composer happened to be started from.
+# command lands in the worktree the document was written for rather than wherever
+# composer happened to be started from.
 curl -sf -X POST -H 'Content-Type: text/plain' --data-binary 'pwd' "${URL}run?lines=40" >"$TMP/ran" \
   || fail "a command in a round with its tree still there was refused"
 grep -qx "$(cd "$TREE" && pwd -P)" "$TMP/ran" || fail "the command ran in $(cat "$TMP/ran"), not the round's own tree"
@@ -140,7 +140,7 @@ PID=""
 # A round's `run-1.log` is the file the document itself points at when a command that
 # day outgrew it — 59 of the 2,728 rounds on the machine this was written on have one.
 # The run numbering starts at 1 in every process, so a read whose output went into the
-# round's own directory opened that file `"w"` on the human's first ⌃↵, and unlinked it
+# round's own directory opened that file `"w"` on the human's first ⌃J, and unlinked it
 # again when the output turned out short. A read is a reading; it writes nothing there.
 KEPT=20260812-163130-spill-doc
 round "$KEPT" "$TREE" '# Which cap

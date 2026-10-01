@@ -38,16 +38,24 @@ source and out again.
 
 A command the agent wants run can be run in the window. Put the cursor in any
 shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
-`⌃↵` (or `:run`); its output streams in directly below as a ```` ````output ````
+`⌃J` (or `:run`); its output streams in directly below as a ```` ````output ````
 block, so the diff carries it back. Running another fence while one is active
 asks whether to Queue or run in Parallel. Queued fences use the commands as they
 were when queued and run in order only while each preceding command succeeds;
 a failure or stop skips the rest of that chain. Accept does not wait: pending
 queued commands continue in the background, with their progress and output paths
 in the queue report named under each queued fence. Closing without accepting
-cancels the queue. `⌃C` stops the latest active run,
-running the block again replaces its last output, and `:res` takes an output you would rather not send
-back out. Long output is folded to its last twenty lines — every line is still
+cancels the queue. Each block shows its run number, status and elapsed time:
+Queued, Running, Succeeded, Failed, Stopped or Skipped. **Stop** beside a running
+block stops that run only; `⌃C` still stops the latest active run. Queued time is
+labelled as waiting, and the timer freezes when the run finishes. If the command
+is edited after starting or queuing it, the badge says **command edited**; its
+tooltip keeps the command that actually runs. These badges belong to the current
+view, not the document or the diff.
+
+Running the block again replaces its last output and completed badges, while
+overlapping runs keep separate badges. `:res` takes an output you would rather
+not send back out. Long output is folded to its last twenty lines — every line is still
 there. Clicking the `… N earlier lines` notice opens the fold, `zc` or `:fold`
 closes it again, and `:raw` shows the lot. Output taller than the window goes to
 `~/.relay/<round>/run-N.log` instead, and the block keeps a windowful of it, a
@@ -59,13 +67,22 @@ unticks it, in normal mode or insert mode. The tick is the text `[x]`, so the
 diff carries it back like any other edit, and a question can still be answered in
 words anywhere around it.
 
-In the window: `⌃X` or `ZZ` accepts — `:w`, `:wq`, `:x` and `:acc` do too — `:q`
-closes without replying, and `:res` puts a stretch of the document back the way
-it arrived: the cursor line in normal mode, the selection in visual mode, or a
-range like `:12,18res`. Lines are numbered so they can be pointed at in a reply.
+In the window: `⌃X` or `ZZ` accepts — `:wq`, `:x` and `:acc` do too — `:q`
+closes without replying, `:w` saves the draft now, and `:res` puts a stretch of
+the document back the way it arrived: the cursor line in normal mode, the
+selection in visual mode, or a range like `:12,18res`. Lines are numbered so they
+can be pointed at in a reply. When a draft cannot be saved, the footer says
+**Draft not saved · Retry** until the text on screen is saved.
 Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
+
+The footer keeps mode, edit count and **Accept** in place. Its second row shows
+one action for the cursor: **Run**, **Tick/Untick**, **Open link**, or a mode
+change, with the key beside it. You can click that action too. Status messages
+and the waiting-document count share this row without moving Accept. **Help**
+(or `:help`) opens the shortcut list; Escape closes it and returns to the editor.
+The document stays narrow and centred.
 
 ## The task, and where the answer lives
 
@@ -92,7 +109,9 @@ it in the document column as it looked the day it arrived — what you accepted,
 own lines still lit against what the agent sent. It is read-only, and vim is still
 vim in it, so a line can be yanked out of a round from last week. A command in it
 runs in the worktree that round came from; if that tree is gone, the block says so
-rather than running it somewhere else.
+rather than running it somewhere else. The footer shows **Read only** and
+**Close**, not Accept. Help lists only the available actions; **Back to round**
+closes Help. In Composer, Escape closes the whole saved round, even from Help.
 
 ## Reviewing a diff
 
@@ -100,21 +119,6 @@ A ```` ```diff ```` block is a review you can write in. Edit the patch where it
 stands, and any line you write that does not open with a diff marker is a
 comment — those come back to the agent under the diff, each one located as
 `file:line`, so a remark beside a hunk arrives knowing which line it is about.
-
-## gf opens the file
-
-Put the cursor on a path in the document — `src/cli.ts`, `` `src/cli.ts` ``,
-`[cli](src/cli.ts)`, all the same — and press `gf` (`gF` does the same thing).
-Your own neovim opens in the window on that file, with your config, and
-`src/cli.ts:42` lands on line 42.
-`:q` and it is gone; the document is underneath the whole time with your edits
-and your cursor where you left them.
-
-It is your nvim on the real file, so you can change it and `:w`. Inside it every
-key is nvim's, except `⌃\`` to cross to the document and back, and `⌘Y` to take a
-selection into your reply — `⌥-drag` to select on a Mac, `⇧-drag` elsewhere,
-since a plain drag is nvim's own. If there is no such file nothing opens and the
-footer says what it looked for.
 
 ## gx opens the link
 
@@ -129,23 +133,14 @@ text. If there is no link under the cursor the footer says so, and nothing opens
 
 ## The terminal
 
-`⌃\`` opens a real shell at the bottom of the window, in the directory relay was
-run from — for everything a run block cannot do: colours, TUIs, `⌃C`, `git rebase
--i`, a command that asks a question. `⌃\`` again crosses back to the document
-with the pane still up; `:term` opens and closes it. Inside it every key belongs
-to the shell, so `⌃X` does not accept and `⌃↵` does not run from there.
+relay has none of its own. Under composer, `⌃\`` opens
+a shell below the document, in the tree relay was run from — for everything a run block cannot do:
+colours, TUIs, `⌃C`, `git rebase -i`, a command that asks a question. The shell belongs to composer,
+so it outlives the document and comes back with the next one from the same tree.
 
-The point of it is getting what happened back to the agent, which only ever sees
-the diff:
-
-- **`⌘Y`** (`⌃⇧Y` off a Mac, or `:take`) puts the last command and its output
-  into the document as a fenced block, at the cursor. With something selected in
-  the terminal it takes the selection instead.
-- **Selecting in the terminal is a yank** — vim's register and the system
-  clipboard both — so `p` pastes it into the document.
-
-The shell dies with the window. There is one per window, it is not started until
-the pane is opened, and there is nothing to reattach to.
+What happened there still reaches the agent through the document. `⌘Y` in composer's terminal puts
+the selection, or the last command and its output, into the document at the cursor as a `console`
+block. A read-only document refuses it and says so in the footer.
 
 There is one relay window, and every document goes through it. Start a relay
 while another is up and it waits its turn; its document appears in the same
@@ -187,8 +182,8 @@ ln -s "$PWD/dist/relay.js" ~/.local/bin/relay
 
 `relay <file.md>` from anywhere after that. The build leaves `dist/` beside the
 source and the link points into it, so the clone stays where it is and
-`git pull && pnpm build` is the upgrade. macOS and Linux; the window is Electron
-and the shell is a real pty, so neither is a Windows story.
+`git pull && pnpm build` is the upgrade. macOS and Linux; the window is Electron,
+and Windows is not a story it tells.
 
 ## Build
 
@@ -196,19 +191,24 @@ and the shell is a real pty, so neither is a Windows story.
 pnpm install
 pnpm build        # dist/relay.js, dist/shell.cjs, dist/queue-worker.js, the editor bundle, and Mermaid's
 pnpm check        # types
-pnpm test         # the line arithmetic behind :res, the queue, the window's presence, a real pty
+pnpm test         # the line arithmetic behind :res, the queue, the window's presence
 pnpm smoke        # end to end, no window: two relays of one task, the second carrying the first
-pnpm smoke:pty    # a shell on demand, keys in, output out, gone with the relay
-pnpm smoke:goto   # a real nvim on the file under the cursor, gone when it quits
 pnpm smoke:open   # the link under the cursor out to the machine's opener, whole and as data
 pnpm smoke:queue  # two relays, one window, in turn — opens a real window briefly
 pnpm smoke:priority # a marked session's document jumps one already waiting, no window
 pnpm smoke:dismiss # closing the window dismisses the queued relay too
 pnpm smoke:latch  # the agent's gate latch lifts on every way out of a relay
+pnpm smoke:read   # saved rounds stay read-only, including their logs
+pnpm smoke:queue-handoff # queued commands survive acceptance
+pnpm smoke:detach # an active command survives acceptance
+pnpm smoke:controls # headless Chrome: contextual footer, Help, run badges and Stop
 ```
 
-The last three put a real window on the screen for a few seconds and take the
-focus. They also outlast most command timeouts — run them in the background.
+The queue, dismiss and latch suites put a real window on the screen for a few
+seconds and take focus. Run smoke suites in the background. `smoke:controls`
+uses synthetic documents and an isolated relay queue; it prints the directory
+holding its screenshots. It needs Chrome at the macOS default path or
+`google-chrome` on Linux; set `CHROME_PATH` to use another location.
 
 `RELAY_NO_OPEN=1` serves the document without opening a window, and skips the
 queue with it.

@@ -5,13 +5,6 @@ export function page(source: string, framed = false, readOnly = false): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- The document can contain HTML, and it is rendered. Nothing in here may run:
-     the only script allowed is the editor bundle this server serves, and inline
-     handlers are refused whatever the sanitiser missed. Images are the single
-     exception to the network being closed — a document that links a picture
-     should show the picture — and the request goes out as an image or not at
-     all. 'unsafe-inline' for styles is unavoidable: CodeMirror injects its own
-     <style> at runtime, as does the block above. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>${escape(basename(source))} — relay</title>
 <link rel="stylesheet" href="/assets/relay.css">
@@ -56,93 +49,66 @@ export function page(source: string, framed = false, readOnly = false): string {
   #editor { flex: 1 1 auto; min-height: 0; position: relative; }
   .cm-editor { height: 100%; }
 
-  #term, #edit {
-    flex: 0 0 auto;
-    height: 42%;
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg);
-    border-top: 1px solid var(--line);
-  }
-  #edit { height: 72%; min-height: 200px; }
-  #term[data-hidden], #edit[data-hidden] { display: none; }
-  #term-grip, #edit-grip {
-    flex: 0 0 auto;
-    height: 5px;
-    margin-top: -3px;
-    cursor: row-resize;
-  }
-  #term-grip:hover, #edit-grip:hover { background: var(--accent); opacity: .5; }
-  #term-bar, #edit-bar {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: baseline;
-    gap: .75rem;
-    padding: .15rem 1rem .3rem;
-    color: var(--dim);
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  #term-where, #edit-where { color: var(--fg); overflow: hidden; text-overflow: ellipsis; }
-  #term-bar .spacer, #edit-bar .spacer { flex: 1 1 auto; }
-  #term-bar button, #edit-bar button {
-    -webkit-app-region: no-drag;
-    font: inherit;
-    color: var(--dim);
-    background: none;
-    border: 0;
-    padding: 0;
-    cursor: pointer;
-  }
-  #term-bar button:hover, #edit-bar button:hover { color: var(--fg); }
-  #term-view, #edit-view { flex: 1 1 auto; min-height: 0; padding: 0 1rem .35rem; }
-  #term-view .xterm, #edit-view .xterm { height: 100%; }
-
   footer {
     flex: 0 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: .35rem 1rem;
-    min-height: 36px;
-    padding: .3rem 1rem;
+    padding: .4rem 1rem;
     background: var(--panel);
     border-top: 1px solid var(--line);
-    color: var(--dim);
+    color: #9aa5ce;
   }
-  footer .spacer { flex: 1 1 auto; }
-  footer kbd {
+  .footer-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .6rem; }
+  .footer-state { display: flex; gap: .6rem; min-width: 0; align-items: center; }
+  .footer-detail { display: flex; gap: .6rem; height: 27px; align-items: center; }
+  #stats, #note, #queue { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #stats { min-width: 0; }
+  #note { flex: 1; min-width: 0; color: var(--accent); }
+  #queue { max-width: 35%; color: var(--fg); }
+  footer kbd, #help-dialog kbd { font: inherit; color: var(--fg); }
+  footer button, #help-close {
+    -webkit-app-region: no-drag;
     font: inherit;
     color: var(--fg);
-    background: #232436;
+    background: transparent;
     border: 1px solid var(--line);
-    border-radius: 3px;
-    padding: 1px 5px;
+    border-radius: 4px;
+    padding: 5px 8px;
+    cursor: pointer;
+    white-space: nowrap;
   }
-  #mode {
-    min-width: 6.5ch;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: var(--dim);
-  }
+  footer button:hover, #help-close:hover { background: #292e42; }
+  footer button:focus-visible, #help-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #context-action { border: 0; padding: 0; text-align: left; flex: 0 0 auto; color: #9aa5ce; }
+  #context-action kbd { margin-left: .35rem; }
+  #mode { flex: 0 1 13ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; letter-spacing: .04em; }
   #mode.insert { color: var(--add); }
   #mode.visual { color: #ff9e64; }
   #stats .add { color: var(--add); }
   #stats .del { color: var(--del); }
-  #queue { color: var(--fg); }
-  #note { color: var(--accent); }
-  #accept {
-    -webkit-app-region: no-drag;
-    font: 600 12px/1 inherit;
-    color: #16161e;
-    background: var(--accent);
-    border: 0;
-    border-radius: 4px;
-    padding: 7px 14px;
-    cursor: pointer;
+  #unsaved { flex: 0 0 auto; color: var(--del); font-weight: 600; white-space: nowrap; }
+  #unsaved[hidden] { display: none; }
+  #unsaved #retry { border: 0; padding: 0; color: inherit; font-weight: inherit; text-decoration: underline; }
+  #accept { color: #16161e; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  #accept kbd { color: inherit; margin-left: .4rem; font-weight: 400; }
+  #accept:hover { background: #efc483; }
+  #help-dialog {
+    width: min(540px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    padding: 1.25rem;
+    border: 1px solid #414968;
+    border-radius: 10px;
+    background: #1b1c29;
+    color: var(--fg);
+    box-shadow: 0 24px 80px #0009;
   }
+  #help-dialog::backdrop { background: rgba(22, 22, 30, .8); }
+  .help-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  #help-dialog h2 { margin: 0; font-size: 18px; }
+  #help-dialog h3 { color: #7dcfff; font-size: 13px; margin: 1.1rem 0 .5rem; }
+  #help-dialog p { color: #9aa5ce; font-size: 12px; }
+  #help-dialog dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .45rem 1rem; margin: 0; }
+  #help-dialog dt { color: #e0af68; }
+  #help-dialog dd { margin: 0; }
 
   #run-choice {
     position: fixed;
@@ -211,52 +177,50 @@ export function page(source: string, framed = false, readOnly = false): string {
   <div id="split">
     <div id="editor"></div>
 
-    <div id="term" data-hidden>
-      <div id="term-grip"></div>
-      <div id="term-bar">
-        <span id="term-where"></span>
-        <span class="spacer"></span>
-        <button id="term-take"><kbd id="term-keys">⌘Y</kbd> take into the document</button>
-        <span><kbd>⌃\`</kbd> back to the document</span>
-        <button id="term-close">✕</button>
-      </div>
-      <div id="term-view"></div>
-    </div>
-
-    <div id="edit" data-hidden>
-      <div id="edit-grip"></div>
-      <div id="edit-bar">
-        <span id="edit-where"></span>
-        <span class="spacer"></span>
-        <button id="edit-take"><kbd id="edit-keys">⌘Y</kbd> take the selection</button>
-        <span><kbd>⌃\`</kbd> back to the document</span>
-        <span><kbd>:q</kbd> leaves nvim</span>
-      </div>
-      <div id="edit-view"></div>
-    </div>
   </div>
 
   <footer>
-    <span id="mode">NORMAL</span>
-    <span id="stats">unchanged</span>
-    <span id="queue"></span>
-    <span id="note"></span>
-    <span class="spacer"></span>
-    <span><kbd>⌃\`</kbd> terminal</span>
-    <span><kbd>⌃↵</kbd> run a command</span>
-    <span><kbd>gf</kbd> open the file</span>
-    <span><kbd>gx</kbd> open the link</span>
-    <span><kbd>:res</kbd> put a line back</span>
-    <span><kbd>:raw</kbd> render on/off</span>
-    ${
-      readOnly
-        ? `<span><kbd>esc</kbd> or <kbd>:q</kbd> close</span>`
-        : `<span><kbd>⌃J</kbd> tick a box</span>
-    <span><kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept</span>
-    <span><kbd>:q</kbd> close without replying</span>
-    <button id="accept">Accept</button>`
-    }
+    <div class="footer-bar">
+      <div class="footer-state">
+        <span id="mode">NORMAL</span>
+        <span id="stats">unchanged</span>
+        ${readOnly ? "" : `<span id="unsaved" role="alert" hidden>Draft not saved · <button id="retry" type="button">Retry</button></span>`}
+      </div>
+      <button id="help" type="button" aria-haspopup="dialog" aria-controls="help-dialog">Help</button>
+      ${readOnly ? `<button id="close" type="button">Close</button>` : `<button id="accept" type="button" title="Accept and send your reply">Accept <kbd>⌃X</kbd></button>`}
+    </div>
+    <div class="footer-detail">
+      <button id="context-action" type="button"><span id="context-label">${readOnly ? "Close" : "Edit"}</span><kbd id="context-key">${readOnly ? ":q" : "i"}</kbd></button>
+      <span id="note" role="status"></span>
+      <span id="queue"></span>
+    </div>
   </footer>
+
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="help-heading"><h2 id="help-title">Keyboard shortcuts</h2><button id="help-close" type="button" autofocus>${readOnly ? "Back to round" : "Close <kbd>Esc</kbd>"}</button></div>
+    <h3>${readOnly ? "Read this round" : "Edit and reply"}</h3>
+    <dl>
+      <dt><kbd>j k</kbd> · <kbd>/</kbd> · <kbd>:N</kbd></dt><dd>Move, search, or go to line N</dd>
+      ${readOnly ? `<dt><kbd>Esc</kbd> · <kbd>:q</kbd></dt><dd>Close this read-only round (Esc also closes it from Help in Composer)</dd>` : `<dt><kbd>i</kbd> · <kbd>Esc</kbd></dt><dd>Edit · return to normal mode</dd>
+      <dt><kbd>⌃J</kbd></dt><dd>Tick or untick the checkbox on this line</dd>
+      <dt><kbd>⌃X</kbd> · <kbd>ZZ</kbd></dt><dd>Accept and send your reply</dd>
+      <dt><kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also accept</dd>
+      <dt><kbd>:w</kbd></dt><dd>Save the draft now</dd>
+      <dt><kbd>:q</kbd></dt><dd>Close without replying</dd>
+      <dt><kbd>:res</kbd></dt><dd>Restore this line or the selected lines</dd>`}
+      <dt><kbd>gx</kbd></dt><dd>Open the link in normal or visual mode</dd>
+      <dt><kbd>y</kbd></dt><dd>Yank to the system clipboard</dd>
+    </dl>
+    <h3>Commands and rendering</h3>
+    <dl>
+      <dt><kbd>⌃J</kbd> · <kbd>:run</kbd></dt><dd>Run the shell block under the cursor</dd>
+      <dt><kbd>⌃C</kbd></dt><dd>Stop the latest active run; each block also has its own Stop button</dd>
+      <dt><kbd>:raw</kbd></dt><dd>Toggle rendered blocks and source</dd>
+      <dt><kbd>zc</kbd> · <kbd>:fold</kbd></dt><dd>Fold expanded command output</dd>
+      <dt><kbd>:help</kbd></dt><dd>Open this shortcut list</dd>
+    </dl>
+    <p>${readOnly ? "Commands run in this round's original worktree; the saved round stays unchanged." : "Accepting does not stop running or queued commands. Their output and report paths are included in your reply."}</p>
+  </dialog>
 
   <div id="run-choice" role="dialog" aria-modal="true" aria-label="Run command">
     <div class="card">

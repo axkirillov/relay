@@ -1,48 +1,46 @@
+import assert from "node:assert/strict";
 import { page } from "./page.ts";
-
-let fails = 0;
-function check(name: string, got: unknown, want: unknown) {
-  const g = JSON.stringify(got);
-  const w = JSON.stringify(want);
-  if (g === w) return console.log(`ok   ${name}`);
-  fails++;
-  console.log(`FAIL ${name}\n     got  ${g}\n     want ${w}`);
-}
 
 const source = "/Users/x/work/relay/scratch/which-cap.md";
 const waiting = page(source);
 const framed = page(source, true);
 const reading = page(source, true, true);
 
-check("the file is the title", waiting.includes("<title>which-cap.md — relay</title>"), true);
-check("on its own it keeps the strip that holds the lights off the first line", waiting.includes("<header>"), true);
-check("inside composer's frame that strip is composer's", framed.includes("<header>"), false);
-check("and either way there is something to accept", [waiting, framed].map((p) => p.includes(`<button id="accept">`)), [true, true]);
-check("said in the keys as well", waiting.includes("<kbd>⌃X</kbd> or <kbd>ZZ</kbd> accept"), true);
-check("a box can be ticked", waiting.includes("<kbd>⌃J</kbd> tick a box"), true);
-check("a read has nothing to tick", reading.includes("tick a box"), false);
-check("with the way out of not replying beside it", waiting.includes("<kbd>:q</kbd> close without replying"), true);
-check("nothing marks it as a read", waiting.includes("<body>"), true);
+assert.ok(waiting.includes("<title>which-cap.md — relay</title>"));
+assert.ok(waiting.includes("<header>"));
+assert.ok(!framed.includes("<header>"));
+assert.ok(waiting.includes("<body>"));
+assert.ok(reading.includes("<body data-read>"));
+assert.ok(!reading.includes('id="accept"'));
+assert.ok(reading.includes('id="close"'));
+assert.ok(!reading.includes("Accept and send"));
+assert.ok(!reading.includes("Tick or untick"));
+assert.ok(!reading.includes("Close without replying"));
+assert.ok(reading.includes("Close this read-only round"));
 
-check("a read says so on the body", reading.includes("<body data-read>"), true);
-check("there is nothing to accept", reading.includes(`id="accept"`), false);
-check("nor a key that accepts", reading.includes("accept</span>"), false);
-check("nor a way to close without replying, which is not what closing this is", reading.includes("close without replying"), false);
-check("closing it is the gesture it is everywhere else", reading.includes("<kbd>esc</kbd> or <kbd>:q</kbd> close</span>"), true);
-
-check("how much they changed that day still stands there", reading.includes(`<span id="stats">unchanged</span>`), true);
-for (const [what, hint] of [
-  ["the terminal", "terminal</span>"],
-  ["a command it can still run", "run a command</span>"],
-  ["the file under the cursor", "open the file</span>"],
-  ["the link under the cursor", "open the link</span>"],
-  ["putting a line back", "put a line back</span>"],
-  ["the rendering", "render on/off</span>"],
-] as const) {
-  check(`a read keeps ${what}`, reading.includes(hint), true);
+for (const document of [waiting, framed, reading]) {
+  assert.ok(document.includes('<span id="stats">unchanged</span>'));
+  assert.ok(document.includes('id="help-dialog" aria-labelledby="help-title"'));
+  assert.ok(document.includes('aria-haspopup="dialog" aria-controls="help-dialog"'));
+  assert.ok(document.includes("Open the link in normal or visual mode"));
+  assert.ok(document.includes("Run the shell block under the cursor"));
+  assert.ok(document.includes("Toggle rendered blocks and source"));
+  assert.ok(!document.includes('id="term"'));
+  assert.ok(!document.includes('id="edit"'));
+  assert.ok(!document.includes("open the file"));
+  const footer = document.match(/<footer>([\s\S]*?)<\/footer>/)![1]!;
+  assert.ok(footer.includes('id="context-action"'));
+  assert.ok(footer.includes('id="help"'));
+  assert.ok(!footer.includes("run a command"));
+  assert.ok(!footer.includes(":raw"));
+  assert.ok(!footer.includes(":res"));
+  assert.ok(document.includes('<script src="/assets/relay.js"></script>'));
 }
-
-check("both panes are there to be opened", [reading.includes(`id="term"`), reading.includes(`id="edit"`)], [true, true]);
-check("and the editor bundle is the same one", reading.includes(`<script src="/assets/relay.js"></script>`), true);
-
-process.exit(fails ? 1 : 0);
+for (const document of [waiting, framed]) {
+  assert.ok(document.includes('<button id="accept" type="button"'));
+  assert.ok(document.includes("Accept <kbd>⌃X</kbd>"));
+  assert.ok(document.includes("<kbd>⌃X</kbd> · <kbd>ZZ</kbd>"));
+  assert.ok(document.includes("Close without replying"));
+  assert.ok(document.includes("Restore this line or the selected lines"));
+}
+console.log("ok   compact footer, labelled shortcut dialog, and read-only controls");
