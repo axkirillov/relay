@@ -30,7 +30,8 @@
     "smoke:latch": "bash scripts/latch.sh",
     "smoke:detach": "bash scripts/detach.sh",
     "smoke:queue-handoff": "bash scripts/queue-handoff.sh",
-    "smoke:read": "bash scripts/read.sh"
+    "smoke:read": "bash scripts/read.sh",
+    "smoke:controls": "node scripts/controls.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.9.0",

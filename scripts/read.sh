@@ -97,8 +97,8 @@ reading 20260901-091200-which-cap
 curl -sf "$URL" >"$TMP/page" || fail "the page is not served"
 grep -q '<body data-read>' "$TMP/page" || fail "the page is not marked as a read"
 grep -q 'id="accept"' "$TMP/page" && fail "a round being read offers an accept"
-grep -q '<kbd>esc</kbd> or <kbd>:q</kbd> close' "$TMP/page" || fail "the footer does not say how to close it"
-grep -q 'run a command' "$TMP/page" || fail "the footer dropped the command it can still run"
+grep -q 'id="close"' "$TMP/page" || fail "the footer has no close control"
+grep -q 'Run the shell block under the cursor' "$TMP/page" || fail "shortcut help dropped the command it can still run"
 grep -q '<span id="stats">' "$TMP/page" || fail "the footer dropped what they changed that day"
 
 # Both texts, and this way round: the baseline is what the agent sent, so the page

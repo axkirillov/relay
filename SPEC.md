@@ -101,6 +101,28 @@ find the line it meant. That line is worked out afresh on every edit, so it stil
 names the mistake after lines are added above the fence; it goes when the fence
 itself is edited, since Mermaid has not read that text.
 
+## Contextual footer and Help
+
+The narrow, centred document layout stays unchanged. The footer has two rows:
+mode, edit count, Help and Accept stay in the first; the second holds a contextual
+action, status messages and the count of documents waiting behind this one.
+Messages do not move Accept or change the footer's height.
+
+The contextual action follows the cursor and the existing key priority: a task
+list offers Tick or Untick, a shell fence offers Run, and a link offers Open link
+outside insert mode. Otherwise it offers Edit in normal mode or a return to
+normal mode. Each action shows its key and can be clicked without losing the
+editor selection. The keys themselves are unchanged.
+
+Help, also opened by `:help`, lists Relay's shortcuts in a modal dialog. Focus
+stays there until it closes; document run, stop and accept shortcuts do nothing
+while it is open. Closing Help returns focus to the editor.
+
+A saved round instead shows Read only and Close. Its Help leaves out editing and
+acceptance actions and offers Back to round. Composer handles Escape before the
+page in that view: it closes the whole saved round, including when Help is open.
+No Composer layout or key handling changes are part of this footer.
+
 ## Running a command
 
 An agent that wants the human to run something should not be sending them to a
@@ -143,9 +165,30 @@ exit adds `[exit 3]`; `⌃C` stops the most recently started run and adds `[stop
 Running another fence while a run is active asks whether to Queue or Parallel.
 Queued commands keep the text they had when queued, start in order after their
 predecessor succeeds, and are skipped together if one fails or is stopped.
-Parallel runs have independent output blocks. The chooser offers `[Q]ueue` and
+Parallel runs in different fences have independent output blocks. Overlapping
+runs of the same fence share its replacement output block; each retains its own
+status and Stop action. The chooser offers `[Q]ueue` and
 `[P]arallel`; Q/P select directly, arrows move focus, Enter confirms, and Esc
 cancels.
+
+**The state stays beside the command.** A badge below each run block shows its
+run number and Queued, Running, Succeeded, Failed, Stopped or Skipped. Queued
+badges show waiting time; running badges show execution time, frozen when the
+run finishes. A running badge has a Stop button targeting that run, even while
+other commands run in parallel. `⌃C` continues to stop the latest active run.
+Stopping a predecessor still skips its queued chain; stopping a parallel run
+does not stop other active runs.
+
+Badges move with edits above and inside their shell fence. A changed command
+is labelled "command edited", and the tooltip keeps the snapshot that was
+started or queued. A rerun removes older completed badges on that block, but
+keeps badges for overlapping active runs. Removing the fence removes its
+badges, not the process; `⌃C` can still stop the latest active run.
+
+These labels, times and buttons are view state, never document text. They do
+not add edits or appear in the accepted diff, and reopening a round does not
+recreate them. Output, failure notices and acceptance handoff paths remain
+ordinary document text with the same behaviour as before.
 
 Long output is **folded, not truncated**: past twenty lines the head is replaced
 by a notice the human can click, while every line stays in the document. The
@@ -305,9 +348,9 @@ between the brackets. That swap is the whole answer: the diff carries
 `-- [ ] yes` / `+- [x] yes`, which cannot be misread, and nothing else about the
 document changes, so words written beside the list come back too. There is no
 radio button, because `( )` is not markdown and "pick one" is the agent's to say
-in the question. There is no click either: the human answers from the keyboard,
-like every other gesture in the window, and a mouse that could tick would tick
-what it was only meant to read. A box inside a code fence is code, not a box.
+in the question. Clicking the box itself still does not tick it; the contextual
+footer's Tick or Untick button is the explicit mouse action for the cursor's
+line. A box inside a code fence is code, not a box.
 The caret between the brackets shows them as text, so they can still be edited
 by hand.
 
@@ -562,10 +605,10 @@ Nothing of this happens in the window — the browser is somewhere else entirely
 so the footer is the whole of the feedback, and it waits until the opener has
 taken the link before it says it went. An opener that refuses says so there.
 
-**And the footer says the key exists**, where the rest of them are.
-A URL was not dead text for want of a way to open it — nobody had been told there
-was one — so a `gx` that only the spec knows about is the same silence in a new
-coat.
+**The footer shows Open link and `gx` when a link is at the cursor**, unless a
+checkbox or shell command has priority. The key is always listed in Help. A URL
+was not dead text for want of a way to open it — nobody had been told there was
+one — so a `gx` that only the spec knows about is the same silence in a new coat.
 
 ### What counts as a link
 
@@ -681,7 +724,7 @@ everything today from a session the human is not looking at.
 ### How much is left
 
 The footer says how many documents are still in line behind the one on screen —
-`3 more waiting`, after the edit count, in the footer's own colour rather than
+`3 more waiting`, on the contextual row, in the footer's own colour rather than
 the accent, which is for things that have just happened. It answers the question
 the human has while they are reading: *is this the last one, or am I ten deep?*
 So it counts what is behind this document rather than how long the line is, and

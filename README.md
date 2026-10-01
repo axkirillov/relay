@@ -45,9 +45,17 @@ were when queued and run in order only while each preceding command succeeds;
 a failure or stop skips the rest of that chain. Accept does not wait: pending
 queued commands continue in the background, with their progress and output paths
 in the queue report named under each queued fence. Closing without accepting
-cancels the queue. `⌃C` stops the latest active run,
-running the block again replaces its last output, and `:res` takes an output you would rather not send
-back out. Long output is folded to its last twenty lines — every line is still
+cancels the queue. Each block shows its run number, status and elapsed time:
+Queued, Running, Succeeded, Failed, Stopped or Skipped. **Stop** beside a running
+block stops that run only; `⌃C` still stops the latest active run. Queued time is
+labelled as waiting, and the timer freezes when the run finishes. If the command
+is edited after starting or queuing it, the badge says **command edited**; its
+tooltip keeps the command that actually runs. These badges belong to the current
+view, not the document or the diff.
+
+Running the block again replaces its last output and completed badges, while
+overlapping runs keep separate badges. `:res` takes an output you would rather
+not send back out. Long output is folded to its last twenty lines — every line is still
 there. Clicking the `… N earlier lines` notice opens the fold, `zc` or `:fold`
 closes it again, and `:raw` shows the lot. Output taller than the window goes to
 `~/.relay/<round>/run-N.log` instead, and the block keeps a windowful of it, a
@@ -66,6 +74,13 @@ range like `:12,18res`. Lines are numbered so they can be pointed at in a reply.
 Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
+
+The footer keeps mode, edit count and **Accept** in place. Its second row shows
+one action for the cursor: **Run**, **Tick/Untick**, **Open link**, or a mode
+change, with the key beside it. You can click that action too. Status messages
+and the waiting-document count share this row without moving Accept. **Help**
+(or `:help`) opens the shortcut list; Escape closes it and returns to the editor.
+The document stays narrow and centred.
 
 ## The task, and where the answer lives
 
@@ -92,7 +107,9 @@ it in the document column as it looked the day it arrived — what you accepted,
 own lines still lit against what the agent sent. It is read-only, and vim is still
 vim in it, so a line can be yanked out of a round from last week. A command in it
 runs in the worktree that round came from; if that tree is gone, the block says so
-rather than running it somewhere else.
+rather than running it somewhere else. The footer shows **Read only** and
+**Close**, not Accept. Help lists only the available actions; **Back to round**
+closes Help. In Composer, Escape closes the whole saved round, even from Help.
 
 ## Reviewing a diff
 
@@ -179,10 +196,17 @@ pnpm smoke:queue  # two relays, one window, in turn — opens a real window brie
 pnpm smoke:priority # a marked session's document jumps one already waiting, no window
 pnpm smoke:dismiss # closing the window dismisses the queued relay too
 pnpm smoke:latch  # the agent's gate latch lifts on every way out of a relay
+pnpm smoke:read   # saved rounds stay read-only, including their logs
+pnpm smoke:queue-handoff # queued commands survive acceptance
+pnpm smoke:detach # an active command survives acceptance
+pnpm smoke:controls # headless Chrome: contextual footer, Help, run badges and Stop
 ```
 
-The last three put a real window on the screen for a few seconds and take the
-focus. They also outlast most command timeouts — run them in the background.
+The queue, dismiss and latch suites put a real window on the screen for a few
+seconds and take focus. Run smoke suites in the background. `smoke:controls`
+uses synthetic documents and an isolated relay queue; it prints the directory
+holding its screenshots. It needs Chrome at the macOS default path or
+`google-chrome` on Linux; set `CHROME_PATH` to use another location.
 
 `RELAY_NO_OPEN=1` serves the document without opening a window, and skips the
 queue with it.
