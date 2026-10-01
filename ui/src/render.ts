@@ -10,6 +10,7 @@ type SyntaxNode = {
   to: number;
   parent: SyntaxNode | null;
   firstChild: SyntaxNode | null;
+  lastChild: SyntaxNode | null;
   nextSibling: SyntaxNode | null;
 };
 
@@ -179,7 +180,7 @@ function tableHtml(state: EditorState, table: SyntaxNode): string {
     const cells: string[] = [];
     for (let cell = row.firstChild; cell; cell = cell.nextSibling) {
       if (cell.name === "TableCell") {
-        cells.push(escapeHtml(state.doc.sliceString(cell.from, cell.to).trim()));
+        cells.push(inlineHtml(state, cell, cell.from, cell.to).trim());
       }
     }
     if (!cells.length) continue;
@@ -191,6 +192,66 @@ function tableHtml(state: EditorState, table: SyntaxNode): string {
   }
 
   return `<table>${head ? `<thead>${head}</thead>` : ""}<tbody>${body.join("")}</tbody></table>`;
+}
+
+const wrapping: Record<string, string> = {
+  StrongEmphasis: "strong",
+  Emphasis: "em",
+  Strikethrough: "del",
+};
+
+function inlineHtml(state: EditorState, node: SyntaxNode, from: number, to: number): string {
+  let out = "";
+  let at = from;
+  for (let child = node.firstChild; child && child.from < to; child = child.nextSibling) {
+    if (child.to <= from) continue;
+    out += escapeHtml(state.doc.sliceString(at, child.from));
+    if (!child.name.endsWith("Mark")) out += inlineNode(state, child);
+    at = child.to;
+  }
+  return out + escapeHtml(state.doc.sliceString(at, to));
+}
+
+function inlineNode(state: EditorState, node: SyntaxNode): string {
+  const text = state.doc.sliceString(node.from, node.to);
+  const tag = wrapping[node.name];
+  if (tag) return `<${tag}>${inlineHtml(state, node, node.from, node.to)}</${tag}>`;
+  switch (node.name) {
+    case "InlineCode": {
+      const code = insideMarks(state, node).replace(/\\\|/g, "|").trim();
+      return `<code>${escapeHtml(code)}</code>`;
+    }
+    case "Escape":
+      return escapeHtml(text.slice(1));
+    case "Link":
+      return link(state, node) ?? escapeHtml(text);
+    case "Autolink":
+    case "URL": {
+      const shown = node.name === "URL" ? text : text.slice(1, -1);
+      const href = /^www\./i.test(shown) ? `https://${shown}` : shown;
+      return `<a href="${escapeHtml(href)}">${escapeHtml(shown)}</a>`;
+    }
+    default:
+      return escapeHtml(text);
+  }
+}
+
+function insideMarks(state: EditorState, node: SyntaxNode): string {
+  const open = node.firstChild;
+  const close = node.lastChild;
+  return state.doc.sliceString(open ? open.to : node.from, close && close !== open ? close.from : node.to);
+}
+
+function link(state: EditorState, node: SyntaxNode): string | null {
+  let textEnd = -1;
+  let href: string | null = null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    const text = state.doc.sliceString(child.from, child.to);
+    if (child.name === "LinkMark" && text === "]" && textEnd < 0) textEnd = child.from;
+    if (child.name === "URL") href = text.replace(/^<|>$/g, "");
+  }
+  if (textEnd < 0 || href === null) return null;
+  return `<a href="${escapeHtml(href)}">${inlineHtml(state, node, node.from, textEnd)}</a>`;
 }
 
 function sanitize(html: string, images: Images): DocumentFragment {
