@@ -43,6 +43,8 @@ until_ok served "$TMP/b.err" || fail "second relay never served"
 UB=$(url_of "$TMP/b.err")
 
 grep -q 'queued behind 1' "$TMP/b.err" || fail "second relay did not say it was queued"
+
+"$WT/node_modules/.bin/electron" "$WT/dist/shell.cjs" >/dev/null 2>&1 &
 until_ok window_up || fail "no window came up"
 W="$(window_pid)"
 

@@ -2,8 +2,9 @@
 # The agent's gate latch, end to end: relay lifts the latch it was launched
 # under on every way out — answered, dismissed, handed a document it cannot
 # read, killed, still queued for the screen, or left waiting by a window that
-# died on the way up — and never touches anyone else's. Opens real windows, each
-# of which goes on its own in a second or two.
+# died on the way up — and never touches anyone else's. A rehearsal starts no
+# window of its own, so this starts them, as composer does; each goes on its own
+# in a second or two.
 set -euo pipefail
 
 WT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,15 +17,14 @@ mkdir -p "$RELAY_GATE_STATE" "$RELAY_QUEUE_DIR"
 LATCH="$RELAY_GATE_STATE/open-$CLAUDE_CODE_SESSION_ID"
 OTHER="$RELAY_GATE_STATE/open-another-session"
 
-# The window relay spawns is its child until relay exits, so sweeping the
-# children is what stops a failed round leaving an Electron behind — one still
-# holding this run's single-instance lock makes the *next* run exit 0 having
-# started nothing.
+# Sweeping relay's children and the window this started is what stops a failed
+# round leaving an Electron behind — one still holding this run's single-instance
+# lock makes the *next* run exit 0 having started nothing.
 sweep() {
   local kids=""
   [ -n "${PID:-}" ] && kids="$(pgrep -P "$PID" 2>/dev/null || true)"
   # shellcheck disable=SC2086 # word splitting is how the pid list is passed
-  kill ${kids} ${PID:-} 2>/dev/null || true
+  kill ${kids} ${PID:-} ${WINDOW:-} 2>/dev/null || true
 }
 trap 'sweep; rm -rf "$TMP"' EXIT
 
@@ -53,9 +53,8 @@ queued() { grep -q 'queued behind' "$1"; }
 window_pid() { sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' "$TMP/window.json" 2>/dev/null; }
 window_up() { local p; p="$(window_pid)"; [ -n "$p" ] && kill -0 "$p" 2>/dev/null; }
 
-# A child of relay's is a window being *started*, which is not a window. It shows
-# up a couple of hundred milliseconds before window.json does, so this only ever
-# answers "did it spawn anything at all".
+# A child of relay's would be a window relay started itself, which a rehearsal
+# must never do.
 spawned() { [ -n "$(pgrep -P "$1" 2>/dev/null || true)" ]; }
 
 # A window that is up and is not the one just killed. A pid killed a moment ago
@@ -66,6 +65,11 @@ fresh_window() {
   local p
   p="$(window_pid)"
   [ -n "$p" ] && [ "$p" != "${DYING:-}" ] && kill -0 "$p" 2>/dev/null
+}
+
+open_window() {
+  "$WT/node_modules/.bin/electron" "$WT/dist/shell.cjs" >/dev/null 2>&1 &
+  WINDOW=$!
 }
 
 until_ok() {
@@ -110,7 +114,9 @@ held && fail "latch still held after the human answered"
 latch "$TMP/doc.md"
 node "$WT/dist/relay.js" "$TMP/doc.md" >"$TMP/out" 2>"$TMP/err" &
 PID=$!
-until_ok window_up || fail "relay never opened a window"
+until_ok served "$TMP/err" || fail "relay never started serving"
+open_window
+until_ok window_up || fail "the window never came up"
 held || fail "latch lifted while the window was up"
 
 kill "$(window_pid)" || fail "could not close the window"
@@ -120,8 +126,8 @@ held && fail "latch still held after the window was closed unanswered"
 
 # --- a window that died violently --------------------------------------------
 # A window killed outright writes no tombstone, and nobody saw the document, so
-# this is not a dismissal: the relay stays latched and waiting, and the window it
-# puts up in its place is what the human actually gets.
+# this is not a dismissal: the relay stays latched and waiting, and the window
+# put up in its place is what the human actually gets.
 #
 # `kill -9`, and not because it is thorough. A SIGTERM to a window still coming up
 # lands on either side of a race the script cannot see: the shell installs its
@@ -133,16 +139,16 @@ held && fail "latch still held after the window was closed unanswered"
 latch "$TMP/doc.md"
 node "$WT/dist/relay.js" "$TMP/doc.md" >"$TMP/out" 2>"$TMP/err" &
 PID=$!
-until_ok spawned "$PID" || fail "relay never spawned a window"
-DYING="$(pgrep -P "$PID" | head -1)"
+until_ok served "$TMP/err" || fail "relay never started serving"
+open_window
+DYING=$WINDOW
 kill -9 "$DYING" || fail "could not kill the window on its way up"
+wait "$DYING" 2>/dev/null || true
+sleep 0.5
+kill -0 "$PID" 2>/dev/null || fail "relay gave up when its window died"
 
-# Diagnosed rather than merely timed out: a relay that exited here and a relay
-# that never retried both look like no window arriving.
-until_ok fresh_window || {
-  kill -0 "$PID" 2>/dev/null || fail "relay gave up when its window died instead of putting another up"
-  fail "relay never put another window up after the first died"
-}
+open_window
+until_ok fresh_window || fail "the window that replaced the dead one never came up"
 held || fail "latch lifted by a window dying before this document reached the screen"
 
 kill "$(window_pid)" || fail "could not close the second window"
