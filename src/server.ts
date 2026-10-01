@@ -114,8 +114,12 @@ export async function serve(
       if (opts.readOnly) return send(res, 409, "text/plain", "this round is being read — there is no draft to keep");
       return read(req, maxDocBytes).then(
         (text) => {
+          try {
+            opts.onDraft?.(text);
+          } catch (err) {
+            return send(res, 500, "text/plain", `could not keep the draft: ${(err as Error).message}`);
+          }
           opening = text;
-          opts.onDraft?.(text);
           res.writeHead(204).end();
         },
         () => send(res, 413, "text/plain", "document too large"),

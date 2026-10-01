@@ -67,10 +67,12 @@ unticks it, in normal mode or insert mode. The tick is the text `[x]`, so the
 diff carries it back like any other edit, and a question can still be answered in
 words anywhere around it.
 
-In the window: `⌃X` or `ZZ` accepts — `:w`, `:wq`, `:x` and `:acc` do too — `:q`
-closes without replying, and `:res` puts a stretch of the document back the way
-it arrived: the cursor line in normal mode, the selection in visual mode, or a
-range like `:12,18res`. Lines are numbered so they can be pointed at in a reply.
+In the window: `⌃X` or `ZZ` accepts — `:wq`, `:x` and `:acc` do too — `:q`
+closes without replying, `:w` saves the draft now, and `:res` puts a stretch of
+the document back the way it arrived: the cursor line in normal mode, the
+selection in visual mode, or a range like `:12,18res`. Lines are numbered so they
+can be pointed at in a reply. When a draft cannot be saved, the footer says
+**Draft not saved · Retry** until the text on screen is saved.
 Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.

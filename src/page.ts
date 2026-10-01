@@ -84,6 +84,9 @@ export function page(source: string, framed = false, readOnly = false): string {
   #mode.visual { color: #ff9e64; }
   #stats .add { color: var(--add); }
   #stats .del { color: var(--del); }
+  #unsaved { flex: 0 0 auto; color: var(--del); font-weight: 600; white-space: nowrap; }
+  #unsaved[hidden] { display: none; }
+  #unsaved #retry { border: 0; padding: 0; color: inherit; font-weight: inherit; text-decoration: underline; }
   #accept { color: #16161e; background: var(--accent); border-color: var(--accent); font-weight: 600; }
   #accept kbd { color: inherit; margin-left: .4rem; font-weight: 400; }
   #accept:hover { background: #efc483; }
@@ -181,6 +184,7 @@ export function page(source: string, framed = false, readOnly = false): string {
       <div class="footer-state">
         <span id="mode">NORMAL</span>
         <span id="stats">unchanged</span>
+        ${readOnly ? "" : `<span id="unsaved" role="alert" hidden>Draft not saved · <button id="retry" type="button">Retry</button></span>`}
       </div>
       <button id="help" type="button" aria-haspopup="dialog" aria-controls="help-dialog">Help</button>
       ${readOnly ? `<button id="close" type="button">Close</button>` : `<button id="accept" type="button" title="Accept and send your reply">Accept <kbd>⌃X</kbd></button>`}
@@ -200,7 +204,8 @@ export function page(source: string, framed = false, readOnly = false): string {
       ${readOnly ? `<dt><kbd>Esc</kbd> · <kbd>:q</kbd></dt><dd>Close this read-only round (Esc also closes it from Help in Composer)</dd>` : `<dt><kbd>i</kbd> · <kbd>Esc</kbd></dt><dd>Edit · return to normal mode</dd>
       <dt><kbd>⌃J</kbd></dt><dd>Tick or untick the checkbox on this line</dd>
       <dt><kbd>⌃X</kbd> · <kbd>ZZ</kbd></dt><dd>Accept and send your reply</dd>
-      <dt><kbd>:w</kbd> · <kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also accept</dd>
+      <dt><kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also accept</dd>
+      <dt><kbd>:w</kbd></dt><dd>Save the draft now</dd>
       <dt><kbd>:q</kbd></dt><dd>Close without replying</dd>
       <dt><kbd>:res</kbd></dt><dd>Restore this line or the selected lines</dd>`}
       <dt><kbd>gx</kbd></dt><dd>Open the link in normal or visual mode</dd>

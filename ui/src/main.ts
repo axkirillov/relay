@@ -14,6 +14,7 @@ import { stillRunningNotice } from "../../src/spill";
 import { checkboxes, toggleAtCursor } from "./checkbox";
 import { drawDiagrams } from "./diagram";
 import { diffReview, reviewNumber } from "./diffview";
+import { type Draft, draftKeeper } from "./draft";
 import { fenceBackground } from "./fence";
 import { contextAction, shortcutHelp } from "./footer";
 import { codeLanguage } from "./languages";
@@ -35,6 +36,7 @@ const queueEl = document.getElementById("queue")!;
 const noteEl = document.getElementById("note")!;
 const overlayEl = document.getElementById("overlay")!;
 const choiceEl = document.getElementById("run-choice")!;
+const unsavedEl = document.getElementById("unsaved")!;
 
 const reading = document.body.dataset.read !== undefined;
 
@@ -166,25 +168,35 @@ async function accept() {
   }
 }
 
-let saved = "";
+let draft: Draft;
 let draftTimer = 0;
 
-async function saveDraft(): Promise<void> {
+function saveDraft(): Promise<boolean> {
   window.clearTimeout(draftTimer);
-  const text = view.state.doc.toString();
-  if (text === saved) return;
+  return draft.save();
+}
+
+async function postDraft(text: string): Promise<void> {
   const res = await fetch("/draft", {
     method: "POST",
     headers: { "Content-Type": "text/markdown" },
     body: text,
+    signal: AbortSignal.timeout(5000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  saved = text;
+}
+
+function showUnsaved(unsaved: boolean) {
+  unsavedEl.hidden = !unsaved;
 }
 
 function saveSoon() {
   window.clearTimeout(draftTimer);
-  draftTimer = window.setTimeout(() => void saveDraft().catch(() => {}), 400);
+  draftTimer = window.setTimeout(() => void saveDraft(), 400);
+}
+
+async function saveNow() {
+  if (await saveDraft()) note("draft saved");
 }
 
 type Run = { id: number; controller: AbortController; log: string | null; wrote: boolean };
@@ -387,7 +399,7 @@ async function open(href: string) {
 function bindVim(original: string) {
   if (!reading) {
     Vim.defineEx("accept", "acc", () => void accept());
-    Vim.defineEx("write", "w", () => void accept());
+    Vim.defineEx("write", "w", () => void saveNow());
     Vim.defineEx("wq", "wq", () => void accept());
     Vim.defineEx("xit", "x", () => void accept());
   }
@@ -455,7 +467,6 @@ async function boot() {
   ]);
   const diagrams = await drawDiagrams(original);
   bindVim(original);
-  saved = start;
 
   view = new EditorView({
     parent: mount,
@@ -492,6 +503,7 @@ async function boot() {
     }),
   });
 
+  draft = draftKeeper(start, () => view.state.doc.toString(), postDraft, showUnsaved);
   view.focus();
   const bridge = (window as unknown as { composerDocument?: { onTerminalOutput(fn: (text: string) => void): void } }).composerDocument;
   bridge?.onTerminalOutput((text) => {
@@ -509,7 +521,10 @@ async function boot() {
   showMode("normal");
   document.getElementById("context-action")!.addEventListener("mousedown", (event) => event.preventDefault());
   document.getElementById("context-action")!.addEventListener("click", useContext);
-  if (!reading) document.getElementById("accept")!.addEventListener("click", () => void accept());
+  if (!reading) {
+    document.getElementById("accept")!.addEventListener("click", () => void accept());
+    document.getElementById("retry")!.addEventListener("click", () => void saveNow());
+  }
   else document.getElementById("close")!.addEventListener("click", () => window.close());
 
   window.addEventListener(
@@ -547,7 +562,7 @@ async function boot() {
   window.addEventListener("pagehide", () => {
     if (sending || reading) return;
     const text = view.state.doc.toString();
-    if (text === saved) return;
+    if (text === draft.saved()) return;
     navigator.sendBeacon("/draft", new Blob([text], { type: "text/markdown" }));
   });
 }
