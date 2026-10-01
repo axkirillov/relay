@@ -32,6 +32,8 @@ until_ok served "$TMP/a.err" || fail "first relay never served"
 node "$WT/dist/relay.js" "$TMP/two.md" >"$TMP/b.out" 2>"$TMP/b.err" & B=$!
 until_ok served "$TMP/b.err" || fail "second relay never served"
 
+"$WT/node_modules/.bin/electron" "$WT/dist/shell.cjs" >/dev/null 2>&1 &
+
 until_ok window_up || fail "no window came up"
 W="$(window_pid)"
 
