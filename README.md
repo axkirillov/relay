@@ -120,6 +120,10 @@ stands, and any line you write that does not open with a diff marker is a
 comment — those come back to the agent under the diff, each one located as
 `file:line`, so a remark beside a hunk arrives knowing which line it is about.
 
+When a file's header scrolls out of view, a compact filename bar follows the
+file at the top of the document. Click it, or focus it and press Enter or Space,
+to return to that header. It also works in saved, read-only rounds.
+
 ## gx opens the link
 
 Put the cursor on a link — `https://example.com/x`, `<https://example.com/x>`,

@@ -4,6 +4,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate
 import { type Kind, readReview, type ReviewLine } from "../../src/diff";
 import { changedSpans, type ChangedSpan } from "./diffchanges";
 import { diffPaint } from "./diffcode";
+import { reviewFiles, type ReviewFile } from "./difffiles";
 
 const line: Record<Kind, string | null> = {
   file: "cm-relay-diff-file",
@@ -23,6 +24,7 @@ for (const [kind, cls] of Object.entries(line)) {
 type Review = {
   at: Map<number, ReviewLine>;
   changes: Map<number, ChangedSpan[]>;
+  files: Map<number, ReviewFile>;
   widest: string;
 };
 
@@ -40,7 +42,7 @@ function index(doc: string): Review {
     const shown = numbered(line);
     if (shown && shown.length > widest.length) widest = shown;
   }
-  return { at, changes: changedSpans(lines), widest };
+  return { at, changes: changedSpans(lines), files: reviewFiles(lines), widest };
 }
 
 function numbered(line: ReviewLine): string {
@@ -107,6 +109,89 @@ const painter = ViewPlugin.fromClass(
   { decorations: (plugin) => plugin.decorations },
 );
 
+const pinnedFile = ViewPlugin.fromClass(
+  class {
+    dom: HTMLButtonElement;
+    directory: HTMLSpanElement;
+    basename: HTMLSpanElement;
+    file: ReviewFile | null = null;
+    destroyed = false;
+
+    constructor(view: EditorView) {
+      const doc = view.dom.ownerDocument;
+      this.dom = doc.createElement("button");
+      this.dom.type = "button";
+      this.dom.className = "cm-relay-diff-current";
+      this.dom.hidden = true;
+      const path = this.dom.appendChild(doc.createElement("span"));
+      path.className = "cm-relay-diff-path";
+      this.directory = path.appendChild(doc.createElement("span"));
+      this.directory.className = "cm-relay-diff-directory";
+      this.basename = path.appendChild(doc.createElement("span"));
+      this.basename.className = "cm-relay-diff-basename";
+      const jump = this.dom.appendChild(doc.createElement("span"));
+      jump.textContent = "↑";
+      jump.setAttribute("aria-hidden", "true");
+      view.dom.insertBefore(this.dom, view.scrollDOM);
+      this.dom.onclick = () => {
+        if (!this.file) return;
+        const anchor = view.state.doc.line(this.file.header).from;
+        view.dispatch({
+          selection: { anchor },
+          effects: EditorView.scrollIntoView(anchor, { y: "start", yMargin: 0 }),
+        });
+        view.focus();
+      };
+      this.measure(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged) this.file = null;
+      if (update.geometryChanged || update.viewportChanged) this.measure(update.view);
+    }
+
+    measure(view: EditorView) {
+      view.requestMeasure({
+        key: this,
+        read: () => {
+          if (this.destroyed) return null;
+          const rect = view.scrollDOM.getBoundingClientRect();
+          const top = Math.max(0, rect.top);
+          const height = top - view.documentTop + 0.01;
+          if (top >= rect.bottom || height < 0) return null;
+          const block = view.lineBlockAtHeight(height);
+          if (height >= block.bottom) return null;
+          const number = view.state.doc.lineAt(block.from).number;
+          return view.state.field(review).files.get(number) ?? null;
+        },
+        write: (file) => {
+          if (this.destroyed) return;
+          this.file = file;
+          const hidden = !file;
+          const resized = this.dom.hidden !== hidden;
+          this.dom.hidden = hidden;
+          const name = file?.name ?? "";
+          const title = name ? `Back to file header: ${name}` : "";
+          if (this.dom.title !== title) {
+            const slash = name.lastIndexOf("/") + 1;
+            this.directory.textContent = name.slice(0, slash);
+            this.basename.textContent = name.slice(slash);
+            this.dom.title = title;
+            this.dom.setAttribute("aria-label", title);
+          }
+          if (resized) view.requestMeasure();
+        },
+      });
+    }
+
+    destroy() {
+      this.destroyed = true;
+      this.dom.remove();
+    }
+  },
+  { eventObservers: { scroll(_event, view) { this.measure(view); } } },
+);
+
 export function diffReview() {
-  return [review, painter];
+  return [review, painter, pinnedFile];
 }
