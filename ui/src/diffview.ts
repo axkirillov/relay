@@ -2,6 +2,7 @@ import { type EditorState, type Range, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 
 import { type Kind, readReview, type ReviewLine } from "../../src/diff";
+import { changedSpans, type ChangedSpan } from "./diffchanges";
 import { diffPaint } from "./diffcode";
 
 const line: Record<Kind, string | null> = {
@@ -21,6 +22,7 @@ for (const [kind, cls] of Object.entries(line)) {
 
 type Review = {
   at: Map<number, ReviewLine>;
+  changes: Map<number, ChangedSpan[]>;
   widest: string;
 };
 
@@ -32,12 +34,13 @@ const review = StateField.define<Review>({
 function index(doc: string): Review {
   const at = new Map<number, ReviewLine>();
   let widest = "";
-  for (const line of readReview(doc)) {
+  const lines = readReview(doc);
+  for (const line of lines) {
     at.set(line.line, line);
     const shown = numbered(line);
     if (shown && shown.length > widest.length) widest = shown;
   }
-  return { at, widest };
+  return { at, changes: changedSpans(lines), widest };
 }
 
 function numbered(line: ReviewLine): string {
@@ -65,7 +68,7 @@ function mark(cls: string): Decoration {
 }
 
 function paint(view: EditorView): DecorationSet {
-  const { at: map } = view.state.field(review);
+  const { at: map, changes } = view.state.field(review);
   const ranges: Range<Decoration>[] = [];
   const visible = view.visibleRanges;
   if (!map.size || !visible.length) return Decoration.none;
@@ -75,8 +78,13 @@ function paint(view: EditorView): DecorationSet {
 
   for (let n = first; n <= last; n++) {
     const at = map.get(n);
-    const deco = at && decoration[at.kind];
-    if (deco) ranges.push(deco.range(view.state.doc.line(n).from));
+    if (!at) continue;
+    const start = view.state.doc.line(n).from;
+    const deco = decoration[at.kind];
+    if (deco) ranges.push(deco.range(start));
+    for (const span of changes.get(n) ?? []) {
+      ranges.push(mark(`cm-relay-diff-${at.kind}-word`).range(start + span.from, start + span.to));
+    }
   }
 
   for (const { from, to, cls } of diffPaint(view.state.doc, map, first, last)) {

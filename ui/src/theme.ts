@@ -144,6 +144,16 @@ export const theme = EditorView.theme(
 
     ".cm-relay-diff-add": { backgroundColor: diffAddWash },
     ".cm-relay-diff-del": { backgroundColor: diffDelWash },
+    ".cm-relay-diff-add-word": {
+      backgroundColor: "rgba(158, 206, 106, 0.35)",
+      boxShadow: `inset 0 -1px 0 ${green}`,
+      borderRadius: "2px",
+    },
+    ".cm-relay-diff-del-word": {
+      backgroundColor: "rgba(247, 118, 142, 0.35)",
+      boxShadow: `inset 0 -1px 0 ${red}`,
+      borderRadius: "2px",
+    },
     ".cm-relay-diff-mark": { color: dim },
     ".cm-relay-diff-file, .cm-relay-diff-file span": { color: `${cyan} !important` },
     ".cm-relay-diff-file": { backgroundColor: diffFileWash, fontWeight: "700" },
