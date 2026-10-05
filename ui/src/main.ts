@@ -435,8 +435,6 @@ function bindVim(original: string) {
   Vim.mapCommand("gx", "action", "relayOpenLink", {}, { context: "normal" });
   Vim.mapCommand("gx", "action", "relayOpenLink", {}, { context: "visual" });
 
-  Vim.defineAction("relayPickFile", () => { if (!pickReviewFile(view)) note("no file list here — put the cursor in a diff with 2 or more files"); });
-  Vim.mapCommand("gO", "action", "relayPickFile", {}, { context: "normal" });
   Vim.defineAction("relayNextFile", () => { if (!stepReviewFile(view, 1)) note("no next file"); });
   Vim.defineAction("relayPreviousFile", () => { if (!stepReviewFile(view, -1)) note("no previous file"); });
   Vim.mapCommand("]f", "action", "relayNextFile", {}, { context: "normal" });
@@ -533,6 +531,17 @@ async function boot() {
     document.getElementById("retry")!.addEventListener("click", () => void saveNow());
   }
   else document.getElementById("close")!.addEventListener("click", () => window.close());
+
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (help.isOpen() || !e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.key.toLowerCase() !== "o") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!pickReviewFile(view)) note("no file list here — put the cursor in a diff with 2 or more files");
+    },
+    true,
+  );
 
   window.addEventListener(
     "keydown",

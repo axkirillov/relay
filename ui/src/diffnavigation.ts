@@ -123,7 +123,7 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
       label(arrow: string) {
         const key = this.view.dom.ownerDocument.createElement("span");
         key.className = "cm-relay-diff-picker-key";
-        key.textContent = "gO";
+        key.textContent = "⌘O";
         this.toggle.replaceChildren(`${this.files.length} files ${arrow}`, key);
       }
 
@@ -226,7 +226,7 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
         this.summary.textContent = `${added} added · ${removed} removed`;
         this.toggle.hidden = files.length < 2;
         this.label(this.panel.hidden ? "▾" : "▴");
-        this.toggle.setAttribute("aria-label", `Jump to file: ${files.length} files, gO`);
+        this.toggle.setAttribute("aria-label", `Jump to file: ${files.length} files, ⌘O`);
       }
 
       measure() {

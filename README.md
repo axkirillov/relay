@@ -128,8 +128,8 @@ For reviews with multiple named files, **N files** beside that bar opens a compa
 file list. Each row shows added and removed line counts from the displayed patch;
 the current file is marked. Repeated filenames share a row with combined counts
 and jump to their first header. Choose a row to jump there and close the list.
-In normal mode, `gO` opens the list for the diff under the cursor, and `]f` or
-`[f` jumps to the next or previous file without it. The button names `gO`, and
+`⌘O` opens the list for the diff under the cursor, in any mode, and in normal
+mode `]f` or `[f` jumps to the next or previous file without it. The button names `⌘O`, and
 the open list names its keys. Tab reaches the controls; arrow keys, Home and End move through the open list,
 and Enter or Space chooses a file. Toggle **N files** again or leave the list to
 close it without jumping. Escape also closes it in an editable round; Composer

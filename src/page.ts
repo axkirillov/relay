@@ -210,7 +210,7 @@ export function page(source: string, framed = false, readOnly = false): string {
       <dt><kbd>:res</kbd></dt><dd>Restore this line or the selected lines</dd>`}
       <dt><kbd>gx</kbd></dt><dd>Open the link in normal or visual mode</dd>
       <dt><kbd>y</kbd></dt><dd>Yank to the system clipboard</dd>
-      <dt><kbd>gO</kbd></dt><dd>Open the file list of the diff under the cursor</dd>
+      <dt><kbd>⌘O</kbd></dt><dd>Open the file list of the diff under the cursor</dd>
       <dt><kbd>]f</kbd> · <kbd>[f</kbd></dt><dd>Jump to the next or previous file in a diff</dd>
     </dl>
     <h3>Commands and rendering</h3>
