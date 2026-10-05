@@ -153,7 +153,7 @@ function weld(state: EditorState, found: Block[]): Block[] {
 function htmlParagraph(state: EditorState, node: SyntaxNode): Block | null {
   if (node.firstChild?.name !== "HTMLTag") return null;
   const text = state.doc.sliceString(node.from, node.to).trim();
-  if (!text.startsWith("<") || !text.endsWith(">") || tagBalance(text) !== 0) return null;
+  if (!text.startsWith("<") || !text.endsWith(">") || tagBalance(text) > 0) return null;
   return { from: node.from, to: node.to, html: text, kind: "html" };
 }
 

@@ -106,6 +106,12 @@ check(
   found('<svg viewBox="0 0 8 8">\n\n<circle r="3"/>\n\n</svg>\n'),
   [["html", '<svg viewBox="0 0 8 8">\n\n<circle r="3"/>\n\n</svg>']],
 );
+check(
+  "blocks: svg whose closing tag shares a chunk with the last element is welded",
+  found('<svg viewBox="0 0 8 8">\n\n<circle r="3"/>\n</svg>\n'),
+  [["html", '<svg viewBox="0 0 8 8">\n\n<circle r="3"/>\n</svg>']],
+);
+check("blocks: a closing chunk with nothing open stays source", found('<circle r="3"/>\n</svg>\n'), []);
 check("blocks: tag then prose stays source", found("<b>bold</b> is the word\n"), []);
 
 check("blocks: several, in order", found("<p>one</p>\n\ntext\n\n| a |\n| - |\n| 1 |\n"), [
