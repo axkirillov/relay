@@ -55,6 +55,18 @@ export function reviewFileIndex(lines: readonly ReviewLine[]): ReviewFiles {
   return { at, heads, list: [...totals.values()] };
 }
 
+export function fileAt(files: ReviewFiles, line: number): ReviewFile | null {
+  return files.at.get(line) ?? files.heads.get(line) ?? null;
+}
+
+export function neighbourFile(files: ReviewFiles, line: number, direction: 1 | -1): ReviewFile | null {
+  const headers = new Map<number, ReviewFile>();
+  for (const file of [...files.heads.values(), ...files.at.values()]) headers.set(file.header, file);
+  const sorted = [...headers.keys()].sort((a, b) => direction * (a - b));
+  const target = sorted.find(header => direction * (header - line) > 0);
+  return target === undefined ? null : headers.get(target)!;
+}
+
 export function reviewFiles(lines: readonly ReviewLine[]): Map<number, ReviewFile> {
   return reviewFileIndex(lines).at;
 }

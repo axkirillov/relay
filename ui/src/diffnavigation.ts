@@ -1,7 +1,7 @@
 import type { EditorState } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 
-import type { ReviewFile, ReviewFiles, ReviewFileSummary } from "./difffiles";
+import { fileAt, neighbourFile, type ReviewFile, type ReviewFiles, type ReviewFileSummary } from "./difffiles";
 
 let nextPicker = 0;
 
@@ -28,10 +28,14 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
       panel: HTMLDivElement;
       summary: HTMLSpanElement;
       list: HTMLDivElement;
+      hint: HTMLDivElement;
       rows: HTMLButtonElement[] = [];
       files: ReviewFileSummary[] = [];
       file: ReviewFile | null = null;
       highlighted: string | null = null;
+      pinned: ReviewFile | null = null;
+      openWhenShown = false;
+      openedFromEditor = false;
       destroyed = false;
 
       constructor(readonly view: EditorView) {
@@ -63,6 +67,9 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
         this.summary = heading.appendChild(doc.createElement("span"));
         this.list = this.panel.appendChild(doc.createElement("div"));
         this.list.className = "cm-relay-diff-picker-list";
+        this.hint = this.panel.appendChild(doc.createElement("div"));
+        this.hint.className = "cm-relay-diff-picker-hint";
+        this.hint.setAttribute("aria-hidden", "true");
         view.dom.insertBefore(this.dom, view.scrollDOM);
         this.current.onclick = () => { if (this.file) this.jump(this.file); };
         this.toggle.onclick = () => this.panel.hidden ? this.open() : this.close(true);
@@ -113,11 +120,40 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
         this.rows[index]?.scrollIntoView({ block: "nearest" });
       }
 
-      open() {
+      label(arrow: string) {
+        const key = this.view.dom.ownerDocument.createElement("span");
+        key.className = "cm-relay-diff-picker-key";
+        key.textContent = "gO";
+        this.toggle.replaceChildren(`${this.files.length} files ${arrow}`, key);
+      }
+
+      pickFromEditor(): boolean {
+        const files = readFiles(this.view.state);
+        const file = fileAt(files, this.view.state.doc.lineAt(this.view.state.selection.main.head).number);
+        if (!file || files.list.length < 2) return false;
+        if (this.file) this.open(true);
+        else {
+          this.pinned = file;
+          this.openWhenShown = true;
+          this.measure();
+        }
+        return true;
+      }
+
+      step(direction: 1 | -1): boolean {
+        const files = readFiles(this.view.state);
+        const file = neighbourFile(files, this.view.state.doc.lineAt(this.view.state.selection.main.head).number, direction);
+        if (file) queueMicrotask(() => { if (!this.destroyed) this.jump(file); });
+        return !!file;
+      }
+
+      open(fromEditor = false) {
         if (!this.file || this.toggle.hidden) return;
+        this.openedFromEditor = fromEditor;
         this.panel.hidden = false;
         this.toggle.setAttribute("aria-expanded", "true");
-        this.toggle.textContent = `${this.files.length} files ▴`;
+        this.label("▴");
+        this.hint.textContent = this.view.state.readOnly ? "↑↓ move · Enter jump" : "↑↓ move · Enter jump · Esc close";
         this.focusRow(Math.max(0, this.files.findIndex(file => file.name === this.file?.name)));
         this.view.requestMeasure();
       }
@@ -126,9 +162,15 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
         if (this.panel.hidden) return;
         this.panel.hidden = true;
         this.toggle.setAttribute("aria-expanded", "false");
-        this.toggle.textContent = `${this.files.length} files ▾`;
-        if (focus) this.toggle.focus({ preventScroll: true });
-        this.view.requestMeasure();
+        this.label("▾");
+        if (focus) {
+          if (this.openedFromEditor) this.view.focus();
+          else this.toggle.focus({ preventScroll: true });
+        }
+        if (this.pinned) {
+          this.pinned = null;
+          this.measure();
+        } else this.view.requestMeasure();
       }
 
       jump(file: ReviewFile) {
@@ -183,8 +225,8 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
         this.list.replaceChildren(...this.rows);
         this.summary.textContent = `${added} added · ${removed} removed`;
         this.toggle.hidden = files.length < 2;
-        this.toggle.textContent = `${files.length} files ▾`;
-        this.toggle.setAttribute("aria-label", `Jump to file: ${files.length} files`);
+        this.label(this.panel.hidden ? "▾" : "▴");
+        this.toggle.setAttribute("aria-label", `Jump to file: ${files.length} files, gO`);
       }
 
       measure() {
@@ -203,9 +245,10 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
             const files = readFiles(view.state);
             return files.at.get(number) ?? files.heads.get(number) ?? null;
           },
-          write: (file) => {
+          write: (found) => {
             if (this.destroyed) return;
             this.renderFiles(readFiles(view.state).list);
+            const file = found ?? this.pinned;
             this.file = file;
             const hidden = !file;
             const resized = this.dom.hidden !== hidden;
@@ -229,6 +272,10 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
                 if (this.files[i]!.name === name) row.setAttribute("aria-current", "true");
                 else row.removeAttribute("aria-current");
               }
+            }
+            if (this.openWhenShown) {
+              this.openWhenShown = false;
+              this.open(true);
             }
             if (resized) view.requestMeasure();
             if (focused) queueMicrotask(() => { if (!this.destroyed) view.focus(); });

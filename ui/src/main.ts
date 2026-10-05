@@ -13,7 +13,7 @@ import { getCM, Vim, vim } from "@replit/codemirror-vim";
 import { stillRunningNotice } from "../../src/spill";
 import { checkboxes, toggleAtCursor } from "./checkbox";
 import { drawDiagrams } from "./diagram";
-import { diffReview, reviewNumber } from "./diffview";
+import { diffReview, pickReviewFile, reviewNumber, stepReviewFile } from "./diffview";
 import { type Draft, draftKeeper } from "./draft";
 import { fenceBackground } from "./fence";
 import { contextAction, shortcutHelp } from "./footer";
@@ -434,6 +434,13 @@ function bindVim(original: string) {
   Vim.defineAction("relayOpenLink", () => void openLink());
   Vim.mapCommand("gx", "action", "relayOpenLink", {}, { context: "normal" });
   Vim.mapCommand("gx", "action", "relayOpenLink", {}, { context: "visual" });
+
+  Vim.defineAction("relayPickFile", () => { if (!pickReviewFile(view)) note("no file list here — put the cursor in a diff with 2 or more files"); });
+  Vim.mapCommand("gO", "action", "relayPickFile", {}, { context: "normal" });
+  Vim.defineAction("relayNextFile", () => { if (!stepReviewFile(view, 1)) note("no next file"); });
+  Vim.defineAction("relayPreviousFile", () => { if (!stepReviewFile(view, -1)) note("no previous file"); });
+  Vim.mapCommand("]f", "action", "relayNextFile", {}, { context: "normal" });
+  Vim.mapCommand("[f", "action", "relayPreviousFile", {}, { context: "normal" });
 
   copyToClipboard();
 }

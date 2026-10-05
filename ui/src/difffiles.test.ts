@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import { readReview } from "../../src/diff.ts";
-import { reviewFileIndex, reviewFiles } from "./difffiles.ts";
+import { fileAt, neighbourFile, reviewFileIndex, reviewFiles } from "./difffiles.ts";
 
 const fenced = (...lines: string[]) => ["```diff", ...lines, "```"].join("\n");
 function check(name: string, source: string, expected: Array<[number, string, number]>) {
@@ -132,3 +132,27 @@ heads("header-only files keep their header", fenced(
 heads("unnamed headers stay unmapped", fenced("--- /dev/null", "+++ /dev/null", "+new"), []);
 heads("hunk markers are not headers", fenced("--- a/one.ts", "+++ b/one.ts", "@@ -1 +1 @@", "+one"),
   [[2, "one.ts", 2], [3, "one.ts", 2]]);
+
+const three = reviewFileIndex(readReview([
+  "Before", fenced(
+    "diff --git a/one.ts b/one.ts", "--- a/one.ts", "+++ b/one.ts", "+one", "+more",
+    "diff --git a/two.ts b/two.ts", "--- a/two.ts", "+++ b/two.ts", "+two",
+  ), "Between", fenced("--- a/three.ts", "+++ b/three.ts", "+three"),
+].join("\n")));
+
+function neighbour(name: string, line: number, direction: 1 | -1, expected: string | null) {
+  assert.equal(neighbourFile(three, line, direction)?.name ?? null, expected, name);
+  console.log(`ok   ${name}`);
+}
+
+neighbour("next file from prose before the diff is the first", 1, 1, "one.ts");
+neighbour("next file from inside one file is the following one", 6, 1, "two.ts");
+neighbour("next file crosses into a later diff block", 8, 1, "three.ts");
+neighbour("no next file after the last header", 15, 1, null);
+neighbour("previous file from inside a file is its own header", 6, -1, "one.ts");
+neighbour("previous file from a header is the file before", 8, -1, "one.ts");
+neighbour("previous file from the first header is none", 3, -1, null);
+assert.equal(fileAt(three, 9)?.name, "two.ts");
+assert.equal(fileAt(three, 10)?.name, "two.ts");
+assert.equal(fileAt(three, 1), null);
+console.log("ok   fileAt reads headers and bodies alike");

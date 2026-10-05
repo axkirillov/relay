@@ -209,6 +209,8 @@ export const theme = EditorView.theme(
       font: "0.75em/1.7 system-ui, sans-serif",
       color: muted,
     },
+    ".cm-relay-diff-picker-key": { marginLeft: "0.6em", color: muted },
+    ".cm-relay-diff-picker-hint": { paddingTop: "0.35rem", font: "0.75em/1.7 system-ui, sans-serif", color: muted },
     ".cm-relay-diff-picker-list": { maxHeight: "min(35vh, 18rem)", overflowY: "auto", overscrollBehavior: "contain" },
     ".cm-relay-diff-picker-file": {
       display: "flex",

@@ -110,6 +110,16 @@ const painter = ViewPlugin.fromClass(
   { decorations: (plugin) => plugin.decorations },
 );
 
+const navigation = diffNavigation(state => state.field(review).files);
+
 export function diffReview() {
-  return [review, painter, diffNavigation(state => state.field(review).files)];
+  return [review, painter, navigation];
+}
+
+export function pickReviewFile(view: EditorView): boolean {
+  return view.plugin(navigation)?.pickFromEditor() ?? false;
+}
+
+export function stepReviewFile(view: EditorView, direction: 1 | -1): boolean {
+  return view.plugin(navigation)?.step(direction) ?? false;
 }
