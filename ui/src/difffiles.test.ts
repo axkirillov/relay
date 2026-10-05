@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import { readReview } from "../../src/diff.ts";
-import { fileAt, neighbourFile, reviewFileIndex, reviewFiles } from "./difffiles.ts";
+import { cursorFile, fileAt, neighbourFile, reviewFileIndex, reviewFiles } from "./difffiles.ts";
 
 const fenced = (...lines: string[]) => ["```diff", ...lines, "```"].join("\n");
 function check(name: string, source: string, expected: Array<[number, string, number]>) {
@@ -156,3 +156,19 @@ assert.equal(fileAt(three, 9)?.name, "two.ts");
 assert.equal(fileAt(three, 10)?.name, "two.ts");
 assert.equal(fileAt(three, 1), null);
 console.log("ok   fileAt reads headers and bodies alike");
+
+const introduced = reviewFileIndex(readReview(["Before", fenced(
+  "Two files changed:", "",
+  "--- a/one.ts", "+++ b/one.ts", "+one",
+  "diff --git a/two.ts b/two.ts", "--- a/two.ts", "+++ b/two.ts", "+two",
+), "After", fenced("A note with no file", "+loose")].join("\n")));
+assert.equal(cursorFile(introduced, 3)?.name, "one.ts");
+assert.equal(cursorFile(introduced, 4)?.name, "one.ts");
+assert.equal(cursorFile(introduced, 7)?.name, "one.ts");
+assert.equal(cursorFile(introduced, 10)?.name, "two.ts");
+assert.equal(cursorFile(introduced, 1), null);
+assert.equal(cursorFile(introduced, 2), null);
+assert.equal(cursorFile(introduced, 14), null);
+assert.equal(cursorFile(introduced, 15), null);
+assert.equal(fileAt(introduced, 3), null);
+console.log("ok   cursorFile gives lines above the first header the first file, and nothing outside a named diff");

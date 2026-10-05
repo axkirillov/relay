@@ -2,16 +2,23 @@ import type { ReviewLine } from "../../src/diff";
 
 export type ReviewFile = { name: string; header: number };
 export type ReviewFileSummary = ReviewFile & { added: number; removed: number };
-export type ReviewFiles = { at: Map<number, ReviewFile>; heads: Map<number, ReviewFile>; list: ReviewFileSummary[] };
+export type ReviewFiles = {
+  at: Map<number, ReviewFile>;
+  heads: Map<number, ReviewFile>;
+  leading: Map<number, ReviewFile>;
+  list: ReviewFileSummary[];
+};
 
 export function reviewFileIndex(lines: readonly ReviewLine[]): ReviewFiles {
   const at = new Map<number, ReviewFile>();
   const heads = new Map<number, ReviewFile>();
+  const leading = new Map<number, ReviewFile>();
   const totals = new Map<string, ReviewFileSummary>();
   let file: ReviewFileSummary | null = null;
   let header = 0;
   let previous: ReviewLine | undefined;
   let headLines: number[] = [];
+  let beforeFirstFile: number[] = [];
 
   const settleHead = () => {
     if (file) for (const line of headLines) heads.set(line, file);
@@ -34,6 +41,7 @@ export function reviewFileIndex(lines: readonly ReviewLine[]): ReviewFiles {
       previous?.kind !== "file" || line.text.startsWith("diff ") ||
       (line.text.startsWith("---") && previous.text.startsWith("+++"))
     );
+    if (separated) beforeFirstFile = [];
     if (separated || startsFile) {
       finish();
       file = null;
@@ -41,8 +49,14 @@ export function reviewFileIndex(lines: readonly ReviewLine[]): ReviewFiles {
     }
     if (line.kind === "file") {
       headLines.push(line.line);
-      if (line.file) file = { name: line.file, header, added: 0, removed: 0 };
-    } else if (file) {
+      if (line.file) {
+        file = { name: line.file, header, added: 0, removed: 0 };
+        for (const before of beforeFirstFile) leading.set(before, file);
+        beforeFirstFile = [];
+      }
+    } else if (!file) {
+      beforeFirstFile.push(line.line);
+    } else {
       settleHead();
       at.set(line.line, file);
       if (line.kind === "add") file.added++;
@@ -52,11 +66,15 @@ export function reviewFileIndex(lines: readonly ReviewLine[]): ReviewFiles {
   }
   finish();
 
-  return { at, heads, list: [...totals.values()] };
+  return { at, heads, leading, list: [...totals.values()] };
 }
 
 export function fileAt(files: ReviewFiles, line: number): ReviewFile | null {
   return files.at.get(line) ?? files.heads.get(line) ?? null;
+}
+
+export function cursorFile(files: ReviewFiles, line: number): ReviewFile | null {
+  return fileAt(files, line) ?? files.leading.get(line) ?? null;
 }
 
 export function neighbourFile(files: ReviewFiles, line: number, direction: 1 | -1): ReviewFile | null {

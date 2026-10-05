@@ -1,7 +1,7 @@
 import type { EditorState } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 
-import { fileAt, neighbourFile, type ReviewFile, type ReviewFiles, type ReviewFileSummary } from "./difffiles";
+import { cursorFile, neighbourFile, type ReviewFile, type ReviewFiles, type ReviewFileSummary } from "./difffiles";
 
 let nextPicker = 0;
 
@@ -129,7 +129,7 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
 
       pickFromEditor(): boolean {
         const files = readFiles(this.view.state);
-        const file = fileAt(files, this.view.state.doc.lineAt(this.view.state.selection.main.head).number);
+        const file = cursorFile(files, this.view.state.doc.lineAt(this.view.state.selection.main.head).number);
         if (!file || files.list.length < 2) return false;
         if (this.file) this.open(true);
         else {
@@ -190,7 +190,7 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
           this.close(false);
           if (focused) queueMicrotask(() => { if (!this.destroyed) this.view.focus(); });
         }
-        if (update.docChanged || update.geometryChanged || update.viewportChanged) this.measure();
+        if (update.docChanged || update.selectionSet || update.geometryChanged || update.viewportChanged) this.measure();
       }
 
       renderFiles(files: ReviewFileSummary[]) {
@@ -235,6 +235,9 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
           key: this,
           read: () => {
             if (this.destroyed) return null;
+            const files = readFiles(view.state);
+            const atCursor = cursorFile(files, view.state.doc.lineAt(view.state.selection.main.head).number);
+            if (atCursor) return atCursor;
             const rect = view.scrollDOM.getBoundingClientRect();
             const top = Math.max(0, rect.top);
             const height = top - view.documentTop + 0.01;
@@ -242,7 +245,6 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
             const block = view.lineBlockAtHeight(height);
             if (height >= block.bottom) return null;
             const number = view.state.doc.lineAt(block.from).number;
-            const files = readFiles(view.state);
             return files.at.get(number) ?? files.heads.get(number) ?? null;
           },
           write: (found) => {
