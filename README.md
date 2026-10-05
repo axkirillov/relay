@@ -124,6 +124,16 @@ When a file's header scrolls out of view, a compact filename bar follows the
 file at the top of the document. Click it, or focus it and press Enter or Space,
 to return to that header. It also works in saved, read-only rounds.
 
+For reviews with multiple named files, **N files** beside that bar opens a compact
+file list. Each row shows added and removed line counts from the displayed patch;
+the current file is marked. Repeated filenames share a row with combined counts
+and jump to their first header. Choose a row to jump there and close the list.
+Tab reaches the controls; arrow keys, Home and End move through the open list,
+and Enter or Space chooses a file. Toggle **N files** again or leave the list to
+close it without jumping. Escape also closes it in an editable round; Composer
+keeps its Escape-to-close behavior for saved rounds. Long lists scroll within
+the panel, without widening the document.
+
 ## gx opens the link
 
 Put the cursor on a link — `https://example.com/x`, `<https://example.com/x>`,
