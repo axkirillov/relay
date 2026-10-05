@@ -120,6 +120,11 @@ stands, and any line you write that does not open with a diff marker is a
 comment — those come back to the agent under the diff, each one located as
 `file:line`, so a remark beside a hunk arrives knowing which line it is about.
 
+A patch of a Markdown file can hold a fence of its own. An unchanged ```` ``` ````
+line in it opens with a space, and Markdown closes the diff on it, so the rest
+would show as plain text. relay refuses such a document with exit 2 and names the
+line; open the diff with more backticks than any fence inside it.
+
 While the cursor is in a diff, a compact filename bar names the file the cursor
 is in; above the first header, that is the first file. Elsewhere the bar shows
 once a file's header scrolls out of view, and follows the file at the top of the

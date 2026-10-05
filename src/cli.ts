@@ -3,7 +3,7 @@ import { relative, resolve } from "node:path";
 
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
-import { commentReport } from "./diff.js";
+import { commentReport, earlyCloses } from "./diff.js";
 import { unlatchOnExit } from "./latch.js";
 import * as priority from "./priority.js";
 import * as queue from "./queue.js";
@@ -28,6 +28,8 @@ On accept, the unified diff of their edits is printed to stdout and relay exits
 A \`\`\`diff block is shown as a review the human can write in. They edit the patch
 where it stands, and any line they write that does not open with a diff marker is
 a comment — those come back under the diff, each one located as file:line.
+If the patch has a fence in it, open the diff with more backticks than that fence:
+relay refuses a diff that an unchanged \`\`\` line would close early, exit 2.
 
 There is one relay window. Documents go through it one at a time, in the order
 their relays started, so this one appears once those ahead of it are done —
@@ -130,6 +132,20 @@ try {
   sent = await readFile(path, "utf8");
 } catch (err) {
   process.stderr.write(`relay: cannot read ${path}: ${(err as Error).message}\n`);
+  process.exit(2);
+}
+
+const broken = earlyCloses(sent);
+if (broken.length) {
+  for (const { opens, closes } of broken) {
+    process.stderr.write(
+      `relay: ${path}:${closes} ends the diff that opens on line ${opens} before its hunk is done\n`,
+    );
+  }
+  process.stderr.write(
+    "relay: that line is an unchanged fence inside the patch, and markdown closes the diff on it, so the rest shows as plain text.\n" +
+      "relay: open the diff with more backticks than any fence inside it, ````diff, and close it with as many.\n",
+  );
   process.exit(2);
 }
 

@@ -21,7 +21,7 @@ export type Comment = { file: string | null; line: number | null; text: string }
 
 const diffLangs = new Set(["diff", "patch"]);
 
-const hunkHeader = /^@@+ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
+const hunkHeader = /^@@+ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
 const fileHeader =
   /^(diff --git |diff -|index |new file mode|deleted file mode|old mode|new mode|similarity index|dissimilarity index|rename from|rename to|copy from|copy to|Binary files |GIT binary patch)/;
@@ -35,6 +35,40 @@ export function readReview(doc: string): ReviewLine[] {
   const out: ReviewLine[] = [];
   for (const block of fenced(lines)) if (isDiffLang(block.info)) read(lines, block, out);
   return out;
+}
+
+export type EarlyClose = { opens: number; closes: number };
+
+export function earlyCloses(doc: string): EarlyClose[] {
+  const lines = doc.split("\n");
+  return fenced(lines)
+    .filter((block) => isDiffLang(block.info) && (lines[block.to] ?? "").startsWith(" ") && hunkOpenAtEnd(lines, block))
+    .map((block) => ({ opens: block.from - 1, closes: block.to + 1 }));
+}
+
+function hunkOpenAtEnd(lines: string[], block: Block): boolean {
+  let oldLeft = 0;
+  let newLeft = 0;
+  for (let n = block.from; n <= block.to; n++) {
+    const text = lines[n - 1] ?? "";
+    const hunk = hunkHeader.exec(text);
+    if (hunk) {
+      oldLeft = Number(hunk[2] ?? 1);
+      newLeft = Number(hunk[4] ?? 1);
+    } else if ((oldLeft <= 0 && newLeft <= 0) || text.startsWith("\\")) {
+      continue;
+    } else if (text.startsWith("+")) {
+      newLeft--;
+    } else if (text.startsWith("-")) {
+      oldLeft--;
+    } else if (text.startsWith(" ") || text === "") {
+      oldLeft--;
+      newLeft--;
+    } else {
+      oldLeft = newLeft = 0;
+    }
+  }
+  return oldLeft > 0 || newLeft > 0;
 }
 
 export function comments(doc: string): Comment[] {
@@ -116,7 +150,7 @@ function read(lines: string[], block: Block, out: ReviewLine[]) {
     const hunk = hunkHeader.exec(text);
     if (hunk) {
       oldNo = Number(hunk[1]);
-      newNo = Number(hunk[2]);
+      newNo = Number(hunk[3]);
       inHunk = true;
       heading = false;
       push("hunk", newNo);

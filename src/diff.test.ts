@@ -1,4 +1,4 @@
-import { commentReport, comments, readReview } from "./diff.ts";
+import { commentReport, comments, earlyCloses, readReview } from "./diff.ts";
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -200,5 +200,27 @@ check(
 check("a review with nothing said adds nothing", commentReport(doc(...patch)), "");
 
 check("a document with no diff in it adds nothing", commentReport("Just prose.\n"), "");
+
+const readme = [
+  "--- a/README.md",
+  "+++ b/README.md",
+  "@@ -1,4 +1,4 @@",
+  " ```",
+  "-old",
+  "+new",
+  " tail",
+];
+
+check("an unchanged fence line in the patch closes the diff early", earlyCloses(doc(...readme)), [{ opens: 3, closes: 7 }]);
+
+check("a longer fence holds that line inside the diff", earlyCloses(["````diff", ...readme, "````", ""].join("\n")), []);
+
+check("a whole patch closes where it should", earlyCloses(doc(...patch)), []);
+
+check("a patch cut short before its counts still closes where it should", earlyCloses(doc(...patch.slice(0, -1))), []);
+
+check("an indented fence after a finished hunk is a close, not a break", earlyCloses(doc("--- a/x", "+++ b/x", "@@ -1,2 +1,2 @@", "-old", "+new", " tail").replace("\n```\n", "\n ```\n")), []);
+
+check("an indented close in a code fence that is not a diff is no business of this", earlyCloses("```ts\n@@ -1,2 +1,2 @@\n ```\n"), []);
 
 process.exit(fails ? 1 : 0);
