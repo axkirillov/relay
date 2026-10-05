@@ -115,7 +115,7 @@ app.whenReady().then(async () => {
     width: 1000,
     height: 1200,
     backgroundColor: "#16161e",
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
   });
   win.setOpacity(0);
   win.showInactive();

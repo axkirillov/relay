@@ -279,6 +279,15 @@ is not the page's `window` — patching `fetch` to count requests reads back
 - **Printable keys need three events: `keyDown`, `char`, `keyUp`, in that order.**
   A `keyDown` alone reaches a vim normal-mode binding but never an input or insert
   mode. Normal-mode keys are fine with `keyDown`/`keyUp`.
+- **Enter on a focused button needs a `char` of `"\r"` too.** `keyDown` and
+  `keyUp` of `Enter` alone moved nothing: the file list stayed open with the row
+  focused, and three checks after it failed for that one reason. `Return` is not
+  a key name Electron knows at all.
+- **Build the window with `backgroundThrottling: false`.** A window shown
+  inactive has its animation frames throttled, and CodeMirror scrolls and
+  measures in those frames. The caret was on the right line every time while the
+  scroll and every bar that depends on it lagged seconds behind, at random — two
+  of three runs failed checks that passed once throttling was off.
 - **Pace them.** ~45–60 ms between keys, and ~150 ms to settle before `Enter`, or
   the ex and search panels drop the last character.
 - **Open an ex or search prompt as its own event first**, then wait ~250 ms before
