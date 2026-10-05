@@ -200,7 +200,8 @@ export function diffNavigation(readFiles: (state: EditorState) => ReviewFiles) {
             const block = view.lineBlockAtHeight(height);
             if (height >= block.bottom) return null;
             const number = view.state.doc.lineAt(block.from).number;
-            return readFiles(view.state).at.get(number) ?? null;
+            const files = readFiles(view.state);
+            return files.at.get(number) ?? files.heads.get(number) ?? null;
           },
           write: (file) => {
             if (this.destroyed) return;

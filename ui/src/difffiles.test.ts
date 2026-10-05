@@ -114,3 +114,21 @@ summaries("edited headers replace the summary name", source.replace(`+++ b/${lon
   [["renamed.ts", 2, 1, 0]]);
 summaries("edited diff markers update counts", source.replace("+code", "-code"), [[longName, 2, 0, 1]]);
 summaries("removing headers removes summary entries", fenced("+code"), []);
+
+function heads(name: string, source: string, expected: Array<[number, string, number]>) {
+  const { heads } = reviewFileIndex(readReview(source));
+  assert.deepEqual([...heads].map(([line, file]) => [line, file.name, file.header]), expected, name);
+  console.log(`ok   ${name}`);
+}
+
+heads("header lines keep the bar on their own file", fenced(
+  "diff --git a/one.ts b/one.ts", "index 111..222 100644", "--- a/one.ts", "+++ b/one.ts", "+one",
+  "diff --git a/two.ts b/two.ts", "--- a/two.ts", "+++ b/two.ts", "+two",
+), [[2, "one.ts", 2], [3, "one.ts", 2], [4, "one.ts", 2], [5, "one.ts", 2],
+  [7, "two.ts", 7], [8, "two.ts", 7], [9, "two.ts", 7]]);
+heads("header-only files keep their header", fenced(
+  "diff --git a/old.ts b/new.ts", "similarity index 100%", "rename from old.ts", "rename to new.ts",
+), [[2, "new.ts", 2], [3, "new.ts", 2], [4, "new.ts", 2], [5, "new.ts", 2]]);
+heads("unnamed headers stay unmapped", fenced("--- /dev/null", "+++ /dev/null", "+new"), []);
+heads("hunk markers are not headers", fenced("--- a/one.ts", "+++ b/one.ts", "@@ -1 +1 @@", "+one"),
+  [[2, "one.ts", 2], [3, "one.ts", 2]]);
