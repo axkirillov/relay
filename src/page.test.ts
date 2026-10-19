@@ -31,6 +31,7 @@ for (const document of [waiting, framed, reading]) {
   const footer = document.match(/<footer>([\s\S]*?)<\/footer>/)![1]!;
   assert.ok(footer.includes('id="context-action"'));
   assert.ok(footer.includes('id="help"'));
+  assert.equal(footer.match(/class="footer-/g)!.length, 2);
   assert.ok(!footer.includes("run a command"));
   assert.ok(!footer.includes(":raw"));
   assert.ok(!footer.includes(":res"));

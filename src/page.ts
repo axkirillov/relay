@@ -56,13 +56,12 @@ export function page(source: string, framed = false, readOnly = false): string {
     border-top: 1px solid var(--line);
     color: #9aa5ce;
   }
-  .footer-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .6rem; }
+  .footer-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: .6rem; }
   .footer-state { display: flex; gap: .6rem; min-width: 0; align-items: center; }
-  .footer-detail { display: flex; gap: .6rem; height: 27px; align-items: center; }
   #stats, #note, #queue { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #stats { min-width: 0; }
   #note { flex: 1; min-width: 0; color: var(--accent); }
-  #queue { max-width: 35%; color: var(--fg); }
+  #queue { max-width: 30ch; color: var(--fg); }
   footer kbd, #help-dialog kbd { font: inherit; color: var(--fg); }
   footer button, #help-close {
     -webkit-app-region: no-drag;
@@ -77,7 +76,7 @@ export function page(source: string, framed = false, readOnly = false): string {
   }
   footer button:hover, #help-close:hover { background: #292e42; }
   footer button:focus-visible, #help-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #context-action { border: 0; padding: 0; text-align: left; flex: 0 0 auto; color: #9aa5ce; }
+  #context-action { border: 0; border-left: 1px solid var(--line); border-radius: 0; padding: 0 0 0 .9rem; margin-left: .3rem; text-align: left; flex: 0 0 auto; color: #9aa5ce; }
   #context-action kbd { margin-left: .35rem; }
   #mode { flex: 0 1 13ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; letter-spacing: .04em; }
   #mode.insert { color: var(--add); }
@@ -185,14 +184,12 @@ export function page(source: string, framed = false, readOnly = false): string {
         <span id="mode">NORMAL</span>
         <span id="stats">unchanged</span>
         ${readOnly ? "" : `<span id="unsaved" role="alert" hidden>Draft not saved · <button id="retry" type="button">Retry</button></span>`}
+        <button id="context-action" type="button"><span id="context-label">${readOnly ? "Close" : "Edit"}</span><kbd id="context-key">${readOnly ? ":q" : "i"}</kbd></button>
+        <span id="note" role="status"></span>
       </div>
+      <span id="queue"></span>
       <button id="help" type="button" aria-haspopup="dialog" aria-controls="help-dialog">Help</button>
       ${readOnly ? `<button id="close" type="button">Close</button>` : `<button id="accept" type="button" title="Accept and send your reply">Accept <kbd>⌃X</kbd></button>`}
-    </div>
-    <div class="footer-detail">
-      <button id="context-action" type="button"><span id="context-label">${readOnly ? "Close" : "Edit"}</span><kbd id="context-key">${readOnly ? ":q" : "i"}</kbd></button>
-      <span id="note" role="status"></span>
-      <span id="queue"></span>
     </div>
   </footer>
 

@@ -103,10 +103,11 @@ itself is edited, since Mermaid has not read that text.
 
 ## Contextual footer and Help
 
-The narrow, centred document layout stays unchanged. The footer has two rows:
-mode, edit count, Help and Accept stay in the first; the second holds a contextual
-action, status messages and the count of documents waiting behind this one.
-Messages do not move Accept or change the footer's height.
+The narrow, centred document layout stays unchanged. The footer is one row: mode,
+edit count, the contextual action and status messages on the left; the count of
+documents waiting behind this one, Help and Accept on the right. A long message is
+cut short with an ellipsis, so messages do not move Accept or change the footer's
+height.
 
 The contextual action follows the cursor and the existing key priority: a task
 list offers Tick or Untick, a shell fence offers Run, and a link offers Open link
