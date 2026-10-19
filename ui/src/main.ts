@@ -17,6 +17,7 @@ import { diffReview, pickReviewFile, reviewNumber, stepReviewFile } from "./diff
 import { type Draft, draftKeeper } from "./draft";
 import { fenceBackground } from "./fence";
 import { contextAction, shortcutHelp } from "./footer";
+import { fileAt, fileReference, type FileReference } from "./filelink";
 import { codeLanguage } from "./languages";
 import { url, urlAt } from "./link";
 import { liveDiff, type Stats } from "./livediff";
@@ -39,6 +40,10 @@ const choiceEl = document.getElementById("run-choice")!;
 const unsavedEl = document.getElementById("unsaved")!;
 
 const reading = document.body.dataset.read !== undefined;
+const bridge = (window as unknown as { composerDocument?: {
+  openFile(reference: FileReference): Promise<{ ok: boolean; why?: string }>;
+  onTerminalOutput(fn: (text: string) => void): void;
+} }).composerDocument;
 
 let view: EditorView;
 let sending = false;
@@ -46,17 +51,18 @@ let currentMode = "normal";
 const help = shortcutHelp(() => view?.focus());
 
 function showContext(state: EditorState) {
-  const action = contextAction(state, currentMode, reading);
+  const action = contextAction(state, currentMode, reading, !!bridge?.openFile);
   document.getElementById("context-key")!.textContent = action.key;
   document.getElementById("context-label")!.textContent = action.label;
 }
 
 function useContext() {
-  const action = contextAction(view.state, currentMode, reading);
+  const action = contextAction(view.state, currentMode, reading, !!bridge?.openFile);
   view.focus();
   if (action.kind === "run") void runAtCursor();
   else if (action.kind === "tick") toggleAtCursor(view);
   else if (action.kind === "link") void openLink();
+  else if (action.kind === "file") void openFileAtCursor();
   else if (action.kind === "close") window.close();
   else {
     const cm = getCM(view);
@@ -380,10 +386,27 @@ async function openLink() {
     ? urlAt(line.text, at.head - line.from)
     : urlAt(state.sliceDoc(at.from, at.to), 0);
   if (!found) return note("no link under the cursor");
+  if (/^file:/i.test(found)) return note("use gf to edit a local file");
   await open(found);
 }
 
+async function openFileAtCursor() {
+  const reference = fileAt(view.state);
+  if (!reference) return note("no file under the cursor");
+  await openFile(reference);
+}
+
+async function openFile(reference: FileReference) {
+  if (!bridge?.openFile) return note("open this document in Composer to edit linked files");
+  try {
+    const answer = await bridge.openFile(reference);
+    if (!answer.ok) note(answer.why ?? "the file could not be opened");
+  } catch { note("Composer could not open the file"); }
+}
+
 async function open(href: string) {
+  const reference = fileReference(href, true);
+  if (reference) return openFile(reference);
   const link = url(href);
   if (!link) return note(`not a link relay will open — ${href}`);
 
@@ -439,6 +462,10 @@ function bindVim(original: string) {
   Vim.defineAction("relayPreviousFile", () => { if (!stepReviewFile(view, -1)) note("no previous file"); });
   Vim.mapCommand("]f", "action", "relayNextFile", {}, { context: "normal" });
   Vim.mapCommand("[f", "action", "relayPreviousFile", {}, { context: "normal" });
+
+  Vim.defineAction("relayOpenFile", () => void openFileAtCursor());
+  Vim.mapCommand("gf", "action", "relayOpenFile", {}, { context: "normal" });
+  Vim.mapCommand("gf", "action", "relayOpenFile", {}, { context: "visual" });
 
   copyToClipboard();
 }
@@ -510,7 +537,6 @@ async function boot() {
 
   draft = draftKeeper(start, () => view.state.doc.toString(), postDraft, showUnsaved);
   view.focus();
-  const bridge = (window as unknown as { composerDocument?: { onTerminalOutput(fn: (text: string) => void): void } }).composerDocument;
   bridge?.onTerminalOutput((text) => {
     if (reading) return note("this document is read-only");
     const block = fence(text.split("\n"));

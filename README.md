@@ -150,9 +150,23 @@ Put the cursor on a link — `https://example.com/x`, `<https://example.com/x>`,
 wherever your machine opens links. A link further along the line is still the one
 that opens, so the cursor does not have to be placed just so.
 
-`https`, `http`, `file` and `mailto` count, and a bare `www.example.com` goes out
+`https`, `http` and `mailto` count, and a bare `www.example.com` goes out
 as https. Nothing else does: a `javascript:` in a document is text and stays
 text. If there is no link under the cursor the footer says so, and nothing opens.
+
+## gf edits a local file in Composer
+
+Put the cursor on a plain path or Markdown file link and press `gf`, or select a
+path in visual mode. `src/main.ts:42:7` and `src/main.ts#L42` include a position.
+Quote paths containing spaces or put them in backticks. Rendered local links and
+`file://` links also open this way; without Composer, the footer explains that
+in-app file editing needs Composer.
+
+Composer checks both the worktree and the source document's folder, asking only
+if they resolve to different files. It opens real Neovim with your configuration
+over the document column, without replacing your shell or accepting the Relay.
+`:w` saves the file; `:q` returns. Back asks Neovim to confirm unsaved buffers.
+Reveal in Finder is available for the opened file and each ambiguous candidate.
 
 ## The terminal
 
