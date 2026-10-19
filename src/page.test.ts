@@ -17,6 +17,7 @@ assert.ok(!reading.includes("Accept and send"));
 assert.ok(!reading.includes("Tick or untick"));
 assert.ok(!reading.includes("Close without replying"));
 assert.ok(reading.includes("Close this read-only round"));
+assert.ok(reading.includes("body[data-read] #stats { display: none; }"));
 
 for (const document of [waiting, framed, reading]) {
   assert.ok(document.includes('<span id="stats">unchanged</span>'));
@@ -31,6 +32,8 @@ for (const document of [waiting, framed, reading]) {
   const footer = document.match(/<footer>([\s\S]*?)<\/footer>/)![1]!;
   assert.ok(footer.includes('id="context-action"'));
   assert.ok(footer.includes('id="help"'));
+  assert.ok(footer.includes('</span> <kbd id="context-key">'));
+  assert.ok(document.includes("footer kbd { font: inherit; font-size: 11px;"));
   assert.equal(footer.match(/class="footer-/g)!.length, 2);
   assert.ok(!footer.includes("run a command"));
   assert.ok(!footer.includes(":raw"));

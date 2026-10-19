@@ -107,7 +107,8 @@ The narrow, centred document layout stays unchanged. The footer is one row: mode
 edit count, the contextual action and status messages on the left; the count of
 documents waiting behind this one, Help and Accept on the right. A long message is
 cut short with an ellipsis, so messages do not move Accept or change the footer's
-height.
+height. Keys are drawn as chips. The waiting count is a pill, shown only while
+documents wait. Messages are plain text; the accent colour belongs to Accept alone.
 
 The contextual action follows the cursor and the existing key priority: a task
 list offers Tick or Untick, a shell fence offers Run, and a link offers Open link
@@ -119,7 +120,7 @@ Help, also opened by `:help`, lists Relay's shortcuts in a modal dialog. Focus
 stays there until it closes; document run, stop and accept shortcuts do nothing
 while it is open. Closing Help returns focus to the editor.
 
-A saved round instead shows Read only and Close. Its Help leaves out editing and
+A saved round instead shows Read only and Close, and no edit count. Its Help leaves out editing and
 acceptance actions and offers Back to round. Composer handles Escape before the
 page in that view: it closes the whole saved round, including when Help is open.
 No Composer layout or key handling changes are part of this footer.

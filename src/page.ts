@@ -60,9 +60,12 @@ export function page(source: string, framed = false, readOnly = false): string {
   .footer-state { display: flex; gap: .6rem; min-width: 0; align-items: center; }
   #stats, #note, #queue { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #stats { min-width: 0; }
-  #note { flex: 1; min-width: 0; color: var(--accent); }
-  #queue { max-width: 30ch; color: var(--fg); }
-  footer kbd, #help-dialog kbd { font: inherit; color: var(--fg); }
+  body[data-read] #stats { display: none; }
+  #note { flex: 1; min-width: 0; color: var(--fg); }
+  #queue { max-width: 30ch; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: #9aa5ce; }
+  #queue:empty { display: none; }
+  #help-dialog kbd { font: inherit; color: var(--fg); }
+  footer kbd { font: inherit; font-size: 11px; line-height: 1.3; padding: 0 .35em; border: 1px solid var(--line); border-radius: 3px; color: var(--fg); }
   footer button, #help-close {
     -webkit-app-region: no-drag;
     font: inherit;
@@ -76,9 +79,10 @@ export function page(source: string, framed = false, readOnly = false): string {
   }
   footer button:hover, #help-close:hover { background: #292e42; }
   footer button:focus-visible, #help-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #context-action { border: 0; border-left: 1px solid var(--line); border-radius: 0; padding: 0 0 0 .9rem; margin-left: .3rem; text-align: left; flex: 0 0 auto; color: #9aa5ce; }
-  #context-action kbd { margin-left: .35rem; }
-  #mode { flex: 0 1 13ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; letter-spacing: .04em; }
+  #context-action { position: relative; border: 0; padding: 6px 8px; margin-left: .65rem; text-align: left; flex: 0 0 auto; color: #9aa5ce; }
+  #context-action::before { content: ""; position: absolute; left: -6px; top: 6px; bottom: 6px; border-left: 1px solid var(--line); }
+  #context-action kbd { margin-left: .1rem; }
+  #mode { flex: 0 0 auto; min-width: 7ch; white-space: nowrap; font-weight: 600; letter-spacing: .04em; }
   #mode.insert { color: var(--add); }
   #mode.visual { color: #ff9e64; }
   #stats .add { color: var(--add); }
@@ -87,7 +91,7 @@ export function page(source: string, framed = false, readOnly = false): string {
   #unsaved[hidden] { display: none; }
   #unsaved #retry { border: 0; padding: 0; color: inherit; font-weight: inherit; text-decoration: underline; }
   #accept { color: #16161e; background: var(--accent); border-color: var(--accent); font-weight: 600; }
-  #accept kbd { color: inherit; margin-left: .4rem; font-weight: 400; }
+  #accept kbd { color: inherit; margin-left: .4rem; font-weight: 400; border-color: #0004; }
   #accept:hover { background: #efc483; }
   #help-dialog {
     width: min(540px, calc(100vw - 32px));
@@ -184,7 +188,7 @@ export function page(source: string, framed = false, readOnly = false): string {
         <span id="mode">NORMAL</span>
         <span id="stats">unchanged</span>
         ${readOnly ? "" : `<span id="unsaved" role="alert" hidden>Draft not saved · <button id="retry" type="button">Retry</button></span>`}
-        <button id="context-action" type="button"><span id="context-label">${readOnly ? "Close" : "Edit"}</span><kbd id="context-key">${readOnly ? ":q" : "i"}</kbd></button>
+        <button id="context-action" type="button"><span id="context-label">${readOnly ? "Close" : "Edit"}</span> <kbd id="context-key">${readOnly ? ":q" : "i"}</kbd></button>
         <span id="note" role="status"></span>
       </div>
       <span id="queue"></span>
