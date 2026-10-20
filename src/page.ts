@@ -209,7 +209,8 @@ export function page(source: string, framed = false, readOnly = false): string {
       <dt><kbd>:w</kbd></dt><dd>Save the draft now</dd>
       <dt><kbd>:q</kbd></dt><dd>Close without replying</dd>
       <dt><kbd>:res</kbd></dt><dd>Restore this line or the selected lines</dd>`}
-      <dt><kbd>gx</kbd></dt><dd>Open the link in normal or visual mode</dd>
+      <dt><kbd>gf</kbd></dt><dd>Edit the linked file in Composer’s Neovim</dd>
+      <dt><kbd>gx</kbd></dt><dd>Open the web link in normal or visual mode</dd>
       <dt><kbd>y</kbd></dt><dd>Yank to the system clipboard</dd>
       <dt><kbd>⌘O</kbd></dt><dd>Open the file list of the diff under the cursor</dd>
       <dt><kbd>]f</kbd> · <kbd>[f</kbd></dt><dd>Jump to the next or previous file in a diff</dd>

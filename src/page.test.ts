@@ -23,7 +23,8 @@ for (const document of [waiting, framed, reading]) {
   assert.ok(document.includes('<span id="stats">unchanged</span>'));
   assert.ok(document.includes('id="help-dialog" aria-labelledby="help-title"'));
   assert.ok(document.includes('aria-haspopup="dialog" aria-controls="help-dialog"'));
-  assert.ok(document.includes("Open the link in normal or visual mode"));
+  assert.ok(document.includes("Open the web link in normal or visual mode"));
+  assert.ok(document.includes("Edit the linked file in Composer’s Neovim"));
   assert.ok(document.includes("Run the shell block under the cursor"));
   assert.ok(document.includes("Toggle rendered blocks and source"));
   assert.ok(!document.includes('id="term"'));

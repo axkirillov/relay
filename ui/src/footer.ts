@@ -2,15 +2,18 @@ import type { EditorState } from "@codemirror/state";
 
 import { boxAt } from "./checkbox.ts";
 import { urlAt } from "./link.ts";
+import { fileAt, looksLikeFile } from "./filelink.ts";
 import { shellBlockAt } from "./runblock.ts";
 
-export type ContextAction = { kind: "tick" | "run" | "link" | "edit" | "normal" | "close"; key: string; label: string };
+export type ContextAction = { kind: "tick" | "run" | "link" | "file" | "edit" | "normal" | "close"; key: string; label: string };
 
-export function contextAction(state: EditorState, mode: string, reading: boolean): ContextAction {
+export function contextAction(state: EditorState, mode: string, reading: boolean, files = false): ContextAction {
   const selection = state.selection.main;
   const box = reading ? null : boxAt(state, selection.head);
   if (box) return { kind: "tick", key: "⌃J", label: box.ticked ? "Untick" : "Tick" };
   if (shellBlockAt(state, selection.head)) return { kind: "run", key: "⌃J", label: "Run" };
+  const file = files && mode !== "insert" ? fileAt(state) : null;
+  if (file && looksLikeFile(file)) return { kind: "file", key: "gf", label: "Edit file" };
   const line = state.doc.lineAt(selection.head);
   const link = selection.empty
     ? urlAt(line.text, selection.head - line.from)
