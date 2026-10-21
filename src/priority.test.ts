@@ -18,7 +18,7 @@ function check(name: string, got: unknown, want: unknown) {
 }
 
 const one = join(home, "work", "relay", "priority-sessions");
-const two = join(home, "work", "composer", "fleet-rows");
+const two = join(home, "work", "conductor", "fleet-rows");
 
 check("nothing is marked to begin with", marked(one), false);
 check("and nothing is listed", all(), []);

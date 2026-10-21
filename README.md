@@ -87,13 +87,13 @@ The document stays narrow and centred.
 ## The task, and where the answer lives
 
 relay does not put the task above the document any more, and it no longer has a flag for
-it either. **composer** keeps a notebook per session — what prompted the task, the goal,
+it either. **conductor** keeps a notebook per session — what prompted the task, the goal,
 and where every subtask stands — and opens it on `⌘P` in the same pane a document opens
 in. The human edits it there and hands it back, so it is not something relay can nag
-about: `composer --notebook` prints the path, and that is composer's side of it entirely.
+about: `conductor --notebook` prints the path, and that is conductor's side of it entirely.
 
 What relay keeps is the ledger: `~/.relay/tasks/` holds a directory per task with a
-symlink per round, and relay files its own round there as each document goes up. composer
+symlink per round, and relay files its own round there as each document goes up. conductor
 reads it; nothing is copied.
 
 ## A round that already happened
@@ -104,14 +104,14 @@ serves that round on loopback, prints the URL on the first line of stdout, and w
 until it is killed. No window, no place in the line, no round of its own — and
 nothing written into the round it opens, a command's output included.
 
-That mode is **composer's**: `⌘R` lists the rounds behind you, and `↵` on one draws
+That mode is **conductor's**: `⌘R` lists the rounds behind you, and `↵` on one draws
 it in the document column as it looked the day it arrived — what you accepted, your
 own lines still lit against what the agent sent. It is read-only, and vim is still
 vim in it, so a line can be yanked out of a round from last week. A command in it
 runs in the worktree that round came from; if that tree is gone, the block says so
 rather than running it somewhere else. The footer shows **Read only** and
 **Close**, not Accept. Help lists only the available actions; **Back to round**
-closes Help. In Composer, Escape closes the whole saved round, even from Help.
+closes Help. In Conductor, Escape closes the whole saved round, even from Help.
 
 ## Reviewing a diff
 
@@ -139,7 +139,7 @@ and jump to their first header. Choose a row to jump there and close the list.
 mode `]f` or `[f` jumps to the next or previous file without it. The button names `⌘O`, and
 the open list names its keys. Tab reaches the controls; arrow keys, Home and End move through the open list,
 and Enter or Space chooses a file. Toggle **N files** again or leave the list to
-close it without jumping. Escape also closes it in an editable round; Composer
+close it without jumping. Escape also closes it in an editable round; Conductor
 keeps its Escape-to-close behavior for saved rounds. Long lists scroll within
 the panel, without widening the document.
 
@@ -154,15 +154,15 @@ that opens, so the cursor does not have to be placed just so.
 as https. Nothing else does: a `javascript:` in a document is text and stays
 text. If there is no link under the cursor the footer says so, and nothing opens.
 
-## gf edits a local file in Composer
+## gf edits a local file in Conductor
 
 Put the cursor on a plain path or Markdown file link and press `gf`, or select a
 path in visual mode. `src/main.ts:42:7` and `src/main.ts#L42` include a position.
 Quote paths containing spaces or put them in backticks. Rendered local links and
-`file://` links also open this way; without Composer, the footer explains that
-in-app file editing needs Composer.
+`file://` links also open this way; without Conductor, the footer explains that
+in-app file editing needs Conductor.
 
-Composer checks both the worktree and the source document's folder, asking only
+Conductor checks both the worktree and the source document's folder, asking only
 if they resolve to different files. It opens real Neovim with your configuration
 over the document column, without replacing your shell or accepting the Relay.
 `:w` saves the file; `:q` returns. Back asks Neovim to confirm unsaved buffers.
@@ -170,12 +170,12 @@ Reveal in Finder is available for the opened file and each ambiguous candidate.
 
 ## The terminal
 
-relay has none of its own. Under composer, `⌃\`` opens
+relay has none of its own. Under conductor, `⌃\`` opens
 a shell below the document, in the tree relay was run from — for everything a run block cannot do:
-colours, TUIs, `⌃C`, `git rebase -i`, a command that asks a question. The shell belongs to composer,
+colours, TUIs, `⌃C`, `git rebase -i`, a command that asks a question. The shell belongs to conductor,
 so it outlives the document and comes back with the next one from the same tree.
 
-What happened there still reaches the agent through the document. `⌘Y` in composer's terminal puts
+What happened there still reaches the agent through the document. `⌘Y` in conductor's terminal puts
 the selection, or the last command and its output, into the document at the cursor as a `console`
 block. A read-only document refuses it and says so in the footer.
 
@@ -188,7 +188,7 @@ all: it is the gesture for clearing the screen, not for skipping one document.
 
 Unless one of them matters more. Mark a session and its documents go in front of
 every other session's, however long those have been waiting — ⌘-click its row in
-composer's fleet pane, or `relay --priority` in the worktree itself
+conductor's fleet pane, or `relay --priority` in the worktree itself
 (`relay --priority off` takes it back). A session here is the worktree, the same
 thing the answer is keyed on, so restarting the agent in it does not lose the mark.
 

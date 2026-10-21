@@ -3,7 +3,7 @@
 # under on every way out — answered, dismissed, handed a document it cannot
 # read, killed, still queued for the screen, or left waiting by a window that
 # died on the way up — and never touches anyone else's. A rehearsal starts no
-# window of its own, so this starts them, as composer does; each goes on its own
+# window of its own, so this starts them, as conductor does; each goes on its own
 # in a second or two.
 set -euo pipefail
 

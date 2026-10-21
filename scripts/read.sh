@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # `relay --read`, end to end and with no window: a round that already happened is
-# served read-only, its URL goes to stdout for composer to read, the routes that
+# served read-only, its URL goes to stdout for conductor to read, the routes that
 # would answer or file anything refuse, a command in it runs in the tree the round
 # came from — and a round whose tree has been torn down since says so instead. It
 # joins no line, writes nothing, and lifts nobody's gate latch.
@@ -78,7 +78,7 @@ SENT=$'# Which cap\n\nRaise it to 250k?\n'
 ANSWERED="$SENT"$'Fix the query instead.\n'
 round 20260901-091200-which-cap "$TREE" "$SENT" "$ANSWERED"
 
-# The gate latch of a live agent, held the whole way through. composer inherits
+# The gate latch of a live agent, held the whole way through. conductor inherits
 # $CLAUDE_CODE_SESSION_ID from the agent that started it, so a read that lifted the
 # latch on its way out would let an agent that is still waiting for an answer past
 # its own gate.
@@ -89,7 +89,7 @@ reading 20260901-091200-which-cap
 
 [ "$(wc -l <"$TMP/out" | tr -d ' ')" = 1 ] || fail "stdout is more than the URL"
 [ -s "$TMP/err" ] && fail "a read said something on stderr: $(cat "$TMP/err")"
-# No window, and no line to be at the head of: composer is the window here.
+# No window, and no line to be at the head of: conductor is the window here.
 [ -z "$(pgrep -P "$PID" 2>/dev/null || true)" ] || fail "a read spawned a window"
 [ -e "$HOME_RELAY/window.json" ] && fail "a read wrote the window file"
 [ -z "$(ls -A "$RELAY_QUEUE_DIR")" ] || fail "a read took a place in the line"
@@ -118,7 +118,7 @@ kill -0 "$PID" 2>/dev/null || fail "the read exited when a route was refused"
 # --- a command runs where the round ran -------------------------------------------
 # The one thing a read moves: `--read` chdirs into the round's own tree, so the
 # command lands in the worktree the document was written for rather than wherever
-# composer happened to be started from.
+# conductor happened to be started from.
 curl -sf -X POST -H 'Content-Type: text/plain' --data-binary 'pwd' "${URL}run?lines=40" >"$TMP/ran" \
   || fail "a command in a round with its tree still there was refused"
 grep -qx "$(cd "$TREE" && pwd -P)" "$TMP/ran" || fail "the command ran in $(cat "$TMP/ran"), not the round's own tree"
@@ -244,7 +244,7 @@ curl -sf "$URL" | grep -q '<body data-read>' || fail "the round is not still rea
 kill "$PID"; wait "$PID" 2>/dev/null || true; PID=""
 
 # --- nothing to read --------------------------------------------------------------
-# Both failures name what was asked for: the caller is a row in composer's card that
+# Both failures name what was asked for: the caller is a row in conductor's card that
 # is about to have nothing under it.
 node "$WT/dist/relay.js" --read 20260101-000000-never-happened >"$TMP/out" 2>"$TMP/err" \
   && fail "a round that is not there was served"

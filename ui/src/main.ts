@@ -40,10 +40,12 @@ const choiceEl = document.getElementById("run-choice")!;
 const unsavedEl = document.getElementById("unsaved")!;
 
 const reading = document.body.dataset.read !== undefined;
-const bridge = (window as unknown as { composerDocument?: {
+type DocumentBridge = {
   openFile(reference: FileReference): Promise<{ ok: boolean; why?: string }>;
   onTerminalOutput(fn: (text: string) => void): void;
-} }).composerDocument;
+};
+const hosts = window as unknown as { conductorDocument?: DocumentBridge; composerDocument?: DocumentBridge };
+const bridge = hosts.conductorDocument ?? hosts.composerDocument;
 
 let view: EditorView;
 let sending = false;
@@ -397,11 +399,11 @@ async function openFileAtCursor() {
 }
 
 async function openFile(reference: FileReference) {
-  if (!bridge?.openFile) return note("open this document in Composer to edit linked files");
+  if (!bridge?.openFile) return note("open this document in Conductor to edit linked files");
   try {
     const answer = await bridge.openFile(reference);
     if (!answer.ok) note(answer.why ?? "the file could not be opened");
-  } catch { note("Composer could not open the file"); }
+  } catch { note("Conductor could not open the file"); }
 }
 
 async function open(href: string) {
