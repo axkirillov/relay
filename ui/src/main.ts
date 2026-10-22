@@ -44,8 +44,8 @@ type DocumentBridge = {
   openFile(reference: FileReference): Promise<{ ok: boolean; why?: string }>;
   onTerminalOutput(fn: (text: string) => void): void;
 };
-const hosts = window as unknown as { conductorDocument?: DocumentBridge; composerDocument?: DocumentBridge };
-const bridge = hosts.conductorDocument ?? hosts.composerDocument;
+const hosts = window as unknown as { conductorDocument?: DocumentBridge };
+const bridge = hosts.conductorDocument;
 
 let view: EditorView;
 let sending = false;
