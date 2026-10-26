@@ -2,7 +2,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 
 import { codeLanguage } from "./languages.ts";
-import { commandOf, isShellLang, setSink, shellBlockAt, sink, startOutput } from "./runblock.ts";
+import { commandOf, isShellLang, neighbourShellBlock, setSink, shellBlockAt, sink, startOutput } from "./runblock.ts";
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -108,6 +108,18 @@ check(
   check("two output positions move independently", [...state.field(sink)], [[1, 4], [2, 8]]);
   state = state.update({ effects: setSink.of({ id: 1, at: null }) }).state;
   check("clearing one output keeps the other", [...state.field(sink)], [[2, 8]]);
+}
+
+{
+  const doc = "intro\n\n```sh\necho one\n```\n\n```js\nskip()\n```\n\n````output\none\n````\n\n```bash\necho two\n```\n";
+  const state = stateOf(doc);
+  const lineAt = (pos: number | null) => (pos === null ? null : state.doc.lineAt(pos).text);
+  const inTwo = doc.indexOf("echo two");
+  check("]r from the top lands on the first command", lineAt(neighbourShellBlock(state, 0, 1)), "echo one");
+  check("]r skips code that does not run and output", lineAt(neighbourShellBlock(state, doc.indexOf("echo one"), 1)), "echo two");
+  check("]r past the last command finds nothing", neighbourShellBlock(state, inTwo, 1), null);
+  check("[r from inside a command goes to the one before", lineAt(neighbourShellBlock(state, inTwo, -1)), "echo one");
+  check("[r before the first command finds nothing", neighbourShellBlock(state, 0, -1), null);
 }
 
 process.exit(fails ? 1 : 0);

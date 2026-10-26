@@ -24,7 +24,7 @@ import { liveDiff, type Stats } from "./livediff";
 import { foldOutput, opened, refold } from "./outfold";
 import { followRendered, type Images, isRendering, renderBlocks, selectWords, setRendering } from "./render";
 import { restore } from "./restore";
-import { setSink, shellBlockAt, sink, startOutput } from "./runblock";
+import { neighbourShellBlock, setSink, shellBlockAt, sink, startOutput } from "./runblock";
 import { queueAfter } from "./runqueue";
 import { beginRun, type RunPhase, runStatuses, updateRun } from "./runstatus";
 import { fence, insertion } from "./take";
@@ -464,6 +464,16 @@ function bindVim(original: string) {
   Vim.defineAction("relayPreviousFile", () => { if (!stepReviewFile(view, -1)) note("no previous file"); });
   Vim.mapCommand("]f", "action", "relayNextFile", {}, { context: "normal" });
   Vim.mapCommand("[f", "action", "relayPreviousFile", {}, { context: "normal" });
+
+  const stepShellBlock = (direction: 1 | -1) => {
+    const anchor = neighbourShellBlock(view.state, view.state.selection.main.head, direction);
+    if (anchor === null) return note(direction === 1 ? "no next command" : "no previous command");
+    view.dispatch({ selection: { anchor }, effects: EditorView.scrollIntoView(anchor, { y: "center" }) });
+  };
+  Vim.defineAction("relayNextCommand", () => stepShellBlock(1));
+  Vim.defineAction("relayPreviousCommand", () => stepShellBlock(-1));
+  Vim.mapCommand("]r", "action", "relayNextCommand", {}, { context: "normal" });
+  Vim.mapCommand("[r", "action", "relayPreviousCommand", {}, { context: "normal" });
 
   Vim.defineAction("relayOpenFile", () => void openFileAtCursor());
   Vim.mapCommand("gf", "action", "relayOpenFile", {}, { context: "normal" });
