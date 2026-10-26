@@ -177,12 +177,7 @@ function tableHtml(state: EditorState, table: SyntaxNode): string {
 
   for (let row = table.firstChild; row; row = row.nextSibling) {
     if (row.name === "TableDelimiter") continue;
-    const cells: string[] = [];
-    for (let cell = row.firstChild; cell; cell = cell.nextSibling) {
-      if (cell.name === "TableCell") {
-        cells.push(inlineHtml(state, cell, cell.from, cell.to).trim());
-      }
-    }
+    const cells = rowCells(state, row);
     if (!cells.length) continue;
     if (row.name === "TableHeader" && !head) {
       head = `<tr>${cells.map((c) => `<th>${c}</th>`).join("")}</tr>`;
@@ -192,6 +187,25 @@ function tableHtml(state: EditorState, table: SyntaxNode): string {
   }
 
   return `<table>${head ? `<thead>${head}</thead>` : ""}<tbody>${body.join("")}</tbody></table>`;
+}
+
+function rowCells(state: EditorState, row: SyntaxNode): string[] {
+  const cells: string[] = [];
+  let afterPipe = false;
+  let filled = false;
+
+  for (let child = row.firstChild; child; child = child.nextSibling) {
+    if (child.name === "TableCell") {
+      cells.push(inlineHtml(state, child, child.from, child.to).trim());
+      filled = true;
+    } else if (child.name === "TableDelimiter") {
+      if (afterPipe && !filled) cells.push("");
+      afterPipe = true;
+      filled = false;
+    }
+  }
+
+  return cells;
 }
 
 const wrapping: Record<string, string> = {
