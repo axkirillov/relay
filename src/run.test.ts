@@ -229,7 +229,7 @@ if (process.argv[2] === "stay") setInterval(() => {}, 1000);
   check("it is there for as long as the read is", existsSync(staying), true);
   child.kill("SIGTERM");
   await new Promise((resolve) => child.once("close", resolve));
-  check("and a read killed by conductor still takes it away", existsSync(staying), false);
+  check("and a read killed by its host still takes it away", existsSync(staying), false);
 }
 
 function wait(ms: number): Promise<void> {

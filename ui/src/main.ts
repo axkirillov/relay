@@ -44,8 +44,8 @@ type DocumentBridge = {
   openFile(reference: FileReference): Promise<{ ok: boolean; why?: string }>;
   onTerminalOutput(fn: (text: string) => void): void;
 };
-const hosts = window as unknown as { conductorDocument?: DocumentBridge };
-const bridge = hosts.conductorDocument;
+const hosts = window as unknown as { relayHost?: DocumentBridge };
+const bridge = hosts.relayHost;
 
 let view: EditorView;
 let sending = false;
@@ -399,11 +399,11 @@ async function openFileAtCursor() {
 }
 
 async function openFile(reference: FileReference) {
-  if (!bridge?.openFile) return note("open this document in Conductor to edit linked files");
+  if (!bridge?.openFile) return note("open this document in a host app to edit linked files");
   try {
     const answer = await bridge.openFile(reference);
     if (!answer.ok) note(answer.why ?? "the file could not be opened");
-  } catch { note("Conductor could not open the file"); }
+  } catch { note("the host app could not open the file"); }
 }
 
 async function open(href: string) {

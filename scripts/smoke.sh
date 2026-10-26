@@ -56,7 +56,7 @@ serve "$TMP/finding.md"
 
 curl -sf "$URL" | grep -q '/assets/relay.js' || fail "page does not load the editor bundle"
 # Byte for byte the agent's document. Nothing relay knows about the task is stapled
-# to the text the human edits — what it is about is conductor's card, on ⌘P.
+# to the text the human edits — what it is about is the host app's card, on ⌘P.
 curl -sf "${URL}doc" | diff -q - "$TMP/finding.md" >/dev/null || fail "/doc is not the document"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "${URL}assets/relay.js")" = 200 ] || fail "bundle not served"
 
@@ -87,7 +87,7 @@ serve "$TMP/next.md"
 curl -sf "${URL}doc" >"$TMP/shown" || fail "the second document is not served"
 
 # Still byte for byte, with a round already behind it. relay
-# used to staple a task section under the document here; conductor draws the card
+# used to staple a task section under the document here; the host app draws the card
 # now, so the second document of a task is as untouched as the first.
 diff -q "$TMP/shown" "$TMP/next.md" >/dev/null \
   || fail "the second document is not served exactly as the agent wrote it"
