@@ -47,6 +47,27 @@ export function shellBlockAt(state: EditorState, pos: number): ShellBlock | null
   return { from: fence.from, to: state.doc.lineAt(fence.to).to, lang: lang.trim(), command };
 }
 
+export function neighbourShellBlock(state: EditorState, pos: number, direction: 1 | -1): number | null {
+  const blocks = shellBlocks(state);
+  const block = direction === 1 ? blocks.find((b) => b.from > pos) : blocks.filter((b) => b.to < pos).at(-1);
+  if (!block) return null;
+  const opener = state.doc.lineAt(block.from).number;
+  return state.doc.line(Math.min(opener + 1, state.doc.lines)).from;
+}
+
+function shellBlocks(state: EditorState): ShellBlock[] {
+  const blocks: ShellBlock[] = [];
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name !== "FencedCode") return undefined;
+      const block = shellBlockAt(state, node.from);
+      if (block) blocks.push(block);
+      return false;
+    },
+  });
+  return blocks;
+}
+
 function fenceAt(state: EditorState, pos: number): SyntaxNode | null {
   const tree = syntaxTree(state);
   for (const side of [1, -1] as const) {

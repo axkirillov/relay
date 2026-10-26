@@ -36,7 +36,8 @@ jump gets into any of them: `:17` to the line, or `/pattern` to the words, which
 is what the line numbers are for. `:raw` toggles the whole document back to
 source and out again.
 
-A command the agent wants run can be run in the window. Put the cursor in any
+A command the agent wants run can be run in the window. `]r` and `[r` put the
+cursor in the next or previous shell fence. Put the cursor in any
 shell fence — ```` ```sh ````, `bash`, `zsh`, `shell`, `console` — and press
 `⌃J` (or `:run`); its output streams in directly below as a ```` ````output ````
 block, so the diff carries it back. Running another fence while one is active
