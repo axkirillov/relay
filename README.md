@@ -235,14 +235,13 @@ pnpm smoke:open   # the link under the cursor out to the machine's opener, whole
 pnpm smoke:queue  # two relays, one window, in turn — opens a real window briefly
 pnpm smoke:priority # a marked session's document jumps one already waiting, no window
 pnpm smoke:dismiss # closing the window dismisses the queued relay too
-pnpm smoke:latch  # the agent's gate latch lifts on every way out of a relay
 pnpm smoke:read   # saved rounds stay read-only, including their logs
 pnpm smoke:queue-handoff # queued commands survive acceptance
 pnpm smoke:detach # an active command survives acceptance
 pnpm smoke:controls # headless Chrome: contextual footer, Help, run badges and Stop
 ```
 
-The queue, dismiss and latch suites put a real window on the screen for a few
+The queue and dismiss suites put a real window on the screen for a few
 seconds and take focus. Run smoke suites in the background. `smoke:controls`
 uses synthetic documents and an isolated relay queue; it prints the directory
 holding its screenshots. It needs Chrome at the macOS default path or

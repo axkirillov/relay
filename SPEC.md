@@ -800,21 +800,6 @@ guess from what it happened to see.
 A window that dies without writing a tombstone — `kill -9`, a crash — is not a
 close. Nobody is dismissed, and the head relay puts a new window up.
 
-## The agent stops waiting the moment the human answers
-
-A harness may enforce the block with a gate of its own — the one here is a hook
-that latches when it sees `relay` launched and refuses the agent every tool call
-until the latch is gone. relay removes that latch as it exits, however it exits,
-so the answer arriving is itself what frees the agent. Nothing has to poll, and
-nothing has to notice.
-
-The latch is a file the gate writes before relay starts:
-`$RELAY_GATE_STATE/open-$CLAUDE_CODE_SESSION_ID`, under `~/.local/state/relay`
-by default. relay takes down only the one it was launched under and only if it
-is unchanged since — a relay run by hand latched nothing and takes nothing down
-with it, and a round that has already latched again keeps its latch. Where there
-is no gate there is no file, and nothing to remove.
-
 ## Storage
 
 ```
@@ -904,13 +889,6 @@ leave nothing anywhere; by `mkdtemp`, because `⌘R` can be pressed twice on one
 and neither read is the other's log. The pointer in the document names the file the
 output really went to, which is the one in there — a read whose document claimed the
 output was in the round's own log would be sending the human to last month's.
-
-It lifts no gate latch on the way out, and that is the one thing about it that had to
-be arranged rather than left alone: the latch is keyed on `$CLAUDE_CODE_SESSION_ID`,
-conductor inherits that variable from the agent that started conductor, and a read
-exiting would otherwise let an agent that is still waiting for an answer past its own
-gate.
-
 
 ## Settled
 

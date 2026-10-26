@@ -3,7 +3,7 @@
 # served read-only, its URL goes to stdout for conductor to read, the routes that
 # would answer or file anything refuse, a command in it runs in the tree the round
 # came from — and a round whose tree has been torn down since says so instead. It
-# joins no line, writes nothing, and lifts nobody's gate latch.
+# joins no line and writes nothing.
 #
 # Writes nothing includes the round's own directory, which is the one writable place a
 # read has in reach and the one place a reading must not touch: a command run out of a
@@ -14,11 +14,9 @@ set -euo pipefail
 WT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
 export RELAY_QUEUE_DIR="$TMP/relay/queue"
-export RELAY_GATE_STATE="$TMP/state"
 export CLAUDE_CODE_SESSION_ID="read-smoke"
 HOME_RELAY="$TMP/relay"
-LATCH="$RELAY_GATE_STATE/open-$CLAUDE_CODE_SESSION_ID"
-mkdir -p "$RELAY_QUEUE_DIR" "$RELAY_GATE_STATE"
+mkdir -p "$RELAY_QUEUE_DIR"
 
 PID=""
 PID2=""
@@ -78,12 +76,6 @@ SENT=$'# Which cap\n\nRaise it to 250k?\n'
 ANSWERED="$SENT"$'Fix the query instead.\n'
 round 20260901-091200-which-cap "$TREE" "$SENT" "$ANSWERED"
 
-# The gate latch of a live agent, held the whole way through. conductor inherits
-# $CLAUDE_CODE_SESSION_ID from the agent that started it, so a read that lifted the
-# latch on its way out would let an agent that is still waiting for an answer past
-# its own gate.
-printf '%s\n' "$TMP/somewhere.md" >"$LATCH"
-
 # --- the round, served to be read ---------------------------------------------
 reading 20260901-091200-which-cap
 
@@ -134,7 +126,6 @@ kill -TERM "$PID"
 until_ok gone "$PID" || fail "the read did not go on SIGTERM"
 wait "$PID" 2>/dev/null || true
 PID=""
-[ -f "$LATCH" ] || fail "a read that exited lifted a live agent's gate latch"
 
 # --- what a read writes into the round's directory: nothing -----------------------
 # A round's `run-1.log` is the file the document itself points at when a command that
@@ -263,6 +254,4 @@ node "$WT/dist/relay.js" --read >"$TMP/out" 2>"$TMP/err" && fail "--read with no
 grep -q 'cannot read' "$TMP/err" && fail "--read with no round went looking for a file called --read"
 grep -q -- '--read takes one round' "$TMP/err" || fail "--read with no round says nothing useful: $(cat "$TMP/err")"
 
-[ -f "$LATCH" ] || fail "a read that refused lifted a live agent's gate latch"
-
-echo "ok — read-only, out of the line, in the round's own tree, nothing written into the round, and nobody's latch touched"
+echo "ok — read-only, out of the line, in the round's own tree, nothing written into the round"

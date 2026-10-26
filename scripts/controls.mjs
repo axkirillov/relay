@@ -45,7 +45,7 @@ async function until(probe, label, ms = 8000) {
 }
 
 try {
-  const relay = launch(process.execPath, ["dist/relay.js", documentPath], { ...process.env, RELAY_NO_OPEN: "1", RELAY_QUEUE_DIR: queue, RELAY_GATE_STATE: join(work, "gate") });
+  const relay = launch(process.execPath, ["dist/relay.js", documentPath], { ...process.env, RELAY_NO_OPEN: "1", RELAY_QUEUE_DIR: queue });
   const url = await until(() => {
     if (relay.failure || relay.exitCode !== null) throw relay.failure ?? new Error(relay.errors);
     return relay.errors.match(/http:\/\/127\.0\.0\.1:\d+\//)?.[0];
@@ -227,7 +227,7 @@ try {
   console.log("PASS accepting keeps the active command and queued snapshot running");
 
   const accepted = await readFile(join(round, "accepted.md"), "utf8");
-  const reading = launch(process.execPath, ["dist/relay.js", "--read", round], { ...process.env, RELAY_QUEUE_DIR: queue, RELAY_GATE_STATE: join(work, "gate") });
+  const reading = launch(process.execPath, ["dist/relay.js", "--read", round], { ...process.env, RELAY_QUEUE_DIR: queue });
   const readUrl = await until(() => {
     if (reading.failure || reading.exitCode !== null) throw reading.failure ?? new Error(reading.errors);
     return reading.output.match(/http:\/\/127\.0\.0\.1:\d+\//)?.[0];

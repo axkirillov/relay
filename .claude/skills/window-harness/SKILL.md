@@ -459,7 +459,7 @@ stand-in of the same name first on the relay's `PATH` and assert what it recorde
 - **A child of relay's is not a window.** `pgrep -P <relay>` answers about 255 ms
   after the spawn and `window.json` appears at about 420 ms, so anything that
   waits for the child and then closes "the window" is killing one on the way up.
-  `scripts/latch.sh` did exactly that and hung on every run for as long as anyone
+  An earlier smoke script did exactly that and hung on every run for as long as anyone
   let it. A window on the screen is `window.json` naming a live pid — wait for
   that, and kill the pid it names, the way `dismiss.sh` and `queue.sh` do.
 - **A SIGTERM to a window still coming up is a coin toss.** The shell installs its

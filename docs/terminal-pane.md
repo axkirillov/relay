@@ -95,7 +95,7 @@ shell fences runnable — that is theirs.
 
 - `pnpm build` (esbuild → `dist/relay.js` + `dist/assets/relay.js`), `pnpm check`
   (types), `pnpm test` (plain node test files), `pnpm smoke` (end to end, no
-  window), `pnpm smoke:queue`, `pnpm smoke:latch`.
+  window), `pnpm smoke:queue`.
 - `RELAY_NO_OPEN=1` serves without a window. `RELAY_DEBUG=1` lets the window's
   stderr through. `RELAY_PREFILL=<file>` opens the editor on another file while
   still diffing against the document.

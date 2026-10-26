@@ -4,7 +4,6 @@ import { relative, resolve } from "node:path";
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
 import { commentReport, earlyCloses } from "./diff.js";
-import { unlatchOnExit } from "./latch.js";
 import * as priority from "./priority.js";
 import * as queue from "./queue.js";
 import { read as readRound, type Round } from "./round.js";
@@ -58,8 +57,6 @@ the window is open costs the human's reply.
 delete process.env.ELECTRON_RUN_AS_NODE;
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
-
-if (args[0] !== "--read") unlatchOnExit();
 
 if (args.length <= 2 && args[0] === "--priority") {
   const state = args[1] ?? "on";
