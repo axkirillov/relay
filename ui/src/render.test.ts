@@ -131,6 +131,18 @@ check("html: table becomes a real table", html("| a | b |\n| - | - |\n| 1 | 2 |\
   "<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>",
 ]);
 
+check("html: an empty corner cell keeps its column", html("|  | b |\n| - | - |\n| 1 | 2 |\n"), [
+  "<table><thead><tr><th></th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>",
+]);
+
+check("html: empty body cells keep their columns", html("| a | b | c |\n| - | - | - |\n|  | 2 |  |\n"), [
+  "<table><thead><tr><th>a</th><th>b</th><th>c</th></tr></thead><tbody><tr><td></td><td>2</td><td></td></tr></tbody></table>",
+]);
+
+check("html: a row without outer pipes", html("a | b\n--- | ---\n1 | 2\n"), [
+  "<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>",
+]);
+
 check("html: table cells are escaped", html("| a |\n| - |\n| <b> |\n"), [
   "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>&lt;b&gt;</td></tr></tbody></table>",
 ]);
