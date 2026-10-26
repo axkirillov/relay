@@ -105,6 +105,15 @@ export const theme = EditorView.theme(
       fontSize: "0.85em",
     },
 
+    ".cm-relay-tty": {
+      margin: "0.25rem 0.75rem",
+      padding: "0.4rem",
+      backgroundColor: bg,
+      border: `1px solid ${line}`,
+      borderLeft: `2px solid ${cyan}`,
+      overflow: "hidden",
+    },
+    ".cm-relay-tty:focus-within": { borderColor: cyan },
     ".cm-run-status": {
       display: "flex",
       alignItems: "center",

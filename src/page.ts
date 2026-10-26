@@ -218,13 +218,14 @@ export function page(source: string, framed = false, readOnly = false): string {
     <h3>Commands and rendering</h3>
     <dl>
       <dt><kbd>⌃J</kbd> · <kbd>:run</kbd></dt><dd>Run the shell block under the cursor</dd>
+      <dt><kbd>⌃⇧J</kbd> · <kbd>:run!</kbd></dt><dd>Run it in a live terminal under the block; <kbd>⌃⇧J</kbd> again goes back to the document</dd>
       <dt><kbd>]r</kbd> · <kbd>[r</kbd></dt><dd>Jump to the next or previous shell block</dd>
       <dt><kbd>⌃C</kbd></dt><dd>Stop the latest active run; each block also has its own Stop button</dd>
       <dt><kbd>:raw</kbd></dt><dd>Toggle rendered blocks and source</dd>
       <dt><kbd>zc</kbd> · <kbd>:fold</kbd></dt><dd>Fold expanded command output</dd>
       <dt><kbd>:help</kbd></dt><dd>Open this shortcut list</dd>
     </dl>
-    <p>${readOnly ? "Commands run in this round's original worktree; the saved round stays unchanged." : "Accepting does not stop running or queued commands. Their output and report paths are included in your reply."}</p>
+    <p>${readOnly ? "Commands run in this round's original worktree; the saved round stays unchanged." : "Accepting does not stop running or queued commands. Their output and report paths are included in your reply. It does stop live terminals, and keeps what was on their screen."}</p>
   </dialog>
 
   <div id="run-choice" role="dialog" aria-modal="true" aria-label="Run command">

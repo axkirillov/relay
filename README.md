@@ -54,6 +54,13 @@ is edited after starting or queuing it, the badge says **command edited**; its
 tooltip keeps the command that actually runs. These badges belong to the current
 view, not the document or the diff.
 
+A command that asks questions needs a terminal. `⌃⇧J` (or `:run!`) runs the
+fence in a live terminal drawn under it, with your keys going to the command.
+`⌃⇧J` switches between the terminal and the document. When the command ends,
+what was on the terminal becomes the ```` ````output ```` block, with `[exit N]`
+if it failed. Accepting stops a terminal that is still running and keeps its
+screen, marked `[stopped at accept]`.
+
 Running the block again replaces its last output and completed badges, while
 overlapping runs keep separate badges. `:res` takes an output you would rather
 not send back out. Long output is folded to its last twenty lines — every line is still

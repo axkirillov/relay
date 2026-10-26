@@ -171,6 +171,20 @@ status and Stop action. The chooser offers `[Q]ueue` and
 `[P]arallel`; Q/P select directly, arrows move focus, Enter confirms, and Esc
 cancels.
 
+**A live terminal when the command needs one.** `⌃⇧J`, or `:run!`, runs the
+fence in a real pseudo-terminal drawn under it: 24 rows, as wide as the text
+column, with the keyboard inside it. Every key goes to the command except `⌃⇧J`,
+which gives the keys back to the document; `⌃⇧J` in that fence again, or a
+click, goes back in. When the command ends, the terminal turns into the same
+```` ````output ```` block a `⌃J` run makes: the scrollback and last screen as
+plain text, colours gone, blank lines at either end dropped, `[exit 3]` on a
+failure, and the same fold and spill to a file. Interactive runs are always
+parallel and never go through the Queue/Parallel chooser. Its badge and Stop
+button work as for any run, and `⌃C` outside the terminal stops the latest
+run of either kind; inside it, `⌃C` is the command's. Accepting stops a live
+terminal with `SIGHUP`, keeps what was on its screen, and adds
+`[stopped at accept]`.
+
 **The state stays beside the command.** A badge below each run block shows its
 run number and Queued, Running, Succeeded, Failed, Stopped or Skipped. Queued
 badges show waiting time; running badges show execution time, frozen when the

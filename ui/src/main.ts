@@ -29,6 +29,7 @@ import { queueAfter } from "./runqueue";
 import { beginRun, type RunPhase, runStatuses, updateRun } from "./runstatus";
 import { fence, insertion } from "./take";
 import { markdownHighlight, theme } from "./theme";
+import { interactiveRuns, ttyExtensions } from "./tty";
 
 const mount = document.getElementById("editor")!;
 const statsEl = document.getElementById("stats")!;
@@ -149,6 +150,7 @@ async function accept() {
   const waiting = [...pending.values()];
   overlay("↑", "Sending", "handing your reply to the agent…");
   try {
+    await ttys.settle();
     if (waiting.length) {
       const report = await fetch("/run/report").then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -217,13 +219,31 @@ let tail: Promise<boolean> | null = null;
 let tailId: number | null = null;
 
 function showRuns() {
-  const counts = [active.size ? `${active.size} running` : "", pending.size ? `${pending.size} queued` : ""].filter(Boolean);
-  if (counts.length) hold(`${counts.join(" · ")} — ${reading ? "closing stops them" : "accepting does not stop them"}`);
-  else release();
+  const counts = [
+    active.size ? `${active.size} running` : "",
+    pending.size ? `${pending.size} queued` : "",
+    ttys.size() ? `${ttys.size()} interactive` : "",
+  ].filter(Boolean);
+  if (!counts.length) return release();
+  const fate = reading ? "closing stops them" : ttys.size() ? "accepting stops the interactive ones" : "accepting does not stop them";
+  hold(`${counts.join(" · ")} — ${fate}`);
 }
 
+const ttys = interactiveRuns(() => view, () => ++nextRun, note, screenLines, showRuns);
+
 function stopRun(id: number) {
-  if (!sending) active.get(id)?.controller.abort();
+  if (sending) return;
+  if (!ttys.stop(id)) active.get(id)?.controller.abort();
+}
+
+function latestRun(): number | null {
+  const ids = [ttys.latest(), [...active.keys()].at(-1)].filter((id) => id != null);
+  return ids.length ? Math.max(...ids) : null;
+}
+
+function runInteractive() {
+  if (choiceEl.dataset.show !== undefined || help.isOpen() || sending) return;
+  ttys.toggle();
 }
 
 function chooseRun(command: string): Promise<"queue" | "parallel" | "cancel"> {
@@ -444,7 +464,10 @@ function bindVim(original: string) {
     note(on ? "rendered" : "source");
   });
 
-  Vim.defineEx("run", "run", () => void runAtCursor());
+  Vim.defineEx("run", "run", (_cm, params) => {
+    if (params.argString?.trim() === "!") runInteractive();
+    else void runAtCursor();
+  });
 
   const foldBack = () => note(refold(view) ? "folded" : "nothing to fold");
   Vim.defineEx("fold", "fo", foldBack);
@@ -536,6 +559,7 @@ async function boot() {
         foldOutput(),
         sink,
         runStatuses(stopRun),
+        ttyExtensions,
         liveDiff(original, showStats),
         EditorView.updateListener.of((u) => {
           if (u.transactions.some(opened)) note("opened — :fold, or zc, puts it back");
@@ -573,7 +597,7 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
-      if (help.isOpen() || !e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.key.toLowerCase() !== "o") return;
+      if (help.isOpen() || ttys.inside(e.target) || !e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.key.toLowerCase() !== "o") return;
       e.preventDefault();
       e.stopPropagation();
       if (!pickReviewFile(view)) note("no file list here — put the cursor in a diff with 2 or more files");
@@ -587,6 +611,13 @@ async function boot() {
       if (help.isOpen() || !e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
 
+      if (key === "j" && e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        runInteractive();
+        return;
+      }
+      if (ttys.inside(e.target)) return;
       if (key === "x" && !reading) {
         e.preventDefault();
         e.stopPropagation();
@@ -602,10 +633,11 @@ async function boot() {
         else note("nothing here — put the cursor on a - [ ] line or in a ```sh block");
         return;
       }
-      if (key === "c" && active.size) {
+      const latest = latestRun();
+      if (key === "c" && latest !== null) {
         e.preventDefault();
         e.stopPropagation();
-        stopRun([...active.keys()].at(-1)!);
+        stopRun(latest);
       }
     },
     true,

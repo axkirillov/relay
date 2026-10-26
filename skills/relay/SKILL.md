@@ -58,6 +58,11 @@ in a `sh`, `bash`, `zsh`, `shell` or `console` fence. The user runs it in the
 window with `⌃J`. The output appears under the fence as an ```` ````output ````
 block, so it comes back to you in the diff.
 
+A `⌃J` run has no input: a command that asks a question gets end-of-file. For a
+command that needs the user to type, such as a login or a prompt, tell them to
+run it with `⌃⇧J`. That runs it in a live terminal under the fence, and its
+final screen comes back to you as the output block.
+
 - The command runs in the directory you ran relay from.
 - Write it so it can run as is: no placeholders, nothing the user has to fill in.
 - Do not wrap it in `echo` or explain it inside the fence. Explain it above.

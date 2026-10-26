@@ -8,10 +8,12 @@ import { fileURLToPath } from "node:url";
 import { contentType, type Images, localImages } from "./images.js";
 import { launch, openable, opener } from "./open.js";
 import { page } from "./page.js";
+import { interactive, type Session } from "./pty.js";
 import type { QueuePlan, Waiting } from "./queue-worker.js";
-import { type Running, start, tilde } from "./run.js";
+import { maxOutputBytes, type Running, start, tilde } from "./run.js";
 
 const maxDocBytes = 8 << 20;
+const maxInputBytes = 1 << 20;
 const maxCommandBytes = 64 << 10;
 const bundle = fileURLToPath(new URL("./assets/relay.js", import.meta.url));
 const styles = fileURLToPath(new URL("./assets/relay.css", import.meta.url));
@@ -50,6 +52,7 @@ export async function serve(
   let runs = 0;
   const statuses = new Map<number, number | null>();
   const clientRuns = new Map<number, number>();
+  const ttys = new Map<number, Session>();
 
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
@@ -108,6 +111,7 @@ export async function serve(
         }
         for (const job of running) job.detach();
         running.clear();
+        for (const tty of ttys.values()) tty.stop();
       });
     }
     if (req.method === "POST" && path === "/draft") {
@@ -143,6 +147,59 @@ export async function serve(
       const id = ++runs;
       return handleRun(req, res, running, join(logs(), `run-${id}.log`), screenLines(req), id, statuses, clientRuns);
     }
+    if (req.method === "POST" && path === "/tty") {
+      if (opts.runnable === false) {
+        const where = opts.ran ? ` — ${tilde(opts.ran)}` : "";
+        return send(res, 409, "text/plain", `the worktree this round ran in is gone${where}`);
+      }
+      return read(req, maxCommandBytes).then(
+        (command) => {
+          if (!command.trim()) return send(res, 400, "text/plain", "no command");
+          const id = ++runs;
+          try {
+            ttys.set(id, interactive(command, process.cwd(), columns(req)));
+          } catch (err) {
+            return send(res, 503, "text/plain", `relay could not run it: ${(err as Error).message}`);
+          }
+          send(res, 200, "application/json; charset=utf-8", JSON.stringify({ id }));
+        },
+        () => send(res, 413, "text/plain", "command too large"),
+      );
+    }
+    if (path.startsWith("/tty/")) {
+      const id = Number(new URL(req.url!, "http://localhost").searchParams.get("id"));
+      const tty = ttys.get(id);
+      if (!tty) return send(res, 404, "text/plain", "no such run");
+      if (req.method === "GET" && path === "/tty/out") return stream(req, res, tty);
+      if (req.method === "POST" && path === "/tty/in") return input(req, res, (data) => tty.write(data));
+      if (req.method === "POST" && path === "/tty/size") {
+        tty.resize(columns(req));
+        return res.writeHead(204).end();
+      }
+      if (req.method === "POST" && path === "/tty/stop") {
+        tty.stop();
+        return res.writeHead(204).end();
+      }
+      if (req.method === "POST" && path === "/tty/keep") {
+        return read(req, maxOutputBytes).then(
+          (text) => {
+            const log = join(logs(), `run-${id}.log`);
+            try {
+              writeFileSync(log, text);
+            } catch (err) {
+              return send(res, 500, "text/plain", `could not keep the output: ${(err as Error).message}`);
+            }
+            send(res, 200, "text/plain; charset=utf-8", tilde(log));
+          },
+          () => send(res, 413, "text/plain", "output too large"),
+        );
+      }
+      if (req.method === "POST" && path === "/tty/done") {
+        tty.stop();
+        ttys.delete(id);
+        return res.writeHead(204).end();
+      }
+    }
     if (req.method === "POST" && path === "/open") return handleOpen(req, res);
 
     send(res, 404, "text/plain", "not found");
@@ -162,6 +219,7 @@ export async function serve(
     close: () => {
       for (const job of running) job.kill();
       running.clear();
+      for (const tty of ttys.values()) tty.stop();
       server.close();
       server.closeAllConnections();
     },
@@ -190,6 +248,46 @@ function screenLines(req: IncomingMessage): number | undefined {
   const params = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
   const v = Number(params.get("lines"));
   return Number.isInteger(v) && v > 0 && v < 5000 ? v : undefined;
+}
+
+function columns(req: IncomingMessage): number {
+  const v = Number(new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("cols"));
+  return Number.isInteger(v) && v > 0 && v < 5000 ? v : 80;
+}
+
+function stream(req: IncomingMessage, res: ServerResponse, tty: Session) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-store",
+    Connection: "keep-alive",
+  });
+
+  const event = (name: string, data: string) => {
+    if (res.writableEnded || res.destroyed) return;
+    res.write(`event: ${name}\ndata: ${data}\n\n`);
+  };
+  const ended = (how: NonNullable<Session["ended"]>) => {
+    event("exit", JSON.stringify(how));
+    res.end();
+  };
+
+  const missed = tty.replay();
+  if (missed) event("out", Buffer.from(missed, "utf8").toString("base64"));
+  if (tty.ended) return ended(tty.ended);
+
+  const off = tty.attach((chunk) => event("out", Buffer.from(chunk, "utf8").toString("base64")), ended);
+  req.on("close", off);
+  res.on("error", off);
+}
+
+function input(req: IncomingMessage, res: ServerResponse, write: (data: string) => void) {
+  read(req, maxInputBytes).then(
+    (data) => {
+      write(data);
+      res.writeHead(204).end();
+    },
+    () => send(res, 413, "text/plain", "too much at once"),
+  );
 }
 
 function handleRun(
