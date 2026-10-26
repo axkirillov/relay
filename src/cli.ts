@@ -39,11 +39,10 @@ run in a worktree, puts that worktree's documents in front of every other
 session's however long those have been waiting; \`relay --priority off\` takes it
 back. It is theirs to set, not an agent's — nothing here changes it.
 
-\`--read\` is a host app's rather than an agent's. It serves a round that already
+\`--read\` is not an agent's. It serves a round that already
 happened — the name of a directory in ~/.relay, or the path to one — as it looked
 the day it arrived, and prints the URL on stdout. Nothing is asked and nothing is
-answered: it joins no line, files no round, and waits until it is killed. The human
-reaches their past rounds with ⌘R, which is what runs this.
+answered: it joins no line, files no round, and waits until it is killed.
 
 Waiting for a human outlasts most command timeouts, and a queued relay waits
 longer still. If the harness running this puts a clock on a command, start relay

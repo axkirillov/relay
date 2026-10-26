@@ -121,9 +121,7 @@ stays there until it closes; document run, stop and accept shortcuts do nothing
 while it is open. Closing Help returns focus to the editor.
 
 A saved round instead shows Read only and Close, and no edit count. Its Help leaves out editing and
-acceptance actions and offers Back to round. A host app handles Escape before the
-page in that view: it closes the whole saved round, including when Help is open.
-No host app layout or key handling changes are part of this footer.
+acceptance actions and offers Back to round.
 
 ## Running a command
 
@@ -356,21 +354,16 @@ line. A box inside a code fence is code, not a box.
 The caret between the brackets shows them as text, so they can still be edited
 by hand.
 
-## What the session is about is the host app's now
+## What the session is about is no longer relay's
 
 **Retired, and the whole section is history.** The card is gone and so is `--about`:
-the host app keeps a **notebook** per session instead — the whole document, prompt and goal
-and where every subtask stands, opened in the pane a document opens in and edited
-there. `⌘P` opens it. Nothing here is a flag of relay's any more, and relay says
+it moved out of relay. Nothing here is a flag of relay's any more, and relay says
 nothing about it on stderr: a document the human edits and hands back cannot also be
-the thing relay nags about. What survives is the ledger, below, which the host app still
-reads. The rest of this section says what was true until then.
+the thing relay nags about. What survives is the ledger, below. The rest of this section says what was true until then.
 
 Every document used to open with what the task is and where it has got to — the
 agent's own overview and to-do list, which relay read out of the task's `plan.md`
-and stapled above the text. It is the **host app's** card now: a window of its own
-floating in the middle of the host app's, which comes up on `⌘P` and comes up at no
-other time.
+and stapled above the text. That card moved out of relay.
 
 It answers one question — *what is this session about* — and the file behind it holds
 that answer and nothing else. The card was briefly the plan file with its checkboxes
@@ -383,19 +376,16 @@ The argument for moving it out of the document was never layout. It was that a
 section rendered *into* the document is markdown in the text the human is editing —
 it is in the baseline, it has to be cut back out of a document sent twice, and it
 can only ever be seen while a question happens to be up. A window that outlives its
-documents can hold it beside one instead, and take it away without the document
-reflowing.
+documents could hold it beside one instead, and take it away without the document
+reflowing; that is no longer relay's.
 
 What relay kept is the part only relay can do:
 
 - **`relay --about` prints the file.** It is `~/.task/about/<worktree>-<hash>.md` —
-  under the host app's own home, with the hook and the rounds, and flat rather than
-  buried in relay's round ledger. the host app prints the same path, and the
-  two have to agree exactly: the slug is the same six hex of the same hash on both
-  sides, which is why `taskOf` is copied between the repos rather than shared.
+  flat rather than buried in relay's round ledger.
 - **The ledger stays here.** A round is filed by the relay that opens it, and
   which round of a task a document is — and whether the answer has kept up with them
-  — is that listing and nothing else. The host app reads it; nothing is copied.
+  — is that listing and nothing else. Nothing is copied.
 - **The agent is still told on stderr.** That line is the only thing that reaches
   an agent whose own file has gone stale, and the human should not have to be the
   one who points it out.
@@ -431,7 +421,7 @@ not one file read more.
 
 ### A task is the worktree
 
-relay does not know what a task is; that word is the host app's, and the human's.
+relay does not know what a task is; that word is the human's.
 What it has is the directory it was run from, and the one thing about that
 directory that tracks a piece of work: the worktree it sits in — which is how the
 human names a task too, the branch and the tmux session and the directory all
@@ -531,14 +521,12 @@ ranks to carry it — a task jumped to the front, and the window stopped quittin
 when the line ran dry so that the key always had somewhere to be pressed — and
 `relay new` became a second way to start the command.
 
-It is the **host app's** now, and every part of it is out of here: the key, the ex
+It moved out of relay, and every part of it is out of here: the key, the ex
 command, `relay new`, the hook, the ranks, and the blank the window used to put
 up. The reason is the same one that kept repos and worktrees out of the hook:
 relay is a document and the CLI around it — one document, one human, one answer
 on stdout — and a gesture that *starts* work is a property of the window that
-holds the documents, not of the document. The host app is that window. It owns the
-frame, the fleet down the side, and the overlay ⌘N opens; it reads the same line
-relay writes tickets into, and it hands an accepted task to the hook itself.
+holds the documents, not of the document.
 
 What that reversed here:
 
@@ -563,23 +551,20 @@ they type, after a pause rather than on every keystroke. Between the two, the
 most a lost save costs is the typing of the last moment rather than the
 paragraph.
 
-## The terminal is the host app's
+## The terminal is not relay's
 
 A run block answers what the agent thought to ask. It cannot answer what the
 human thinks of next — the command that was nearly right, the one that needs a
 question answered, the `git rebase -i`. relay used to keep a shell pane for those,
 on a pty in the CLI process, with a second pty for a `gf` into their own neovim.
-Both are gone. The shell is the host app's now: `⌃\`` opens it under the document, in
-the tree relay was run from, and it outlives the document, so the next one from
-the same tree finds it where it was left. One shell per window died with the
-window; one per tree does not, and that is the point of moving it.
+Both are gone. The shell moved out of relay and is no longer relay's.
 
 relay's part is the road back. **A pty's scrollback is not document text, and
-the diff is relay's only channel back**, so the host app's `⌘Y` hands the selection,
-or the last command and its output, to the page through `relayHost`, a
-bridge the host app's preload puts on the window. The page puts it at the caret as a
+the diff is relay's only channel back**, so a selection, or a command and its output,
+can reach the page through `relayBridge.onTerminalOutput`, an optional
+object on the window. The page puts it at the caret as a
 `console` fence, where the diff will carry it, and a read-only document refuses
-it with a line in the footer. A page opened without a host app has no bridge and
+it with a line in the footer. A page without a `relayBridge` has no bridge and
 listens for nothing.
 
 ## `gx` opens the link, wherever they open links
@@ -665,7 +650,7 @@ from a relay).
 Arrival is the ordering, and exactly one thing outranks it: the session the human
 has marked. A ticket says which session it came from — `task`, the worktree the
 relay was run in — and whether that session is marked is read off the ledger as
-the line is read, by relay and by the host app alike.
+the line is read, by relay.
 
 The line is per-human, not per-repo: relays from four worktrees share it. No
 timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to contend
@@ -680,9 +665,7 @@ human is actually doing, and oldest-first makes them clear three skims to reach
 it. **A marked session's documents go in front of every other session's** —
 however long those have been waiting.
 
-The gesture is the human's, and it belongs where they can see the line: a ⌘-click
-on the row in the host app's session list, where a plain click already focuses that
-session's pane and has to keep doing so. relay owns the state and the ordering,
+The gesture is the human's. relay owns the state and the ordering,
 not the gesture — `relay --priority` in a worktree, and `relay --priority off`,
 are the same mark set from a terminal, which is what makes it testable and what a
 machine without the window still has.
@@ -700,8 +683,7 @@ most likely restarted *because* it was the one that mattered.
 
 The mark is a file, `~/.relay/tasks/<task>-<hash>/priority`, present or absent.
 It sits in the directory that is already the task, beside the rounds it reorders,
-named the way the human names it and removable by hand. The host app writes it from
-the session list and relay writes it from the flag; it is one file either way, and
+named the way the human names it and removable by hand. relay writes it from the flag, and
 nothing has to be told that it changed.
 
 **It is read as the line is read, not stamped on a ticket.** The human marks a
@@ -849,9 +831,8 @@ prints the URL on the first line of stdout. Nothing else: no window, no place in
 line, no round of its own filed, nothing counted against the task. It waits until it
 is killed.
 
-This is the **host app's**, not an agent's. `⌘R` lists the rounds that already happened,
-and `↵` on one spawns this, draws what it serves in the document column, and SIGTERMs
-it when the human closes it.
+This is not an agent's. It is meant to be spawned by something that shows what it serves, and SIGTERMed
+when that is closed.
 
 What it serves is the round as it looked the day it arrived: the document is what
 they accepted, diffed against what the agent sent, so their own lines are lit
@@ -883,9 +864,9 @@ on the machine this was written on carry one.
 
 So a read's output goes to a directory of the process's own, `mkdtemp`ed under the
 system's temporary directory the first time a command is run and taken away when the
-process ends — on the SIGTERM the host app kills it with as well as on an ordinary exit.
+process ends — on a SIGTERM as well as on an ordinary exit.
 On demand, because most reads run nothing at all and one that runs nothing should
-leave nothing anywhere; by `mkdtemp`, because `⌘R` can be pressed twice on one round
+leave nothing anywhere; by `mkdtemp`, because a round can be read twice on one round
 and neither read is the other's log. The pointer in the document names the file the
 output really went to, which is the one in there — a read whose document claimed the
 output was in the round's own log would be sending the human to last month's.
@@ -898,16 +879,14 @@ output was in the round's own log would be sending the human to last month's.
   it, and a second relay never puts a second window on the screen.
 - **The window is not permanent.** It comes with the first document and goes
   when the line runs dry. It stopped leaving for as long as relay owned the key
-  that starts a task; that key is the host app's, and this went back with it.
+  that starts a task; that key moved out of relay, and this went back with it.
 - **relay runs no command of the human's.** It shows a document and prints an
   answer to the agent that asked for one. A gesture that starts work belongs to
-  the window that holds the documents — the host app — not to the document.
+  the window that holds the documents, not to the document.
 - **What the session is about is always reachable.** Reversed twice. It used to be
   carried above every document by relay, on the argument that an obligation every
-  document carries cannot rest on an agent remembering; then it was the host app's card
-  on `⌘P`, one question answered in prose. It is the host app's **notebook** now, on the
-  same key — a document the human can edit and hand back, not a card they can only
-  read. relay has no flag for it and says nothing about it.
+  document carries cannot rest on an agent remembering; then it moved out of relay.
+  relay has no flag for it and says nothing about it.
 - **One document at a time.** The next appears the moment the current one is
   answered. No tabs, no list of what is waiting.
 - **Closing the window dismisses everything**, not only the document on screen.
@@ -929,7 +908,7 @@ output was in the round's own log would be sending the human to last month's.
   `securityLevel`, which stays `strict`: those keys are in Mermaid's `secure`
   list, which strips them from a `%%{init}%%` line and from front matter. The
   picture then goes through the same cleaner as any HTML block.
-- **The terminal is the host app's, not relay's.** relay only takes what it hands
+- **The terminal is not relay's.** relay only takes what it hands
   over into the document.
 - **`gx` hands the link to the machine**, rather than relay having any opinion
   about which browser or opening one in the window. What it will hand over is an

@@ -202,14 +202,14 @@ export function page(source: string, framed = false, readOnly = false): string {
     <h3>${readOnly ? "Read this round" : "Edit and reply"}</h3>
     <dl>
       <dt><kbd>j k</kbd> · <kbd>/</kbd> · <kbd>:N</kbd></dt><dd>Move, search, or go to line N</dd>
-      ${readOnly ? `<dt><kbd>Esc</kbd> · <kbd>:q</kbd></dt><dd>Close this read-only round (Esc also closes it from Help in a host app)</dd>` : `<dt><kbd>i</kbd> · <kbd>Esc</kbd></dt><dd>Edit · return to normal mode</dd>
+      ${readOnly ? `<dt><kbd>Esc</kbd> · <kbd>:q</kbd></dt><dd>Close this read-only round</dd>` : `<dt><kbd>i</kbd> · <kbd>Esc</kbd></dt><dd>Edit · return to normal mode</dd>
       <dt><kbd>⌃J</kbd></dt><dd>Tick or untick the checkbox on this line</dd>
       <dt><kbd>⌃X</kbd> · <kbd>ZZ</kbd></dt><dd>Accept and send your reply</dd>
       <dt><kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also accept</dd>
       <dt><kbd>:w</kbd></dt><dd>Save the draft now</dd>
       <dt><kbd>:q</kbd></dt><dd>Close without replying</dd>
       <dt><kbd>:res</kbd></dt><dd>Restore this line or the selected lines</dd>`}
-      <dt><kbd>gf</kbd></dt><dd>Edit the linked file in the host app’s Neovim</dd>
+      <dt><kbd>gf</kbd></dt><dd>Edit the linked file in Neovim</dd>
       <dt><kbd>gx</kbd></dt><dd>Open the web link in normal or visual mode</dd>
       <dt><kbd>y</kbd></dt><dd>Yank to the system clipboard</dd>
       <dt><kbd>⌘O</kbd></dt><dd>Open the file list of the diff under the cursor</dd>
