@@ -140,7 +140,7 @@ export const theme = EditorView.theme(
     ".cm-run-status button[hidden]": { display: "none" },
 
     ".cm-relay-fence": { backgroundColor: pane },
-    ".cm-relay-code": { color: fg, backgroundColor: pane, borderRadius: "var(--radius-mark)" },
+    ".cm-relay-code": { color: role("green"), backgroundColor: wash("blue", 12), borderRadius: "var(--radius-mark)" },
     ".cm-relay-fence .cm-relay-code": { backgroundColor: "transparent" },
 
     ".cm-relay-diff-add": { backgroundColor: wash("added", 12) },
@@ -305,7 +305,7 @@ export const theme = EditorView.theme(
     ".cm-relay-render th": { color: title, fontWeight: "600" },
     ".cm-relay-render img, .cm-relay-render svg": { maxWidth: "100%", height: "auto" },
     ".cm-relay-render a": { color: ref },
-    ".cm-relay-render code": { fontFamily: mono, color: fg, backgroundColor: pane, borderRadius: "var(--radius-mark)" },
+    ".cm-relay-render code": { fontFamily: mono, color: role("green"), backgroundColor: wash("blue", 12), borderRadius: "var(--radius-mark)" },
     ".cm-relay-render summary": { cursor: "pointer", color: accent },
     ".cm-relay-blocked": { color: needs },
     ".cm-relay-diagram svg": { display: "block", margin: "0 auto" },
@@ -341,18 +341,18 @@ export const theme = EditorView.theme(
 const headingLine = `calc(${size * leading}px + 0.6 * (1em - ${size}px))`;
 
 export const highlightStyle = HighlightStyle.define([
-  { tag: t.heading1, color: title, fontWeight: "600", fontSize: "1.7em", lineHeight: headingLine },
-  { tag: t.heading2, color: title, fontWeight: "600", fontSize: "1.35em", lineHeight: headingLine },
-  { tag: t.heading3, color: title, fontWeight: "600", fontSize: "1.15em", lineHeight: headingLine },
-  { tag: [t.heading4, t.heading5, t.heading6], color: title, fontWeight: "600" },
-  { tag: t.strong, color: title, fontWeight: "600" },
+  { tag: t.heading1, color: role("blue"), fontWeight: "700", fontSize: "1.7em", lineHeight: headingLine },
+  { tag: t.heading2, color: role("blue"), fontWeight: "700", fontSize: "1.35em", lineHeight: headingLine },
+  { tag: t.heading3, color: role("sky"), fontWeight: "700", fontSize: "1.15em", lineHeight: headingLine },
+  { tag: [t.heading4, t.heading5, t.heading6], color: role("sky"), fontWeight: "700" },
+  { tag: t.strong, color: title, fontWeight: "700" },
   { tag: t.emphasis, color: fg, fontStyle: "italic" },
   { tag: t.strikethrough, color: faint, textDecoration: "line-through" },
-  { tag: t.link, color: ref, textDecoration: "underline" },
+  { tag: t.link, color: role("sky"), textDecoration: "underline" },
   { tag: t.url, color: dim },
   { tag: [t.monospace], class: "cm-relay-code" },
   { tag: t.quote, color: dim, fontStyle: "italic" },
-  { tag: t.list, color: faint },
+  { tag: t.list, color: role("mauve") },
   { tag: t.contentSeparator, color: faint },
   { tag: t.processingInstruction, color: faint },
   { tag: t.labelName, color: needs },

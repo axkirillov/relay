@@ -26,7 +26,7 @@ The palette is Catppuccin Macchiato. The names are Catppuccin's own.
 | mantle | `#1e2030` | the footer, the standalone header, the diff bar, a run's status line, code, the search and vim panels | `--pane` |
 | base | `#24273a` | a card (Help, run choice), a rendered HTML box, the live terminal | `--surface` |
 | surface0 | `#363a4f` | hover, the keyboard's row, and every line | `--hover`, `--line` |
-| surface2 | `#5b6078` | a selection | `--selection` |
+| surface2 | `#5b6078` | a mermaid node's line, the terminal's selection | |
 
 The scrim behind a card is crust at 62%. The accept screen is crust at 94%.
 
@@ -37,8 +37,7 @@ These replace relay's seven grounds and two line colours: `#16161e`, `#1a1b26`, 
 | Name | Hex | Role | Token |
 | --- | --- | --- | --- |
 | white | `#ffffff` | what you wrote: an edit, a comment | `--yours` |
-| text | `#cad3f5` | a heading, bold text, a card's subject, a table's head | `--title` |
-| subtext1 | `#b8c0e0` | the document; text | `--fg` |
+| text | `#cad3f5` | the document; text; bold text, a card's subject, a table's head | `--fg`, `--title` |
 | subtext0 | `#a5adcb` | a second voice: what a key does in Help, the dim line on a hovered row | `--said` |
 | overlay1 | `#8087a2` | dim: a quote, a URL, a time, a run's id, a fold, a key line's verb, a diff's note | `--dim` |
 | overlay0 | `#6e738d` | faint: a line number, a rule, struck text, a diff's `+` and `-`, a code comment | `--faint` |
@@ -75,7 +74,7 @@ A line that carries a claim also has a 2px inset edge on its left in the claim's
 
 ## Type
 
-The frame uses one family: `ui-monospace, SFMono-Regular, Menlo, monospace`. Rendered HTML uses `ui-sans-serif, -apple-system, system-ui, sans-serif`. Weights are 400, and 600 for a heading, a subject, a label, the mode word and a run's phase.
+The frame uses one family: `ui-monospace, SFMono-Regular, Menlo, monospace`. Rendered HTML uses `ui-sans-serif, -apple-system, system-ui, sans-serif`. Weights are 400, 700 for a heading and bold text in the document, and 600 for a subject, a label, the mode word and a run's phase.
 
 | Size | Role |
 | --- | --- |
@@ -106,14 +105,14 @@ These replace 3px, 7px, 12px and the pill. Lines are 1px surface0. A card's shad
 
 **The window** is crust from its first frame. Standalone, it has a 44px mantle header: the file's name in `--title` and *the agent is waiting* in dim. Inside podium it has no header.
 
-**The document** is 15px monospace on crust in `--fg`, with line numbers in faint. The cursor is rosewater: a 2px bar, or a block in normal mode. A selection is surface2. The current line is not marked.
+**The document** is 15px monospace on crust in `--fg`, with line numbers in faint. The cursor is rosewater: a 2px bar, or a block in normal mode. A selection is a 45% blue wash, so it shows through inline code. The current line is not marked.
 
-- Headings are `--title` at weight 600, at 1.7em, 1.35em and 1.15em.
-- Bold is `--title`. Italic is `--fg`. Struck text is faint.
-- A link is blue and underlined. A bare URL is dim.
+- Headings are bold (700): blue at 1.7em and 1.35em, sky at 1.15em and below.
+- Bold is `--title` at 700. Italic is `--fg`. Struck text is faint.
+- A link is sky and underlined. A bare URL is dim.
 - A quote is dim and italic.
-- A list marker and a rule are faint.
-- Inline code is `--fg` on mantle, radius 2. A code block's lines are on mantle, edge to edge.
+- A list item is mauve. A rule is faint.
+- Inline code is green on a 12% blue wash, radius 2. The wash lets a selection show through. A code block's lines are on mantle, edge to edge.
 
 **Your edits.** Text you typed is `--yours` on an 18% green wash, radius 2. A line you added is `--yours` on a 12% green wash with a 2px green edge. A line you changed has only the edge. Deleted text is red, struck through by a 35% red line, on a 12% red wash. A deleted block has a 2px red edge. *N more deleted* is dim at 13px.
 

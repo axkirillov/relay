@@ -1,7 +1,7 @@
 :root {
   --yours: var(--white);
   --title: var(--text);
-  --fg: var(--subtext1);
+  --fg: var(--text);
   --said: var(--subtext0);
   --dim: var(--overlay1);
   --faint: var(--overlay0);
@@ -20,7 +20,7 @@
   --surface: var(--base);
   --hover: var(--surface0);
   --line: var(--surface0);
-  --selection: var(--surface2);
+  --selection: color-mix(in srgb, var(--blue) 45%, transparent);
   --scrim: color-mix(in srgb, var(--crust) 62%, transparent);
   --cover: color-mix(in srgb, var(--crust) 94%, transparent);
 
