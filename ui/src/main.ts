@@ -1,3 +1,4 @@
+import "../design.css";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
@@ -148,7 +149,7 @@ async function accept() {
   if (sending) return;
   sending = true;
   const waiting = [...pending.values()];
-  overlay("↑", "Sending", "handing your reply to the agent…");
+  overlay("↑", "sending", "handing your reply to the agent…");
   try {
     await ttys.settle();
     if (waiting.length) {
@@ -167,13 +168,13 @@ async function accept() {
       body: JSON.stringify({ doc: view.state.doc.toString(), waiting, finished: Object.fromEntries(finished) }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    overlay("✓", "Accepted", "the agent has your reply — this window is closing");
+    overlay("✓", "accepted", "the agent has your reply — this window is closing");
     setTimeout(() => {
-      overlay("✓", "Accepted", "the agent has your reply — you can close this window now");
+      overlay("✓", "accepted", "the agent has your reply — you can close this window now");
     }, 3000);
   } catch (err) {
     sending = false;
-    overlay("!", "Could not send", `${err}. Click to go back and try again.`, "error");
+    overlay("!", "could not send", `${err}. Click to go back and try again.`, "error");
     overlayEl.addEventListener("click", hideOverlay, { once: true });
   }
 }

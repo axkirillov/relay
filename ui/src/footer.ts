@@ -10,18 +10,18 @@ export type ContextAction = { kind: "tick" | "run" | "link" | "file" | "edit" | 
 export function contextAction(state: EditorState, mode: string, reading: boolean, files = false): ContextAction {
   const selection = state.selection.main;
   const box = reading ? null : boxAt(state, selection.head);
-  if (box) return { kind: "tick", key: "⌃J", label: box.ticked ? "Untick" : "Tick" };
-  if (shellBlockAt(state, selection.head)) return { kind: "run", key: "⌃J", label: "Run" };
+  if (box) return { kind: "tick", key: "⌃J", label: box.ticked ? "untick" : "tick" };
+  if (shellBlockAt(state, selection.head)) return { kind: "run", key: "⌃J", label: "run" };
   const file = files && mode !== "insert" ? fileAt(state) : null;
-  if (file && looksLikeFile(file)) return { kind: "file", key: "gf", label: "Edit file" };
+  if (file && looksLikeFile(file)) return { kind: "file", key: "gf", label: "edit file" };
   const line = state.doc.lineAt(selection.head);
   const link = selection.empty
     ? urlAt(line.text, selection.head - line.from)
     : urlAt(state.sliceDoc(selection.from, selection.to), 0);
-  if (link && mode !== "insert") return { kind: "link", key: "gx", label: "Open link" };
-  if (mode !== "normal") return { kind: "normal", key: "Esc", label: "Normal mode" };
-  if (reading) return { kind: "close", key: ":q", label: "Close" };
-  return { kind: "edit", key: "i", label: "Edit" };
+  if (link && mode !== "insert") return { kind: "link", key: "gx", label: "open link" };
+  if (mode !== "normal") return { kind: "normal", key: "esc", label: "normal mode" };
+  if (reading) return { kind: "close", key: ":q", label: "close" };
+  return { kind: "edit", key: "i", label: "edit" };
 }
 
 export function shortcutHelp(focusEditor: () => void) {

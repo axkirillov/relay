@@ -31,7 +31,7 @@ assert.equal(fileReference("bad%thing.ts", true), null);
 for (const value of ["", "javascript:alert(1)", "ssh://server/file", "file://server/file", "www.example.com", "#title", "//server/file", "a\nfile", "a.ts:999999999999999999999"]) assert.equal(fileReference(value), null, value);
 const selected = EditorState.create({ doc: "a path.ts:12", selection: { anchor: 0, head: 12 }, extensions: [markdown()] });
 assert.deepEqual(fileAt(selected), { path: "a path.ts", line: 12 });
-assert.deepEqual(contextAction(state("Read `src/m|ain.ts:2`"), "normal", false, true), { kind: "file", key: "gf", label: "Edit file" });
+assert.deepEqual(contextAction(state("Read `src/m|ain.ts:2`"), "normal", false, true), { kind: "file", key: "gf", label: "edit file" });
 assert.equal(contextAction(state("|Some prose"), "normal", false, true).kind, "edit");
 assert.equal(contextAction(state("|src/main.ts"), "insert", false, true).kind, "normal");
 assert.equal(contextAction(state("|src/main.ts"), "normal", true, true).kind, "file");

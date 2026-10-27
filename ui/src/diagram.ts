@@ -2,6 +2,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import type { Mermaid, MermaidConfig } from "mermaid";
+import { palette } from "../../src/palette.ts";
 
 type SyntaxNode = {
   name: string;
@@ -45,20 +46,20 @@ const config: MermaidConfig = {
     darkMode: true,
     dropShadow: "none",
     useGradient: false,
-    background: "#1b1c29",
-    primaryColor: "#1b1c29",
-    primaryBorderColor: "#7aa2f7",
-    primaryTextColor: "#c0caf5",
-    secondaryColor: "#20222f",
-    tertiaryColor: "#20222f",
-    lineColor: "#7a85b8",
-    textColor: "#c0caf5",
+    background: palette.base,
+    primaryColor: palette.base,
+    primaryBorderColor: palette.surface2,
+    primaryTextColor: palette.subtext1,
+    secondaryColor: palette.mantle,
+    tertiaryColor: palette.mantle,
+    lineColor: palette.overlay1,
+    textColor: palette.subtext1,
     fontFamily: "ui-sans-serif, -apple-system, system-ui, sans-serif",
     fontSize: "13px",
-    edgeLabelBackground: "#1b1c29",
-    noteBkgColor: "#20222f",
-    noteTextColor: "#c0caf5",
-    noteBorderColor: "#565f89",
+    edgeLabelBackground: palette.base,
+    noteBkgColor: palette.mantle,
+    noteTextColor: palette.subtext1,
+    noteBorderColor: palette.surface0,
   },
 };
 

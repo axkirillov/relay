@@ -12,7 +12,7 @@ assert.ok(!framed.includes("<header>"));
 assert.ok(waiting.includes("<body>"));
 assert.ok(reading.includes("<body data-read>"));
 assert.ok(!reading.includes('id="accept"'));
-assert.ok(reading.includes('id="close"'));
+assert.ok(reading.includes('<button id="close" class="button primary" type="button">close <kbd>:q</kbd></button>'));
 assert.ok(!reading.includes("Accept and send"));
 assert.ok(!reading.includes("Tick or untick"));
 assert.ok(!reading.includes("Close without replying"));
@@ -21,7 +21,7 @@ assert.ok(reading.includes("body[data-read] #stats { display: none; }"));
 
 for (const document of [waiting, framed, reading]) {
   assert.ok(document.includes('<span id="stats">unchanged</span>'));
-  assert.ok(document.includes('id="help-dialog" aria-labelledby="help-title"'));
+  assert.ok(document.includes('<dialog id="help-dialog" class="card" aria-labelledby="help-title">'));
   assert.ok(document.includes('aria-haspopup="dialog" aria-controls="help-dialog"'));
   assert.ok(document.includes("Open the web link in normal or visual mode"));
   assert.ok(document.includes("Edit the linked file in Neovim"));
@@ -33,8 +33,10 @@ for (const document of [waiting, framed, reading]) {
   const footer = document.match(/<footer>([\s\S]*?)<\/footer>/)![1]!;
   assert.ok(footer.includes('id="context-action"'));
   assert.ok(footer.includes('id="help"'));
-  assert.ok(footer.includes('</span> <kbd id="context-key">'));
-  assert.ok(document.includes("footer kbd { font: inherit; font-size: 11px;"));
+  assert.ok(footer.includes('</kbd> <span id="context-label">'));
+  assert.ok(footer.includes('<button id="help" class="button soft"'));
+  assert.ok(document.includes("<style>:root { --crust: #181926;"));
+  assert.ok(document.includes('<div class="keys"><span><kbd>↑↓</kbd> move</span>'));
   assert.equal(footer.match(/class="footer-/g)!.length, 2);
   assert.ok(!footer.includes("run a command"));
   assert.ok(!footer.includes(":raw"));
@@ -42,10 +44,10 @@ for (const document of [waiting, framed, reading]) {
   assert.ok(document.includes('<script src="/assets/relay.js"></script>'));
 }
 for (const document of [waiting, framed]) {
-  assert.ok(document.includes('<button id="accept" type="button"'));
-  assert.ok(document.includes("Accept <kbd>⌃X</kbd>"));
+  assert.ok(document.includes('<button id="accept" class="button primary"'));
+  assert.ok(document.includes("accept <kbd>⌃X</kbd>"));
   assert.ok(document.includes("<kbd>⌃X</kbd> · <kbd>ZZ</kbd>"));
   assert.ok(document.includes("Close without replying"));
   assert.ok(document.includes("Restore this line or the selected lines"));
 }
-console.log("ok   compact footer, labelled shortcut dialog, and read-only controls");
+console.log("ok   key-line footer, help and run-choice cards, and read-only controls");
