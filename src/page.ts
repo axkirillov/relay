@@ -1,15 +1,17 @@
 import { basename } from "node:path";
 
 import { paletteRules } from "./palette.ts";
+import { loadTheme } from "./theme.ts";
 
 export function page(source: string, framed = false, readOnly = false): string {
+  const theme = loadTheme();
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>${escape(basename(source))} — relay</title>
-<style>${paletteRules()}</style>
+<style>${paletteRules(theme.palette)}</style>
 <link rel="stylesheet" href="/assets/relay.css">
 <style>
   html, body { height: 100%; margin: 0; }
@@ -56,6 +58,7 @@ export function page(source: string, framed = false, readOnly = false): string {
   #mode.visual { color: var(--needs); }
   #stats .add { color: var(--added); }
   #stats .del { color: var(--removed); }
+  #theme-warning { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #unsaved { flex: 0 0 auto; white-space: nowrap; }
   #unsaved[hidden] { display: none; }
 
@@ -113,6 +116,7 @@ export function page(source: string, framed = false, readOnly = false): string {
       <div class="footer-state">
         <span id="mode">NORMAL</span>
         <span id="stats">unchanged</span>
+        ${theme.warning ? `<span id="theme-warning" class="warning" role="status">${escape(theme.warning)}</span>` : ""}
         ${readOnly ? "" : `<span id="unsaved" class="warning" role="alert" hidden>draft not saved · <button id="retry" class="action" type="button">retry</button></span>`}
         <button id="context-action" class="action" type="button"><kbd id="context-key">${readOnly ? ":q" : "i"}</kbd> <span id="context-label">${readOnly ? "close" : "edit"}</span></button>
         <span id="note" role="status"></span>

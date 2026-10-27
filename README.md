@@ -266,7 +266,9 @@ diff back, so what it was diffed against has to live somewhere. Beside it,
 each, and holds a `priority` file when that session is the one to go first,
 `~/.relay/queue/` holds a ticket per relay waiting for the screen,
 `~/.relay/window.json` is the window saying it is up, and `~/.relay/closed`
-records the last time the human closed it. `RELAY_QUEUE_DIR` moves the lot — a
+records the last time the human closed it. `~/.relay/themes/` holds the colour
+themes, YAML files that name Catppuccin's colours, and `~/.relay/config.json`
+picks one with `{ "theme": "<name>" }` (see [DESIGN.md](DESIGN.md)). `RELAY_QUEUE_DIR` moves the lot — a
 test pointed at a temp directory takes the window with it.
 
 See [SPEC.md](SPEC.md).

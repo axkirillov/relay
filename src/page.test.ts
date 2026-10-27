@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { page } from "./page.ts";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+process.env.RELAY_QUEUE_DIR = join(mkdtempSync(join(tmpdir(), "relay-page-")), "queue");
+const { page } = await import("./page.ts");
 
 const source = "/Users/x/work/relay/scratch/which-cap.md";
 const waiting = page(source);
@@ -35,7 +40,7 @@ for (const document of [waiting, framed, reading]) {
   assert.ok(footer.includes('id="help"'));
   assert.ok(footer.includes('</kbd> <span id="context-label">'));
   assert.ok(footer.includes('<button id="help" class="button soft"'));
-  assert.ok(document.includes("<style>:root { --crust: #181926;"));
+  assert.ok(document.includes("<style>:root { --rosewater: #f4dbd6;"));
   assert.ok(document.includes('<div class="keys"><span><kbd>↑↓</kbd> move</span>'));
   assert.equal(footer.match(/class="footer-/g)!.length, 2);
   assert.ok(!footer.includes("run a command"));

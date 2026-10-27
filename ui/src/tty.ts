@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { type IBuffer, Terminal } from "@xterm/xterm";
 
 import "@xterm/xterm/css/xterm.css";
-import { palette } from "../../src/palette.ts";
+import { pageColours } from "./colours.ts";
 import { shellBlockAt, startOutput } from "./runblock";
 import { beginRun, blockRuns, type RunPhase, updateRun } from "./runstatus";
 import { type Ended, outputBody, overflows, type Row, screenText, spilled } from "./ttytext";
@@ -269,6 +269,7 @@ function decode(base64: string): Uint8Array {
 }
 
 function terminal(): Terminal {
+  const palette = pageColours();
   return new Terminal({
     rows: ttyRows,
     cursorBlink: true,

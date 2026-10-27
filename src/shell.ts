@@ -2,10 +2,10 @@ import { join } from "node:path";
 
 import { app, BrowserWindow, Menu, screen } from "electron";
 
-import { palette } from "./palette.js";
 import { relayHome } from "./paths.js";
 import { holdScreen, noteClosed } from "./presence.js";
 import * as queue from "./queue.js";
+import { loadTheme } from "./theme.js";
 
 const pollMs = 120;
 const graceMs = 600;
@@ -88,7 +88,7 @@ function main() {
       height: workArea.height,
       minWidth: 520,
       show: false,
-      backgroundColor: palette.crust,
+      backgroundColor: loadTheme().palette.crust,
       titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
       title: "relay",
       webPreferences: { contextIsolation: true, nodeIntegration: false },

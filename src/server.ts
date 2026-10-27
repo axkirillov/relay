@@ -11,6 +11,7 @@ import { page } from "./page.js";
 import { interactive, type Session } from "./pty.js";
 import type { QueuePlan, Waiting } from "./queue-worker.js";
 import { maxOutputBytes, type Running, start, tilde } from "./run.js";
+import { ensureDefaultTheme } from "./theme.js";
 
 const maxDocBytes = 8 << 20;
 const maxInputBytes = 1 << 20;
@@ -41,6 +42,7 @@ export async function serve(
   logs: () => string,
   opts: Options = {},
 ): Promise<Relay> {
+  ensureDefaultTheme();
   let settle: (doc: string) => void;
   const accepted = new Promise<string>((resolve) => {
     settle = resolve;

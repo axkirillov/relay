@@ -11,7 +11,7 @@ await build({
   target: "node22",
   outfile: "dist/relay.js",
   external: ["electron", "node-pty"],
-  banner: { js: "#!/usr/bin/env node" },
+  banner: { js: '#!/usr/bin/env node\nimport { createRequire as createBundleRequire } from "node:module";\nconst require = createBundleRequire(import.meta.url);' },
   minify: !dev,
   logLevel: "info",
 });

@@ -2,7 +2,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import type { Mermaid, MermaidConfig } from "mermaid";
-import { palette } from "../../src/palette.ts";
+import { pageColours } from "./colours.ts";
 
 type SyntaxNode = {
   name: string;
@@ -34,34 +34,42 @@ const locked = [
   "layout",
 ];
 
-const config: MermaidConfig = {
-  startOnLoad: false,
-  securityLevel: "strict",
-  suppressErrorRendering: true,
-  theme: "base",
-  layout: "dagre",
-  secure: locked,
-  class: { padding: 6, hideEmptyMembersBox: true },
-  themeVariables: {
-    darkMode: true,
-    dropShadow: "none",
-    useGradient: false,
-    background: palette.base,
-    primaryColor: palette.base,
-    primaryBorderColor: palette.surface2,
-    primaryTextColor: palette.subtext1,
-    secondaryColor: palette.mantle,
-    tertiaryColor: palette.mantle,
-    lineColor: palette.overlay1,
-    textColor: palette.subtext1,
-    fontFamily: "ui-sans-serif, -apple-system, system-ui, sans-serif",
-    fontSize: "13px",
-    edgeLabelBackground: palette.base,
-    noteBkgColor: palette.mantle,
-    noteTextColor: palette.subtext1,
-    noteBorderColor: palette.surface0,
-  },
-};
+function isDark(hex: string): boolean {
+  const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+}
+
+function config(): MermaidConfig {
+  const palette = pageColours();
+  return {
+    startOnLoad: false,
+    securityLevel: "strict",
+    suppressErrorRendering: true,
+    theme: "base",
+    layout: "dagre",
+    secure: locked,
+    class: { padding: 6, hideEmptyMembersBox: true },
+    themeVariables: {
+      darkMode: isDark(palette.base),
+      dropShadow: "none",
+      useGradient: false,
+      background: palette.base,
+      primaryColor: palette.base,
+      primaryBorderColor: palette.surface2,
+      primaryTextColor: palette.subtext1,
+      secondaryColor: palette.mantle,
+      tertiaryColor: palette.mantle,
+      lineColor: palette.overlay1,
+      textColor: palette.subtext1,
+      fontFamily: "ui-sans-serif, -apple-system, system-ui, sans-serif",
+      fontSize: "13px",
+      edgeLabelBackground: palette.base,
+      noteBkgColor: palette.mantle,
+      noteTextColor: palette.subtext1,
+      noteBorderColor: palette.surface0,
+    },
+  };
+}
 
 export function mermaidFence(state: EditorState, node: SyntaxNode): Fence | null {
   if (node.name !== "FencedCode") return null;
@@ -178,7 +186,7 @@ export async function drawDiagrams(original: string): Promise<Diagrams> {
   let mermaid: Mermaid;
   try {
     mermaid = await load();
-    mermaid.initialize(config);
+    mermaid.initialize(config());
   } catch (err) {
     for (const code of codes) drawn.set(code, { error: said(err) });
     return drawn;

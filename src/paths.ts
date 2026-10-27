@@ -34,3 +34,11 @@ export function tasksDir(): string {
 export function filledFile(): string {
   return join(relayHome(), "tasks.filled");
 }
+
+export function themesDir(): string {
+  return join(relayHome(), "themes");
+}
+
+export function configFile(): string {
+  return join(relayHome(), "config.json");
+}

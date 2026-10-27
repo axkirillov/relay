@@ -190,6 +190,14 @@ As in podium: short, lower case, no exclamation marks, no *error:*. A key line n
 
 ## In code
 
-`src/palette.ts` holds the palette, named as Catppuccin names it. `src/page.ts` writes it into the page as CSS variables, inline, and links `relay.css`. `ui/design.css` holds the roles and the parts, and is bundled into `relay.css`. `ui/src/theme.ts` uses only the roles. `ui/src/diagram.ts`, `ui/src/tty.ts` and `src/shell.ts` cannot read CSS, so they import the values from `src/palette.ts`. No other file names a hex.
+`src/palette.ts` holds the 26 Catppuccin colours, named as Catppuccin names them, as Macchiato, plus relay's own `white` for the user's edits. `src/theme.ts` picks the palette for a window. `src/page.ts` writes it into the page as CSS variables, inline, and links `relay.css`. `ui/design.css` holds the roles and the parts, and is bundled into `relay.css`. `ui/src/theme.ts` uses only the roles. `ui/src/diagram.ts` and `ui/src/tty.ts` cannot use CSS, so they read the variables from the page when they draw (`ui/src/colours.ts`). `src/shell.ts` paints the window with the theme's crust. No other file names a hex.
+
+### Themes
+
+A theme is a YAML file in `~/.relay/themes/`, named `<name>.yaml`. It lists colours by their Catppuccin names, with values like `"#1e1e2e"`, and may have a `name:`. A colour left out is Macchiato's. The roles never change; a theme only changes the values. `white` is not in a theme.
+
+`~/.relay/config.json` picks the theme: `{ "theme": "mocha" }` uses `~/.relay/themes/mocha.yaml`. No file or no key means Macchiato. When relay starts it writes `macchiato.yaml` into the folder if there is none, never over an existing one, so there is a file to copy. Only Macchiato ships.
+
+The theme is read each time a window opens, so a saved change shows in the next window. If the theme cannot be used (no such file, YAML that does not parse, an unknown colour name, a value that is not `#rrggbb`, a broken `config.json`), relay uses Macchiato and says why in the footer, in `--needs`, for example `theme mocha not found — using macchiato`. relay does not read podium's theme.
 
 The parts in `ui/design.css` sit inside `@scope (:root) to (.cm-relay-render, svg)`. What the agent rendered and what mermaid draws are not relay's frame, so relay's part classes do not reach into them. Without the scope, a mermaid node label took `.label`, came out in capitals, and was clipped.
