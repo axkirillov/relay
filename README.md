@@ -254,6 +254,13 @@ uses synthetic documents and an isolated relay queue; it prints the directory
 holding its screenshots. It needs Chrome at the macOS default path or
 `google-chrome` on Linux; set `CHROME_PATH` to use another location.
 
+Rendered blocks are indexed when the document or syntax tree changes, not on each
+cursor move. Original-text checks are reused only for blocks still in the current
+document; deleted versions do not accumulate in the cache. Raw mode drops the
+index. `ui/src/render-cache.test.ts` checks that cursor moves do no extra tree
+walks or original-text searches, while edits, parsing progress, selection and
+raw-mode changes still update the rendered view.
+
 `RELAY_NO_OPEN=1` serves the document without opening a window, and skips the
 queue with it.
 `RELAY_DEBUG=1` lets the window's own output through to stderr.

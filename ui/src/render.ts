@@ -404,13 +404,16 @@ export function isRendering(state: EditorState): boolean {
 
 export function stepInto(state: EditorState, was: number, now: number): number | null {
   if (!state.field(rendering)) return null;
+  return stepIntoTable(state, blocks(state), was, now);
+}
 
+function stepIntoTable(state: EditorState, found: Block[], was: number, now: number): number | null {
   const doc = state.doc;
   const lineOf = (pos: number) => doc.lineAt(Math.min(Math.max(pos, 0), doc.length)).number;
   const from = lineOf(was);
   const to = lineOf(now);
 
-  for (const block of blocks(state)) {
+  for (const block of found) {
     if (block.kind !== "table") continue;
     const top = doc.lineAt(block.from).number;
     const bottom = doc.lineAt(block.to).number;
@@ -421,19 +424,30 @@ export function stepInto(state: EditorState, was: number, now: number): number |
   return null;
 }
 
-function build(state: EditorState, original: string, images: Images, diagrams: Diagrams): DecorationSet {
-  if (!state.field(rendering)) return Decoration.none;
+type Content = {
+  blocks: Block[];
+  replacements: Range<Decoration>[];
+  errors: Range<Decoration>[];
+  originals: Map<string, boolean>;
+};
 
-  const sel = state.selection.main;
-  const ranges: Range<Decoration>[] = [];
+function index(state: EditorState, original: string, images: Images, diagrams: Diagrams, previous?: Content | null): Content {
+  const originals = new Map<string, boolean>();
+  const unchanged = (from: number, to: number) => {
+    const text = state.doc.sliceString(from, to);
+    const matches = originals.get(text) ?? previous?.originals.get(text) ?? original.includes(text);
+    originals.set(text, matches);
+    return matches;
+  };
+  const found = blocks(state, diagrams);
+  const replacements: Range<Decoration>[] = [];
+  const errors: Range<Decoration>[] = [];
 
-  for (const block of blocks(state, diagrams)) {
+  for (const block of found) {
     const from = state.doc.lineAt(block.from).from;
     const to = state.doc.lineAt(block.to).to;
-    if (sel.from <= to && sel.to >= from) continue;
-    if (!original.includes(state.doc.sliceString(from, to))) continue;
-    if (from >= to) continue;
-    ranges.push(Decoration.replace({ widget: new Rendered(block.html, images), block: true }).range(from, to));
+    if (from >= to || !unchanged(from, to)) continue;
+    replacements.push(Decoration.replace({ widget: new Rendered(block.html, images), block: true }).range(from, to));
   }
 
   for (const fence of diagrams.size ? mermaidFences(state) : []) {
@@ -441,24 +455,41 @@ function build(state: EditorState, original: string, images: Images, diagrams: D
     if (!drawn || !("error" in drawn)) continue;
     const top = state.doc.lineAt(fence.from);
     const to = state.doc.lineAt(fence.to).to;
-    if (!original.includes(state.doc.sliceString(top.from, to))) continue;
+    if (!unchanged(top.from, to)) continue;
     const widget = new Failed(failure(drawn.error, fence.code, top.number));
-    ranges.push(Decoration.widget({ widget, block: true, side: 1 }).range(to));
+    errors.push(Decoration.widget({ widget, block: true, side: 1 }).range(to));
   }
 
-  return Decoration.set(ranges, true);
+  return { blocks: found, replacements, errors, originals };
+}
+
+function build(state: EditorState, content: Content | null): DecorationSet {
+  if (!content) return Decoration.none;
+  const sel = state.selection.main;
+  return Decoration.set([
+    ...content.replacements.filter(({ from, to }) => sel.from > to || sel.to < from),
+    ...content.errors,
+  ], true);
 }
 
 export function renderBlocks(original: string, images: Images = {}, diagrams: Diagrams = new Map()) {
+  const content = StateField.define<Content | null>({
+    create: (state) => isRendering(state) ? index(state, original, images, diagrams) : null,
+    update(had, tr) {
+      if (!isRendering(tr.state)) return null;
+      if (!had || tr.docChanged || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
+        return index(tr.state, original, images, diagrams, had);
+      }
+      return had;
+    },
+  });
+
   const field = StateField.define<DecorationSet>({
-    create: (state) => build(state, original, images, diagrams),
+    create: (state) => build(state, state.field(content)),
     update(deco, tr) {
-      const stale =
-        tr.docChanged ||
-        tr.selection ||
-        tr.effects.some((e) => e.is(setRendering)) ||
-        syntaxTree(tr.startState) !== syntaxTree(tr.state);
-      return stale ? build(tr.state, original, images, diagrams) : deco;
+      const had = tr.startState.field(content);
+      const next = tr.state.field(content);
+      return tr.selection || had !== next ? build(tr.state, next) : deco;
     },
     provide: (f) => EditorView.decorations.from(f),
   });
@@ -468,9 +499,11 @@ export function renderBlocks(original: string, images: Images = {}, diagrams: Di
     const was = tr.startState.selection.main;
     const now = tr.newSelection.main;
     if (!was.empty || !now.empty) return tr;
-    const target = stepInto(tr.startState, was.head, now.head);
+    const found = tr.startState.field(content);
+    if (!found) return tr;
+    const target = stepIntoTable(tr.startState, found.blocks, was.head, now.head);
     return target === null ? tr : [tr, { selection: { anchor: target } }];
   });
 
-  return [rendering, field, walkIn];
+  return [rendering, content, field, walkIn];
 }
