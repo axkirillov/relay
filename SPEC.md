@@ -103,9 +103,10 @@ itself is edited, since Mermaid has not read that text.
 
 Right-clicking a drawn diagram — a Mermaid fence or any inline `<svg>` — opens a
 menu the page draws itself, so it is the same in relay's window and in any app
-that hosts the page. **[S]ave diagram as PNG…** downloads `diagram.png`, which
-Electron turns into the save dialog; **[C]opy diagram as PNG** puts it on the
-clipboard. The PNG is twice the size on screen, on the page's base colour, so
+that hosts the page. **[S]ave diagram as PNG…** downloads it, which Electron
+turns into the save dialog. The name is `diagram-YYYYMMDD-HHMMSS.png`, the
+second it was saved, so two saves never share a name. **[C]opy diagram as PNG**
+puts it on the clipboard. The PNG is twice the size on screen, on the page's base colour, so
 the window's light text stays readable. `esc` or a click elsewhere closes the
 menu; anywhere else, a right-click does what it did before.
 

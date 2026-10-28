@@ -1,7 +1,12 @@
 import { pageColours } from "./colours.ts";
 
 export const pngScale = 2;
-export const pngName = "diagram.png";
+export function pngName(at: Date): string {
+  const two = (n: number) => String(n).padStart(2, "0");
+  const day = `${at.getFullYear()}${two(at.getMonth() + 1)}${two(at.getDate())}`;
+  const time = `${two(at.getHours())}${two(at.getMinutes())}${two(at.getSeconds())}`;
+  return `diagram-${day}-${time}.png`;
+}
 
 export function outermostSvg(target: EventTarget | null): SVGSVGElement | null {
   let found: SVGSVGElement | null = null;
@@ -41,7 +46,7 @@ async function drawn(svg: SVGSVGElement): Promise<HTMLCanvasElement> {
 async function save(svg: SVGSVGElement) {
   const link = document.createElement("a");
   link.href = (await drawn(svg)).toDataURL("image/png");
-  link.download = pngName;
+  link.download = pngName(new Date());
   link.click();
 }
 
