@@ -21,7 +21,8 @@ SVG are drawn in place, so a diagram or a chart written into the document arrive
 as a picture. So is a ```` ```mermaid ```` fence — a class diagram, a flowchart, a
 sequence diagram — in the window's own colours. One Mermaid cannot draw stays as
 code, with Mermaid's reason in red under it and the document's line number in
-that, so `:N` goes to the mistake. Images do too — `![](shot.png)` beside the
+that, so `:N` goes to the mistake. Right-click a drawn diagram, or any inline SVG,
+to save it as a PNG or copy it to the clipboard as one. Images do too — `![](shot.png)` beside the
 document, or an `https:` one. A click leaves what is drawn alone, so the mouse
 can read it: drag across a rendered paragraph or a table cell and the words
 highlight, double-click and one word does, and `⌘C` copies exactly what is lit. A

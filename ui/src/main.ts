@@ -14,6 +14,7 @@ import { getCM, Vim, vim } from "@replit/codemirror-vim";
 import { stillRunningNotice } from "../../src/spill";
 import { checkboxes, toggleAtCursor } from "./checkbox";
 import { drawDiagrams } from "./diagram";
+import { diagramMenu } from "./diagrammenu";
 import { diffReview, pickReviewFile, reviewNumber, stepReviewFile } from "./diffview";
 import { type Draft, draftKeeper } from "./draft";
 import { fenceBackground } from "./fence";
@@ -644,6 +645,7 @@ async function boot() {
     true,
   );
 
+  diagramMenu(note, () => view.focus());
   watchQueue();
 
   window.addEventListener("pagehide", () => {

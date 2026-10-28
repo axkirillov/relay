@@ -81,6 +81,19 @@ export function page(source: string, framed = false, readOnly = false): string {
   #run-preview { margin-bottom: 9px; font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #run-choice .choices { margin: 0 -10px; }
 
+  #diagram-menu {
+    position: fixed;
+    display: none;
+    min-width: 26ch;
+    padding: 4px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-box);
+    box-shadow: var(--shadow-card);
+    z-index: 9;
+  }
+  #diagram-menu[data-show] { display: block; }
+
   #overlay {
     position: fixed;
     inset: 0;
@@ -170,6 +183,11 @@ export function page(source: string, framed = false, readOnly = false): string {
       </div>
       <div class="keys"><span><kbd>↑↓</kbd> move</span><span><kbd>↵</kbd> run</span><span class="spacer"></span><span><kbd>esc</kbd> cancel</span></div>
     </div>
+  </div>
+
+  <div id="diagram-menu" role="menu" aria-label="Diagram">
+    <button class="row" role="menuitem" data-choice="save"><kbd>[S]</kbd>ave diagram as PNG…</button>
+    <button class="row" role="menuitem" data-choice="copy"><kbd>[C]</kbd>opy diagram as PNG</button>
   </div>
 
   <div id="overlay">

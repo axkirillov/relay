@@ -101,6 +101,14 @@ find the line it meant. That line is worked out afresh on every edit, so it stil
 names the mistake after lines are added above the fence; it goes when the fence
 itself is edited, since Mermaid has not read that text.
 
+Right-clicking a drawn diagram — a Mermaid fence or any inline `<svg>` — opens a
+menu the page draws itself, so it is the same in relay's window and in any app
+that hosts the page. **[S]ave diagram as PNG…** downloads `diagram.png`, which
+Electron turns into the save dialog; **[C]opy diagram as PNG** puts it on the
+clipboard. The PNG is twice the size on screen, on the page's base colour, so
+the window's light text stays readable. `esc` or a click elsewhere closes the
+menu; anywhere else, a right-click does what it did before.
+
 ## Contextual footer and Help
 
 The narrow, centred document layout stays unchanged. The footer is one row: mode,
