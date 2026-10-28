@@ -5,6 +5,7 @@ import { tags as t } from "@lezer/highlight";
 const role = (name: string) => `var(--${name})`;
 const wash = (name: string, percent: 12 | 18 | 35) => `color-mix(in srgb, var(--${name}) ${percent}%, transparent)`;
 const edge = (name: string) => `inset 2px 0 0 var(--${name})`;
+const underSelectionLayer = "-3";
 
 const yours = role("yours");
 const title = role("title");
@@ -139,7 +140,14 @@ export const theme = EditorView.theme(
     ".cm-run-status button": { marginLeft: "auto", padding: "0 9px" },
     ".cm-run-status button[hidden]": { display: "none" },
 
-    ".cm-relay-fence": { backgroundColor: pane },
+    ".cm-relay-fence": { position: "relative" },
+    ".cm-relay-fence::before": {
+      content: '""',
+      position: "absolute",
+      inset: "0",
+      zIndex: underSelectionLayer,
+      backgroundColor: pane,
+    },
     ".cm-relay-code": { color: role("green"), backgroundColor: wash("blue", 12), borderRadius: "var(--radius-mark)" },
     ".cm-relay-fence .cm-relay-code": { backgroundColor: "transparent" },
 

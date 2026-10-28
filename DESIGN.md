@@ -105,14 +105,14 @@ These replace 3px, 7px, 12px and the pill. Lines are 1px surface0. A card's shad
 
 **The window** is crust from its first frame. Standalone, it has a 44px mantle header: the file's name in `--title` and *the agent is waiting* in dim. Inside podium it has no header.
 
-**The document** is 15px monospace on crust in `--fg`, with line numbers in faint. The cursor is rosewater: a 2px bar, or a block in normal mode. A selection is a 45% blue wash, so it shows through inline code. The current line is not marked.
+**The document** is 15px monospace on crust in `--fg`, with line numbers in faint. The cursor is rosewater: a 2px bar, or a block in normal mode. A selection is a 45% blue wash, so it shows through inline code and over a code block. The current line is not marked.
 
 - Headings are bold (700): blue at 1.7em and 1.35em, sky at 1.15em and below.
 - Bold is `--title` at 700. Italic is `--fg`. Struck text is faint.
 - A link is sky and underlined. A bare URL is dim.
 - A quote is dim and italic.
 - A list item is mauve. A rule is faint.
-- Inline code is green on a 12% blue wash, radius 2. The wash lets a selection show through. A code block's lines are on mantle, edge to edge.
+- Inline code is green on a 12% blue wash, radius 2. The wash lets a selection show through. A code block's lines are on mantle, edge to edge. The mantle is painted under the selection layer, as a pseudo-element of the line, so a selection shows over it.
 
 **Your edits.** Text you typed is `--yours` on an 18% green wash, radius 2. A line you added is `--yours` on a 12% green wash with a 2px green edge. A line you changed has only the edge. Deleted text is red, struck through by a 35% red line, on a 12% red wash. A deleted block has a 2px red edge. *N more deleted* is dim at 13px.
 
