@@ -345,6 +345,18 @@ Array.from(line.querySelectorAll("span"))
   checks were written against a guess about this and failed. Before believing the
   feature is wrong, parse the same line with the bare parser under node and dump
   every range: if the gap is there too, it is upstream.
+- **Computed style cannot see paint order.** A `.cm-selectionBackground`
+  rectangle was in the DOM, the right size and colour, and the pixel under it
+  was still mantle: `drawSelection()` paints into a layer at a negative
+  z-index, and an opaque line background paints over it. When the question is
+  whether something *shows*, read the screenshot. `capturePage()` gives an
+  image whose `toBitmap()` is BGRA at the display's scale, so multiply a CSS
+  coordinate by `size.width / contentWidth` before indexing into it.
+- **Sample beside the text, not on it.** A point on a glyph answers with the
+  glyph's colour, which proves nothing about the wash under it. Take the
+  line's text extent from a `Range` over the line and probe 40px to its right.
+  A one-line linewise selection ends at the text; select two lines so the first
+  line's rectangle reaches the right edge.
 
 ## Read the document off the screen, not out of CodeMirror
 
