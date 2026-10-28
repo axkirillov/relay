@@ -1,34 +1,21 @@
 import { basename } from "node:path";
 
+import { paletteRules } from "./palette.ts";
+import { loadTheme } from "./theme.ts";
+
 export function page(source: string, framed = false, readOnly = false): string {
+  const theme = loadTheme();
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>${escape(basename(source))} — relay</title>
+<style>${paletteRules(theme.palette)}</style>
 <link rel="stylesheet" href="/assets/relay.css">
 <style>
-  :root {
-    --bg: #16161e;
-    --panel: #1a1b26;
-    --fg: #c0caf5;
-    --dim: #565f89;
-    --line: #2a2e3f;
-    --accent: #e0af68;
-    --add: #9ece6a;
-    --del: #f7768e;
-  }
-  * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body {
-    background: var(--bg);
-    color: var(--fg);
-    font: 13px/1.5 ui-sans-serif, -apple-system, system-ui, sans-serif;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  body { display: flex; flex-direction: column; overflow: hidden; }
 
   header {
     -webkit-app-region: drag;
@@ -36,14 +23,14 @@ export function page(source: string, framed = false, readOnly = false): string {
     display: flex;
     align-items: center;
     gap: .5rem;
-    height: 38px;
-    padding: 0 1rem 0 88px;
-    background: var(--panel);
+    height: 44px;
+    padding: 0 var(--gutter) 0 88px;
+    background: var(--pane);
     border-bottom: 1px solid var(--line);
     color: var(--dim);
     user-select: none;
   }
-  header .name { color: var(--fg); font-weight: 600; }
+  header .name { color: var(--title); font-weight: 600; }
 
   #split { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   #editor { flex: 1 1 auto; min-height: 0; position: relative; }
@@ -51,67 +38,36 @@ export function page(source: string, framed = false, readOnly = false): string {
 
   footer {
     flex: 0 0 auto;
-    padding: .4rem 1rem;
-    background: var(--panel);
+    padding: 6px var(--gutter);
+    background: var(--pane);
     border-top: 1px solid var(--line);
-    color: #9aa5ce;
+    color: var(--dim);
   }
-  .footer-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: .6rem; }
-  .footer-state { display: flex; gap: .6rem; min-width: 0; align-items: center; }
+  .footer-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: .75rem; }
+  .footer-state { display: flex; gap: .75rem; min-width: 0; align-items: center; }
   #stats, #note, #queue { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #stats { min-width: 0; }
   body[data-read] #stats { display: none; }
   #note { flex: 1; min-width: 0; color: var(--fg); }
-  #queue { max-width: 30ch; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: #9aa5ce; }
+  #queue { max-width: 30ch; }
   #queue:empty { display: none; }
-  #help-dialog kbd { font: inherit; color: var(--fg); }
-  footer kbd { font: inherit; font-size: 11px; line-height: 1.3; padding: 0 .35em; border: 1px solid var(--line); border-radius: 3px; color: var(--fg); }
-  footer button, #help-close {
-    -webkit-app-region: no-drag;
-    font: inherit;
-    color: var(--fg);
-    background: transparent;
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 5px 8px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  footer button:hover, #help-close:hover { background: #292e42; }
-  footer button:focus-visible, #help-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #context-action { position: relative; border: 0; padding: 6px 8px; margin-left: .65rem; text-align: left; flex: 0 0 auto; color: #9aa5ce; }
-  #context-action::before { content: ""; position: absolute; left: -6px; top: 6px; bottom: 6px; border-left: 1px solid var(--line); }
-  #context-action kbd { margin-left: .1rem; }
-  #mode { flex: 0 0 auto; min-width: 7ch; white-space: nowrap; font-weight: 600; letter-spacing: .04em; }
-  #mode.insert { color: var(--add); }
-  #mode.visual { color: #ff9e64; }
-  #stats .add { color: var(--add); }
-  #stats .del { color: var(--del); }
-  #unsaved { flex: 0 0 auto; color: var(--del); font-weight: 600; white-space: nowrap; }
+  #context-action { flex: 0 0 auto; padding: 0; color: var(--dim); }
+  #context-action:hover { text-decoration: none; color: var(--fg); }
+  #mode { flex: 0 0 auto; min-width: 7ch; white-space: nowrap; font-weight: 600; color: var(--dim); }
+  #mode.insert { color: var(--working); }
+  #mode.visual { color: var(--needs); }
+  #stats .add { color: var(--added); }
+  #stats .del { color: var(--removed); }
+  #theme-warning { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #unsaved { flex: 0 0 auto; white-space: nowrap; }
   #unsaved[hidden] { display: none; }
-  #unsaved #retry { border: 0; padding: 0; color: inherit; font-weight: inherit; text-decoration: underline; }
-  #accept { color: #16161e; background: var(--accent); border-color: var(--accent); font-weight: 600; }
-  #accept kbd { color: inherit; margin-left: .4rem; font-weight: 400; border-color: #0004; }
-  #accept:hover { background: #efc483; }
-  #help-dialog {
-    width: min(540px, calc(100vw - 32px));
-    max-height: calc(100vh - 40px);
-    overflow-y: auto;
-    padding: 1.25rem;
-    border: 1px solid #414968;
-    border-radius: 10px;
-    background: #1b1c29;
-    color: var(--fg);
-    box-shadow: 0 24px 80px #0009;
-  }
-  #help-dialog::backdrop { background: rgba(22, 22, 30, .8); }
-  .help-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-  #help-dialog h2 { margin: 0; font-size: 18px; }
-  #help-dialog h3 { color: #7dcfff; font-size: 13px; margin: 1.1rem 0 .5rem; }
-  #help-dialog p { color: #9aa5ce; font-size: 12px; }
-  #help-dialog dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .45rem 1rem; margin: 0; }
-  #help-dialog dt { color: #e0af68; }
-  #help-dialog dd { margin: 0; }
+
+  #help-dialog { padding-bottom: 0; }
+  #help-dialog::backdrop { background: var(--scrim); }
+  #help-dialog .label.group { margin: 14px 0 6px; }
+  #help-dialog dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px var(--gutter); margin: 0; }
+  #help-dialog dd { margin: 0; color: var(--said); }
+  #help-dialog .note { margin: 14px 0 0; }
 
   #run-choice {
     position: fixed;
@@ -119,38 +75,24 @@ export function page(source: string, framed = false, readOnly = false): string {
     display: none;
     align-items: center;
     justify-content: center;
-    background: rgba(22, 22, 30, .8);
     z-index: 9;
   }
   #run-choice[data-show] { display: flex; }
-  #run-choice .card {
-    width: min(440px, calc(100vw - 40px));
-    padding: 1.4rem;
-    background: #1b1c29;
-    border: 1px solid #414968;
-    border-radius: 12px;
-    box-shadow: 0 24px 80px #0009;
-    color: var(--fg);
+  #run-preview { margin-bottom: 9px; font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #run-choice .choices { margin: 0 -10px; }
+
+  #diagram-menu {
+    position: fixed;
+    display: none;
+    min-width: 26ch;
+    padding: 4px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-box);
+    box-shadow: var(--shadow-card);
+    z-index: 9;
   }
-  #run-choice .eyebrow { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-  #run-choice h2 { margin: .4rem 0 .25rem; font-size: 19px; }
-  #run-choice .preview { color: var(--dim); font: 12px/1.5 ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #run-choice .choices { display: flex; gap: .7rem; margin-top: 1.2rem; }
-  #run-choice button {
-    flex: 1;
-    text-align: left;
-    padding: .8rem;
-    color: var(--fg);
-    background: #232638;
-    border: 1px solid #414968;
-    border-radius: 7px;
-    cursor: pointer;
-    font: inherit;
-  }
-  #run-choice button:hover, #run-choice button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; background: #303851; }
-  #run-choice button kbd { color: var(--accent); font: 700 13px ui-monospace, monospace; }
-  #run-choice button small { display: block; margin-top: .3rem; color: var(--dim); font-size: 11px; }
-  #run-choice .hint { margin-top: 1rem; color: var(--dim); font-size: 11px; text-align: center; }
+  #diagram-menu[data-show] { display: block; }
 
   #overlay {
     position: fixed;
@@ -160,15 +102,15 @@ export function page(source: string, framed = false, readOnly = false): string {
     align-items: center;
     justify-content: center;
     gap: .75rem;
-    background: rgba(22, 22, 30, .94);
+    background: var(--cover);
     z-index: 10;
     text-align: center;
   }
   #overlay[data-show] { display: flex; }
-  #overlay .mark { font-size: 56px; line-height: 1; color: var(--add); }
-  #overlay .title { font-size: 22px; font-weight: 700; color: var(--fg); }
-  #overlay .note { font-size: 14px; color: var(--dim); max-width: 40ch; }
-  #overlay[data-tone="error"] .mark { color: var(--del); }
+  #overlay .mark { font-size: 56px; line-height: 1; color: var(--added); }
+  #overlay .title { font-size: 22px; font-weight: 600; color: var(--title); }
+  #overlay .note { font-size: 13px; color: var(--dim); max-width: 40ch; }
+  #overlay[data-tone="error"] .mark { color: var(--removed); }
 </style>
 </head>
 <body${readOnly ? " data-read" : ""}>
@@ -187,22 +129,23 @@ export function page(source: string, framed = false, readOnly = false): string {
       <div class="footer-state">
         <span id="mode">NORMAL</span>
         <span id="stats">unchanged</span>
-        ${readOnly ? "" : `<span id="unsaved" role="alert" hidden>Draft not saved · <button id="retry" type="button">Retry</button></span>`}
-        <button id="context-action" type="button"><span id="context-label">${readOnly ? "Close" : "Edit"}</span> <kbd id="context-key">${readOnly ? ":q" : "i"}</kbd></button>
+        ${theme.warning ? `<span id="theme-warning" class="warning" role="status">${escape(theme.warning)}</span>` : ""}
+        ${readOnly ? "" : `<span id="unsaved" class="warning" role="alert" hidden>draft not saved · <button id="retry" class="action" type="button">retry</button></span>`}
+        <button id="context-action" class="action" type="button"><kbd id="context-key">${readOnly ? ":q" : "i"}</kbd> <span id="context-label">${readOnly ? "close" : "edit"}</span></button>
         <span id="note" role="status"></span>
       </div>
       <span id="queue"></span>
-      <button id="help" type="button" aria-haspopup="dialog" aria-controls="help-dialog">Help</button>
-      ${readOnly ? `<button id="close" type="button">Close</button>` : `<button id="accept" type="button" title="Accept and send your reply">Accept <kbd>⌃X</kbd></button>`}
+      <button id="help" class="button soft" type="button" aria-haspopup="dialog" aria-controls="help-dialog">help</button>
+      ${readOnly ? `<button id="close" class="button primary" type="button">close <kbd>:q</kbd></button>` : `<button id="accept" class="button primary" type="button" title="Accept and send your reply">accept <kbd>⌃X</kbd></button>`}
     </div>
   </footer>
 
-  <dialog id="help-dialog" aria-labelledby="help-title">
-    <div class="help-heading"><h2 id="help-title">Keyboard shortcuts</h2><button id="help-close" type="button" autofocus>${readOnly ? "Back to round" : "Close <kbd>Esc</kbd>"}</button></div>
-    <h3>${readOnly ? "Read this round" : "Edit and reply"}</h3>
+  <dialog id="help-dialog" class="card" aria-labelledby="help-title">
+    <div class="label">keys</div>
+    <div class="subject" id="help-title">${readOnly ? "read this round" : "edit and reply"}</div>
     <dl>
       <dt><kbd>j k</kbd> · <kbd>/</kbd> · <kbd>:N</kbd></dt><dd>Move, search, or go to line N</dd>
-      ${readOnly ? `<dt><kbd>Esc</kbd> · <kbd>:q</kbd></dt><dd>Close this read-only round</dd>` : `<dt><kbd>i</kbd> · <kbd>Esc</kbd></dt><dd>Edit · return to normal mode</dd>
+      ${readOnly ? `<dt><kbd>esc</kbd> · <kbd>:q</kbd></dt><dd>Close this read-only round</dd>` : `<dt><kbd>i</kbd> · <kbd>esc</kbd></dt><dd>Edit · return to normal mode</dd>
       <dt><kbd>⌃J</kbd></dt><dd>Tick or untick the checkbox on this line</dd>
       <dt><kbd>⌃X</kbd> · <kbd>ZZ</kbd></dt><dd>Accept and send your reply</dd>
       <dt><kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also accept</dd>
@@ -215,7 +158,7 @@ export function page(source: string, framed = false, readOnly = false): string {
       <dt><kbd>⌘O</kbd></dt><dd>Open the file list of the diff under the cursor</dd>
       <dt><kbd>]f</kbd> · <kbd>[f</kbd></dt><dd>Jump to the next or previous file in a diff</dd>
     </dl>
-    <h3>Commands and rendering</h3>
+    <div class="label group">commands and rendering</div>
     <dl>
       <dt><kbd>⌃J</kbd> · <kbd>:run</kbd></dt><dd>Run the shell block under the cursor</dd>
       <dt><kbd>⌃⇧J</kbd> · <kbd>:run!</kbd></dt><dd>Run it in a live terminal under the block; <kbd>⌃⇧J</kbd> again goes back to the document</dd>
@@ -225,20 +168,26 @@ export function page(source: string, framed = false, readOnly = false): string {
       <dt><kbd>zc</kbd> · <kbd>:fold</kbd></dt><dd>Fold expanded command output</dd>
       <dt><kbd>:help</kbd></dt><dd>Open this shortcut list</dd>
     </dl>
-    <p>${readOnly ? "Commands run in this round's original worktree; the saved round stays unchanged." : "Accepting does not stop running or queued commands. Their output and report paths are included in your reply. It does stop live terminals, and keeps what was on their screen."}</p>
+    <p class="note">${readOnly ? "Commands run in this round's original worktree; the saved round stays unchanged." : "Accepting does not stop running or queued commands. Their output and report paths are included in your reply. It does stop live terminals, and keeps what was on their screen."}</p>
+    <div class="keys"><span class="spacer"></span><button id="help-close" class="action" type="button" autofocus><kbd>esc</kbd> ${readOnly ? "back to round" : "close"}</button></div>
   </dialog>
 
-  <div id="run-choice" role="dialog" aria-modal="true" aria-label="Run command">
+  <div id="run-choice" class="scrim" role="dialog" aria-modal="true" aria-label="Run command">
     <div class="card">
-      <div class="eyebrow">Another command is in progress</div>
-      <h2>Run this command</h2>
-      <div class="preview" id="run-preview"></div>
+      <div class="label">another command is running</div>
+      <div class="subject">run this command</div>
+      <div id="run-preview"></div>
       <div class="choices">
-        <button data-choice="queue"><kbd>[Q]</kbd>ueue<small>After the previous run succeeds</small></button>
-        <button data-choice="parallel"><kbd>[P]</kbd>arallel<small>Start now, independently</small></button>
+        <button class="row" data-choice="queue"><kbd>[Q]</kbd>ueue<small>after the previous run succeeds</small></button>
+        <button class="row" data-choice="parallel"><kbd>[P]</kbd>arallel<small>start now, on its own</small></button>
       </div>
-      <div class="hint">← → choose · Enter confirm · Esc cancel</div>
+      <div class="keys"><span><kbd>↑↓</kbd> move</span><span><kbd>↵</kbd> run</span><span class="spacer"></span><span><kbd>esc</kbd> cancel</span></div>
     </div>
+  </div>
+
+  <div id="diagram-menu" role="menu" aria-label="Diagram">
+    <button class="row" role="menuitem" data-choice="save"><kbd>[S]</kbd>ave diagram as PNG…</button>
+    <button class="row" role="menuitem" data-choice="copy"><kbd>[C]</kbd>opy diagram as PNG</button>
   </div>
 
   <div id="overlay">

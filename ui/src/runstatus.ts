@@ -65,12 +65,12 @@ export const blockRuns = StateField.define<Map<number, BlockRun>>({
 });
 
 const labels: Record<RunPhase, string> = {
-  queued: "Queued",
-  running: "Running",
-  succeeded: "Succeeded",
-  failed: "Failed",
-  stopped: "Stopped",
-  skipped: "Skipped",
+  queued: "queued",
+  running: "running",
+  succeeded: "succeeded",
+  failed: "failed",
+  stopped: "stopped",
+  skipped: "skipped",
 };
 
 class RunStatus extends WidgetType {
@@ -93,7 +93,7 @@ class RunStatus extends WidgetType {
     row.dataset.runId = String(this.run.id);
     const id = document.createElement("span");
     id.className = "cm-run-id";
-    id.textContent = `Run ${this.run.id}`;
+    id.textContent = `run ${this.run.id}`;
     const status = document.createElement("span");
     status.className = "cm-run-phase";
     status.setAttribute("role", "status");
@@ -104,7 +104,8 @@ class RunStatus extends WidgetType {
     edited.className = "cm-run-edited";
     const stop = document.createElement("button");
     stop.type = "button";
-    stop.textContent = "Stop";
+    stop.className = "button danger";
+    stop.textContent = "stop";
     stop.setAttribute("aria-label", `Stop run ${this.run.id}`);
     stop.addEventListener("mousedown", (event) => event.preventDefault());
     stop.addEventListener("click", () => {

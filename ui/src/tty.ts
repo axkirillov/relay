@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { type IBuffer, Terminal } from "@xterm/xterm";
 
 import "@xterm/xterm/css/xterm.css";
+import { pageColours } from "./colours.ts";
 import { shellBlockAt, startOutput } from "./runblock";
 import { beginRun, blockRuns, type RunPhase, updateRun } from "./runstatus";
 import { type Ended, outputBody, overflows, type Row, screenText, spilled } from "./ttytext";
@@ -268,6 +269,7 @@ function decode(base64: string): Uint8Array {
 }
 
 function terminal(): Terminal {
+  const palette = pageColours();
   return new Terminal({
     rows: ttyRows,
     cursorBlink: true,
@@ -277,27 +279,28 @@ function terminal(): Terminal {
     scrollback: 10000,
     macOptionIsMeta: true,
     theme: {
-      background: "#16161e",
-      foreground: "#c0caf5",
-      cursor: "#ff9e64",
-      cursorAccent: "#16161e",
-      selectionBackground: "#3d59a1",
-      black: "#1a1b26",
-      red: "#f7768e",
-      green: "#9ece6a",
-      yellow: "#e0af68",
-      blue: "#7aa2f7",
-      magenta: "#bb9af7",
-      cyan: "#7dcfff",
-      white: "#a9b1d6",
-      brightBlack: "#565f89",
-      brightRed: "#ff7a93",
-      brightGreen: "#b9f27c",
-      brightYellow: "#ff9e64",
-      brightBlue: "#7da6ff",
-      brightMagenta: "#bb9af7",
-      brightCyan: "#0db9d7",
-      brightWhite: "#c0caf5",
+      background: palette.base,
+      foreground: palette.text,
+      cursor: palette.rosewater,
+      cursorAccent: palette.base,
+      selectionBackground: palette.surface2,
+      selectionForeground: palette.text,
+      black: palette.surface1,
+      red: palette.red,
+      green: palette.green,
+      yellow: palette.yellow,
+      blue: palette.blue,
+      magenta: palette.pink,
+      cyan: palette.teal,
+      white: palette.subtext1,
+      brightBlack: palette.surface2,
+      brightRed: palette.red,
+      brightGreen: palette.green,
+      brightYellow: palette.yellow,
+      brightBlue: palette.blue,
+      brightMagenta: palette.pink,
+      brightCyan: palette.teal,
+      brightWhite: palette.subtext0,
     },
   });
 }

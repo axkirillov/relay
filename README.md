@@ -21,7 +21,8 @@ SVG are drawn in place, so a diagram or a chart written into the document arrive
 as a picture. So is a ```` ```mermaid ```` fence — a class diagram, a flowchart, a
 sequence diagram — in the window's own colours. One Mermaid cannot draw stays as
 code, with Mermaid's reason in red under it and the document's line number in
-that, so `:N` goes to the mistake. Images do too — `![](shot.png)` beside the
+that, so `:N` goes to the mistake. Right-click a drawn diagram, or any inline SVG,
+to save it as a PNG or copy it to the clipboard as one. Images do too — `![](shot.png)` beside the
 document, or an `https:` one. A click leaves what is drawn alone, so the mouse
 can read it: drag across a rendered paragraph or a table cell and the words
 highlight, double-click and one word does, and `⌘C` copies exactly what is lit. A
@@ -273,7 +274,9 @@ diff back, so what it was diffed against has to live somewhere. Beside it,
 each, and holds a `priority` file when that session is the one to go first,
 `~/.relay/queue/` holds a ticket per relay waiting for the screen,
 `~/.relay/window.json` is the window saying it is up, and `~/.relay/closed`
-records the last time the human closed it. `RELAY_QUEUE_DIR` moves the lot — a
+records the last time the human closed it. `~/.relay/themes/` holds the colour
+themes, YAML files that name Catppuccin's colours, and `~/.relay/config.json`
+picks one with `{ "theme": "<name>" }` (see [DESIGN.md](DESIGN.md)). `RELAY_QUEUE_DIR` moves the lot — a
 test pointed at a temp directory takes the window with it.
 
 See [SPEC.md](SPEC.md).
