@@ -132,7 +132,7 @@ These replace 3px, 7px, 12px and the pill. Lines are 1px surface0. A card's shad
 
 At the right are the queue (*2 waiting*, dim, no box), *help* as a soft button, and Accept.
 
-**Accept** is the one filled button: crust text on sky, weight 600, radius 4, padded 3px 9px. The key follows in the same colour at weight 400: *accept ⌃X*. Hover is sky at 85%. In a read-only round, *close :q* is the filled button instead.
+**Accept** is the one filled button: crust text on sky, weight 600, radius 4, padded 3px 9px. The key follows in the same colour at weight 400: *accept ⌘X*. Hover is sky at 85%. In a read-only round, *close :q* is the filled button instead.
 
 **A button** is podium's: text in its claim's colour, sky if it has no claim, a 35% line of the same colour, radius 4, padded 3px 9px. Hover is a 12% wash. A soft button is dim with a surface0 line: *help*, the picker toggle. Stop is a red button.
 

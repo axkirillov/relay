@@ -610,6 +610,17 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
+      if (reading || help.isOpen() || ttys.inside(e.target) || !e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.key.toLowerCase() !== "x") return;
+      e.preventDefault();
+      e.stopPropagation();
+      void accept();
+    },
+    true,
+  );
+
+  window.addEventListener(
+    "keydown",
+    (e) => {
       if (help.isOpen() || !e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
 
@@ -620,12 +631,6 @@ async function boot() {
         return;
       }
       if (ttys.inside(e.target)) return;
-      if (key === "x" && !reading) {
-        e.preventDefault();
-        e.stopPropagation();
-        void accept();
-        return;
-      }
       if (key === "j") {
         e.preventDefault();
         e.stopPropagation();

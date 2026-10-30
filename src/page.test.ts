@@ -50,8 +50,8 @@ for (const document of [waiting, framed, reading]) {
 }
 for (const document of [waiting, framed]) {
   assert.ok(document.includes('<button id="accept" class="button primary"'));
-  assert.ok(document.includes("accept <kbd>⌃X</kbd>"));
-  assert.ok(document.includes("<kbd>⌃X</kbd> · <kbd>ZZ</kbd>"));
+  assert.ok(document.includes("accept <kbd>⌘X</kbd>"));
+  assert.ok(document.includes("<kbd>⌘X</kbd> · <kbd>ZZ</kbd>"));
   assert.ok(document.includes("Close without replying"));
   assert.ok(document.includes("Restore this line or the selected lines"));
 }

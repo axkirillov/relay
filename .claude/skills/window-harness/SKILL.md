@@ -210,7 +210,7 @@ spawn("node", ["dist/relay.js", doc], {
   any relay that dies first — bad path, bad document, a port it cannot have — hangs
   the harness forever instead of telling you why. Reject on `exit` with the stderr
   collected so far.
-- **Read the diff off the relay's stdout.** Ending with a real `⌃X` accept and
+- **Read the diff off the relay's stdout.** Ending with a real `⌘X` accept and
   asserting on that diff is the only assertion that tests what the agent gets.
 
 ## The word `relay` in a command gets it stopped
@@ -313,7 +313,7 @@ is not the page's `window` — patching `fetch` to count requests reads back
   looking at, not the key. Sleep ~900 ms between the last character and the
   accept, and read the screen at that moment so the assertion compares stdout
   against what was there rather than against what you meant to type.
-- **Test a new key beside one that already works.** The same round run with `⌃X`
+- **Test a new key beside one that already works.** The same round run with `⌘X`
   is what turns "the key is broken" into "the harness is slow": if the control
   truncates identically, nothing is wrong with the key. Cheaper than a second
   investigation, and it belongs in the run rather than in your reasoning.

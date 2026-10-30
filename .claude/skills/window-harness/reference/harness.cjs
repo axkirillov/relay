@@ -157,7 +157,7 @@ app.whenReady().then(async () => {
   await shot("state.png");
 
   // --- and end with a real accept: its diff is all the agent ever gets --------
-  tap(win, "x", ["control"]);
+  tap(win, "x", ["meta"]);
   await sleep(1200);
   ok("relay accepted", (await server.exited) === 0);
   const patch = server.stdout();
