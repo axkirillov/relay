@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { contentType, type Images, localImages } from "./images.js";
+import { contentType, type Images, extensionOf, keepPasted, localImages } from "./images.js";
 import { launch, openable, opener } from "./open.js";
 import { page } from "./page.js";
 import { interactive, type Session } from "./pty.js";
@@ -14,6 +14,7 @@ import { maxOutputBytes, type Running, start, tilde } from "./run.js";
 import { ensureDefaultTheme } from "./theme.js";
 
 const maxDocBytes = 8 << 20;
+const maxImageBytes = 32 << 20;
 const maxInputBytes = 1 << 20;
 const maxCommandBytes = 64 << 10;
 const bundle = fileURLToPath(new URL("./assets/relay.js", import.meta.url));
@@ -87,6 +88,20 @@ export async function serve(
       return send(res, 200, "application/json; charset=utf-8", JSON.stringify(images.map));
     }
     if (req.method === "GET" && path.startsWith("/local/")) return sendLocal(res, images, path.slice(7));
+    if (req.method === "POST" && path === "/paste") {
+      if (opts.readOnly) return send(res, 409, "text/plain", "this round is being read, not answered");
+      const type = (req.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
+      const extension = extensionOf(type);
+      if (!extension) return send(res, 415, "text/plain", `relay cannot show a pasted ${type || "file"}`);
+      return readBytes(req, maxImageBytes).then(
+        (bytes) =>
+          keepPasted(logs(), images, bytes, extension).then(
+            (kept) => send(res, 200, "application/json; charset=utf-8", JSON.stringify(kept)),
+            (err) => send(res, 500, "text/plain", `could not keep the image: ${(err as Error).message}`),
+          ),
+        () => send(res, 413, "text/plain", "image too large"),
+      );
+    }
     if (req.method === "GET" && path === "/queue") {
       const waiting = opts.behind?.() ?? 0;
       return send(res, 200, "application/json; charset=utf-8", JSON.stringify({ waiting }));
@@ -352,6 +367,10 @@ function handleRun(
 }
 
 function read(req: IncomingMessage, limit: number): Promise<string> {
+  return readBytes(req, limit).then((bytes) => bytes.toString("utf8"));
+}
+
+function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -364,7 +383,7 @@ function read(req: IncomingMessage, limit: number): Promise<string> {
       }
       chunks.push(c);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }

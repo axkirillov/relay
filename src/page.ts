@@ -151,7 +151,8 @@ export function page(source: string, framed = false, readOnly = false): string {
       <dt><kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also accept</dd>
       <dt><kbd>:w</kbd></dt><dd>Save the draft now</dd>
       <dt><kbd>:q</kbd></dt><dd>Close without replying</dd>
-      <dt><kbd>:res</kbd></dt><dd>Restore this line or the selected lines</dd>`}
+      <dt><kbd>:res</kbd></dt><dd>Restore this line or the selected lines</dd>
+      <dt><kbd>⌘V</kbd></dt><dd>Paste a copied image or screenshot on a line of its own</dd>`}
       <dt><kbd>gf</kbd></dt><dd>Edit the linked file in Neovim</dd>
       <dt><kbd>gx</kbd></dt><dd>Open the web link in normal or visual mode</dd>
       <dt><kbd>y</kbd></dt><dd>Yank to the system clipboard</dd>

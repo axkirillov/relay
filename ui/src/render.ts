@@ -431,10 +431,18 @@ type Content = {
   originals: Map<string, boolean>;
 };
 
-function index(state: EditorState, original: string, images: Images, diagrams: Diagrams, previous?: Content | null): Content {
+function index(
+  state: EditorState,
+  original: string,
+  images: Images,
+  diagrams: Diagrams,
+  pasted: Set<string>,
+  previous?: Content | null,
+): Content {
   const originals = new Map<string, boolean>();
   const unchanged = (from: number, to: number) => {
     const text = state.doc.sliceString(from, to);
+    if (pasted.has(text)) return true;
     const matches = originals.get(text) ?? previous?.originals.get(text) ?? original.includes(text);
     originals.set(text, matches);
     return matches;
@@ -472,13 +480,18 @@ function build(state: EditorState, content: Content | null): DecorationSet {
   ], true);
 }
 
-export function renderBlocks(original: string, images: Images = {}, diagrams: Diagrams = new Map()) {
+export function renderBlocks(
+  original: string,
+  images: Images = {},
+  diagrams: Diagrams = new Map(),
+  pasted: Set<string> = new Set(),
+) {
   const content = StateField.define<Content | null>({
-    create: (state) => isRendering(state) ? index(state, original, images, diagrams) : null,
+    create: (state) => isRendering(state) ? index(state, original, images, diagrams, pasted) : null,
     update(had, tr) {
       if (!isRendering(tr.state)) return null;
       if (!had || tr.docChanged || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
-        return index(tr.state, original, images, diagrams, had);
+        return index(tr.state, original, images, diagrams, pasted, had);
       }
       return had;
     },

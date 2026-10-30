@@ -25,6 +25,7 @@ import { url, urlAt } from "./link";
 import { liveDiff, type Stats } from "./livediff";
 import { foldOutput, opened, refold } from "./outfold";
 import { followRendered, type Images, isRendering, renderBlocks, selectWords, setRendering } from "./render";
+import { pasteImages } from "./paste";
 import { restore } from "./restore";
 import { neighbourShellBlock, setSink, shellBlockAt, sink, startOutput } from "./runblock";
 import { queueAfter } from "./runqueue";
@@ -536,6 +537,7 @@ async function boot() {
   ]);
   const diagrams = await drawDiagrams(original);
   bindVim(original);
+  const pasted = new Set<string>();
 
   view = new EditorView({
     parent: mount,
@@ -555,7 +557,8 @@ async function boot() {
         checkboxes,
         diffReview(),
         theme,
-        renderBlocks(original, images, diagrams),
+        renderBlocks(original, images, diagrams, pasted),
+        pasteImages(images, pasted, note, reading),
         followRendered(open),
         selectWords(),
         foldOutput(),

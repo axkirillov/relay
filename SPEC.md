@@ -110,6 +110,14 @@ puts it on the clipboard. The PNG is twice the size on screen, on the page's bas
 the window's light text stays readable. `esc` or a click elsewhere closes the
 menu; anywhere else, a right-click does what it did before.
 
+`⌘V` with an image on the clipboard — a screenshot, or **Copy Image** from a
+browser — saves it in the round's folder as `paste-N.png` and puts
+`![](/full/path/paste-N.png)` on a line of its own below the caret's line. The
+caret stays where it was, so the image is drawn at once, and the diff carries the
+full path for the agent to open. If the clipboard also holds plain text, as a
+spreadsheet's cells do, the text is pasted instead. In a round being read, the
+footer says the document is read-only.
+
 ## Contextual footer and Help
 
 The narrow, centred document layout stays unchanged. The footer is one row: mode,

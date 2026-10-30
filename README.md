@@ -23,7 +23,8 @@ sequence diagram — in the window's own colours. One Mermaid cannot draw stays 
 code, with Mermaid's reason in red under it and the document's line number in
 that, so `:N` goes to the mistake. Right-click a drawn diagram, or any inline SVG,
 to save it as a PNG or copy it to the clipboard as one. Images do too — `![](shot.png)` beside the
-document, or an `https:` one. A click leaves what is drawn alone, so the mouse
+document, or an `https:` one. `⌘V` pastes a screenshot or a copied image: relay
+saves it with the round and the line it adds carries the image's full path. A click leaves what is drawn alone, so the mouse
 can read it: drag across a rendered paragraph or a table cell and the words
 highlight, double-click and one word does, and `⌘C` copies exactly what is lit. A
 link in a rendered block opens where `gx` sends one, and a `<details>` opens on a

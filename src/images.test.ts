@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { contentType, imageRefs, localImages } from "./images.ts";
+import { contentType, extensionOf, imageRefs, keepPasted, localImages } from "./images.ts";
 
 let fails = 0;
 function check(name: string, got: unknown, want: unknown) {
@@ -104,6 +104,22 @@ symlinkSync(join(dir, "real.png"), join(dir, "link.png"));
     "real.png": "/local/0",
     "shots/a.png": "/local/1",
   });
+}
+
+check("paste: a png is kept as .png", extensionOf("image/png"), ".png");
+check("paste: a jpeg is kept as .jpg", extensionOf("image/jpeg"), ".jpg");
+check("paste: a type relay cannot serve has no extension", extensionOf("image/tiff"), undefined);
+
+{
+  const round = join(dir, "round");
+  mkdirSync(round);
+  writeFileSync(join(round, "paste-1.png"), "taken");
+  const images = await localImages(doc, "![a](real.png)\n");
+  const kept = await keepPasted(round, images, Buffer.from("png"), ".png");
+  check("paste: the next free name, nothing overwritten", kept, { ref: join(round, "paste-2.png"), served: "/local/1" });
+  check("paste: served from now on", images.map[kept.ref], "/local/1");
+  check("paste: the file holds the bytes", readFileSync(kept.ref, "utf8"), "png");
+  check("paste: the taken file is untouched", readFileSync(join(round, "paste-1.png"), "utf8"), "taken");
 }
 
 rmSync(dir, { recursive: true, force: true });

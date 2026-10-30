@@ -1,5 +1,5 @@
-import { stat } from "node:fs/promises";
-import { dirname, extname, resolve } from "node:path";
+import { stat, writeFile } from "node:fs/promises";
+import { dirname, extname, join, resolve } from "node:path";
 
 export type Images = { map: Record<string, string>; files: string[] };
 
@@ -46,6 +46,31 @@ export async function localImages(source: string, doc: string): Promise<Images> 
   }
 
   return { map, files };
+}
+
+export async function keepPasted(
+  dir: string,
+  images: Images,
+  bytes: Buffer,
+  extension: string,
+): Promise<{ ref: string; served: string }> {
+  for (let n = 1; ; n++) {
+    const file = join(dir, `paste-${n}${extension}`);
+    try {
+      await writeFile(file, bytes, { flag: "wx" });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "EEXIST") continue;
+      throw err;
+    }
+    const served = `/local/${images.files.length}`;
+    images.files.push(file);
+    images.map[file] = served;
+    return { ref: file, served };
+  }
+}
+
+export function extensionOf(type: string): string | undefined {
+  return Object.keys(types).find((extension) => types[extension] === type);
 }
 
 export function contentType(file: string): string {

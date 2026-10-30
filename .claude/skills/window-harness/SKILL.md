@@ -485,3 +485,21 @@ stand-in of the same name first on the relay's `PATH` and assert what it recorde
   exits is a test that reports nothing at all — no pass, no fail, no output to
   read. Poll `kill -0` for a fixed number of ticks and turn running out into a
   FAIL, so a regression comes back as a line rather than as silence.
+
+## Paste without touching the human's clipboard
+
+Writing to the system clipboard to test a paste overwrites whatever the human
+copied. Build the clipboard in the page instead and dispatch the event on the
+editor:
+
+```js
+const dt = new DataTransfer();
+dt.items.add(new File([blob], "image.png", { type: "image/png" }));
+document.querySelector(".cm-content").dispatchEvent(
+  new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }),
+);
+```
+
+A canvas `toBlob` makes a real PNG to put in it. Any paste in normal mode —
+even an empty text one — switches vim to INSERT, so a mode change after a paste
+is codemirror-vim, not the change under test.
