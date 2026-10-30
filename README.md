@@ -107,7 +107,7 @@ is copied.
 Every relay leaves its whole exchange in `~/.relay/<round>/`, and `relay --read
 <round>` opens one again — the id of a directory in there, or the path to one. It
 serves that round on loopback, prints the URL on the first line of stdout, and waits
-until it is killed. No window, no place under the lamp, no round of its own — and
+until it is killed. No window, no place in the queue, no round of its own — and
 nothing written into the round it opens, a command's output included.
 
 The page shows the round as it looked the day it arrived — what you accepted, your
@@ -188,13 +188,13 @@ every other session's, however long those have been waiting — run
 thing the answer is keyed on, so restarting the agent in it does not lose the mark.
 
 The mark applies to the document already waiting, not just the next one: it is
-read every time the lamp is read. Marking a session hands it the screen at once,
+read every time the queue is read. Marking a session hands it the screen at once,
 and letting it go hands the screen back. Arrival still decides within the mark —
 two questions from the marked session arrive in the order they were asked — and
 nothing an agent does sets or clears a mark.
 
 The window is nobody's in particular. Whichever relay finds none up starts it,
-and it stays for the ones behind, then goes on its own once nothing is under the lamp —
+and it stays for the ones behind, then goes on its own once nothing is in the queue —
 so no MCP server, no daemon and no registration. One process per relay, for as
 long as the human takes, and nothing left running between calls. Any agent that
 can run a command can use it.
