@@ -74,7 +74,7 @@ if (args.length <= 2 && args[0] === "--priority") {
   const others = priority.all().filter((t) => t !== task).map(tasks.name);
   process.stdout.write(
     state === "on"
-      ? `${tasks.name(task)} is priority — its documents go to the front of the line\n`
+      ? `${tasks.name(task)} is priority — its documents go first under the lamp\n`
       : was
         ? `${tasks.name(task)} is no longer priority\n`
         : `${tasks.name(task)} was not priority\n`,
@@ -84,7 +84,7 @@ if (args.length <= 2 && args[0] === "--priority") {
       ? `${state === "on" ? "also" : "still"} priority: ${others.join(", ")}\n`
       : state === "on"
         ? ""
-        : "nothing is priority now — the line is by arrival again\n",
+        : "nothing is priority now — the lamp is by arrival again\n",
   );
   process.exit(0);
 }
@@ -167,7 +167,7 @@ process.stderr.write(
 );
 
 if (priority.marked(task))
-  process.stderr.write("relay: this session is priority — this document goes to the front of the line\n");
+  process.stderr.write("relay: this session is priority — this document goes first under the lamp\n");
 if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — waiting for the window\n`);
 
 const screen = turn ? attend(turn, relay.url, !!process.env.RELAY_DEBUG) : null;

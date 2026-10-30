@@ -1,18 +1,18 @@
 # relay — design
 
-Relay is a window that shows you a document from an agent and waits for your reply. It uses podium's language: the same palette, the same role names and the same principles. It has its own parts, because it is an editor and not a list. This file holds the decisions and the reasons for them. `src/palette.ts` and `ui/design.css` hold the values. The CSS carries no comments.
+Relay is a window that shows you a document from an agent and waits for your reply. It uses the pass's language: the same palette, the same role names and the same principles. It has its own parts, because it is an editor and not a list. This file holds the decisions and the reasons for them. `src/palette.ts` and `ui/design.css` hold the values. The CSS carries no comments.
 
-Relay keeps its own copy of the palette and roles. It does not load podium's stylesheet, because relay also runs without podium. The two can drift apart in their parts, but not in their colours.
+Relay keeps its own copy of the palette and roles. It does not load the pass's stylesheet, because relay also runs without the pass. The two can drift apart in their parts, but not in their colours.
 
 ## Principles
 
-Relay follows podium's principles: **one colour, one claim**; **nearer is lighter**; **ground, not edges**; **named once**; **quiet by default**. Relay adds three of its own:
+Relay follows the pass's principles: **one colour, one claim**; **nearer is lighter**; **ground, not edges**; **named once**; **quiet by default**. Relay adds three of its own:
 
 **What you wrote is the loudest thing on screen.** Your edits are white, the one colour brighter than `--title`. That way you can always tell your words from the agent's.
 
-**Added is green, removed is red, everywhere.** This covers your edits, a diff, a ticked box and the mark on the accept screen. Inside relay these are the claims of green and red. podium's *working* keeps green for a running command, because a running command is adding output.
+**Added is green, removed is red, everywhere.** This covers your edits, a diff, a ticked box and the mark on the accept screen. Inside relay these are the claims of green and red. The pass's *working* keeps green for a running command, because a running command is adding output.
 
-**The frame is monospace, and what the agent rendered is not.** The footer, cards and run status are monospace like podium. An HTML block the agent wrote is set in sans-serif, because it is a page to read, not relay's frame.
+**The frame is monospace, and what the agent rendered is not.** The footer, cards and run status are monospace like the pass. An HTML block the agent wrote is set in sans-serif, because it is a page to read, not relay's frame.
 
 ## Colour
 
@@ -56,13 +56,13 @@ These replace relay's three dims: `#565f89`, `#7a85b8` and `#9aa5ce`.
 | peach | `#f5a97f` | read this before you act: your comment, visual mode, a stopped or skipped run, a blocked HTML block, a draft that was not saved | `--needs` |
 | rosewater | `#f4dbd6` | the cursor | `--caret` |
 
-The tokens match podium's where the claim is the same. `--added`, `--removed`, `--yours` and `--caret` are relay's own. `--working` is kept as another name for green, and `--danger` for red.
+The tokens match the pass's where the claim is the same. `--added`, `--removed`, `--yours` and `--caret` are relay's own. `--working` is kept as another name for green, and `--danger` for red.
 
-Syntax colours are the one exception to one colour, one claim. They are the same as in podium's settings editor: mauve for a keyword, green for a string, peach for a number, blue for a function, sky for a built-in variable, teal for a type, red for a tag, peach for an attribute, `--dim` for punctuation and faint italic for a comment.
+Syntax colours are the one exception to one colour, one claim. They are the same as in the pass's settings editor: mauve for a keyword, green for a string, peach for a number, blue for a function, sky for a built-in variable, teal for a type, red for a tag, peach for an attribute, `--dim` for punctuation and faint italic for a comment.
 
 ### Washes
 
-Same as podium: three strengths and no others.
+Same as the pass: three strengths and no others.
 
 | Strength | Used for |
 | --- | --- |
@@ -99,11 +99,11 @@ The gutter is 16px, in the footer and on a card. The document is at most `96ch +
 | 6px | a box: rendered HTML, the live terminal, a row in the picker or a card, a trouble line |
 | 10px | a card |
 
-These replace 3px, 7px, 12px and the pill. Lines are 1px surface0. A card's shadow is `0 24px 64px rgba(0, 0, 0, .55)`, as in podium. The focus ring is 1px sky, 2px inside the edge, everywhere.
+These replace 3px, 7px, 12px and the pill. Lines are 1px surface0. A card's shadow is `0 24px 64px rgba(0, 0, 0, .55)`, as in the pass. The focus ring is 1px sky, 2px inside the edge, everywhere.
 
 ## Parts
 
-**The window** is crust from its first frame. Standalone, it has a 44px mantle header: the file's name in `--title` and *the agent is waiting* in dim. Inside podium it has no header.
+**The window** is crust from its first frame. Standalone, it has a 44px mantle header: the file's name in `--title` and *the agent is waiting* in dim. Inside the pass it has no header.
 
 **The document** is 15px monospace on crust in `--fg`, with line numbers in faint. The cursor is rosewater: a 2px bar, or a block in normal mode. A selection is a 45% blue wash, so it shows through inline code and over a code block. The current line is not marked.
 
@@ -134,15 +134,15 @@ At the right are the queue (*2 waiting*, dim, no box), *help* as a soft button, 
 
 **Accept** is the one filled button: crust text on sky, weight 600, radius 4, padded 3px 9px. The key follows in the same colour at weight 400: *accept ⌘X*. Hover is sky at 85%. In a read-only round, *close :q* is the filled button instead.
 
-**A button** is podium's: text in its claim's colour, sky if it has no claim, a 35% line of the same colour, radius 4, padded 3px 9px. Hover is a 12% wash. A soft button is dim with a surface0 line: *help*, the picker toggle. Stop is a red button.
+**A button** is the pass's: text in its claim's colour, sky if it has no claim, a 35% line of the same colour, radius 4, padded 3px 9px. Hover is a 12% wash. A soft button is dim with a surface0 line: *help*, the picker toggle. Stop is a red button.
 
-**A card** is podium's card: base with a surface0 line, radius 10, the card shadow, 13px, `min(560px, 88%)` wide, centred, over the scrim. It has a label first, the subject in `--title` at weight 600, and a key line last.
+**A card** is the pass's card: base with a surface0 line, radius 10, the card shadow, 13px, `min(560px, 88%)` wide, centred, over the scrim. It has a label first, the subject in `--title` at weight 600, and a key line last.
 
 - **Help** is labelled *KEYS*, with the subject *edit and reply* (or *read this round*). Each section is headed by a dim label. Each entry is the key in `--fg`, then what it does in `--said`. The note at the bottom is dim at 11px. The key line reads *esc close*.
 - **The diagram menu** opens where a diagram is right-clicked. It is a box on base with a line edge, no label and no subject: two rows, **[S]ave diagram as PNG…** and **[C]opy diagram as PNG**, each with its letter in sky.
 - **The run choice** is labelled *ANOTHER COMMAND IS RUNNING*, with the subject *run this command*. The command follows in dim at 11px. There are two rows, **[Q]ueue** and **[P]arallel**, each with its letter in sky and a dim second line. The keyboard's row is on surface0. The key line reads *↑↓ move ↵ run esc cancel*.
 
-**A key line** is podium's: 11px, the key bare in `--fg`, then the verb in dim, entries `.75rem` apart.
+**A key line** is the pass's: 11px, the key bare in `--fg`, then the verb in dim, entries `.75rem` apart.
 
 **The accept screen** covers the window with crust at 94%. It shows a 56px mark (green when the reply is sent, red on an error), a 22px title in `--title`, and a 13px note in dim.
 
@@ -169,7 +169,7 @@ At the right are the queue (*2 waiting*, dim, no box), *help* as a soft button, 
 
 The run's id, time and *edited* are dim. Stop is a red button at the right.
 
-**The live terminal** is a box under its block: base, a surface0 line, radius 6, 13px monospace. It has a 2px left edge in the run's colour. When it has the keys, its line turns sky. Its colours are Ghostty's Catppuccin Macchiato, the same as podium's terminal pane: base background, text foreground, rosewater cursor, surface2 selection.
+**The live terminal** is a box under its block: base, a surface0 line, radius 6, 13px monospace. It has a 2px left edge in the run's colour. When it has the keys, its line turns sky. Its colours are Ghostty's Catppuccin Macchiato, the same as the pass's terminal pane: base background, text foreground, rosewater cursor, surface2 selection.
 
 **Rendered HTML** is a box: base, a surface0 line, radius 6, padded 9px 10px, 14px sans-serif, line height 1.5.
 
@@ -178,7 +178,7 @@ The run's id, time and *edited* are dim. Stop is a red button at the right.
 - Code is monospace in `--fg` on mantle.
 - A `<summary>` is sky.
 - An image or SVG is never wider than the box.
-- A blocked block says why in peach, as podium's warning does.
+- A blocked block says why in peach, as the pass's warning does.
 - A block that failed to render shows a trouble line: peach on a 12% peach wash, with a 35% peach edge, radius 6.
 
 **A mermaid diagram** sits on base. Its nodes are base with a surface2 line and `--fg` text. Its edges are dim. Its notes are mantle with a surface0 line.
@@ -187,7 +187,7 @@ The run's id, time and *edited* are dim. Stop is a red button at the right.
 
 ## Words on screen
 
-As in podium: short, lower case, no exclamation marks, no *error:*. A key line names the key and then the verb. Keys are written as glyphs, ⌘ ⇧ ⌃ ↵ ←→, with *esc* in letters. A mode word is the one thing in capitals, as in Vim.
+As in the pass: short, lower case, no exclamation marks, no *error:*. A key line names the key and then the verb. Keys are written as glyphs, ⌘ ⇧ ⌃ ↵ ←→, with *esc* in letters. A mode word is the one thing in capitals, as in Vim.
 
 ## In code
 
@@ -199,6 +199,6 @@ A theme is a YAML file in `~/.relay/themes/`, named `<name>.yaml`. It lists colo
 
 `~/.relay/config.json` picks the theme: `{ "theme": "mocha" }` uses `~/.relay/themes/mocha.yaml`. No file or no key means Macchiato. When relay starts it writes `macchiato.yaml` into the folder if there is none, never over an existing one, so there is a file to copy. Only Macchiato ships.
 
-The theme is read each time a window opens, so a saved change shows in the next window. If the theme cannot be used (no such file, YAML that does not parse, an unknown colour name, a value that is not `#rrggbb`, a broken `config.json`), relay uses Macchiato and says why in the footer, in `--needs`, for example `theme mocha not found — using macchiato`. relay does not read podium's theme.
+The theme is read each time a window opens, so a saved change shows in the next window. If the theme cannot be used (no such file, YAML that does not parse, an unknown colour name, a value that is not `#rrggbb`, a broken `config.json`), relay uses Macchiato and says why in the footer, in `--needs`, for example `theme mocha not found — using macchiato`. relay does not read the pass's theme.
 
 The parts in `ui/design.css` sit inside `@scope (:root) to (.cm-relay-render, svg)`. What the agent rendered and what mermaid draws are not relay's frame, so relay's part classes do not reach into them. Without the scope, a mermaid node label took `.label`, came out in capitals, and was clipped.
