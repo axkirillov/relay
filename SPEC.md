@@ -383,7 +383,8 @@ in the question. Clicking the box itself still does not tick it; the contextual
 footer's Tick or Untick button is the explicit mouse action for the cursor's
 line. A box inside a code fence is code, not a box.
 The caret between the brackets shows them as text, so they can still be edited
-by hand.
+by hand. `]x` and `[x` put the caret there, in the next or previous box, ticked
+or not, as `]r` does for shell fences; past the last box they say so and stay.
 
 ## What the session is about is no longer relay's
 

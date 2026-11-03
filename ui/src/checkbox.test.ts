@@ -1,7 +1,7 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 
-import { boxAt, boxes, toggle } from "./checkbox.ts";
+import { boxAt, boxes, neighbourBox, toggle } from "./checkbox.ts";
 import { codeLanguage } from "./languages.ts";
 
 let fails = 0;
@@ -40,5 +40,18 @@ check("no box on a plain item", toggled("- lint|"), null);
 check("no box in prose", toggled("see [ ] here|"), null);
 check("no box in a code fence", toggled("```\n- [ ] a|\n```"), null);
 check("finds every box", boxes(stateOf("- [ ] a\n- [x] b\n\n```\n- [ ] c\n```")).map((b) => b.ticked), [false, true]);
+
+{
+  const doc = "intro\n- [ ] a\n- [x] b\n\n```\n- [ ] c\n```\n";
+  const state = stateOf(doc);
+  const inA = doc.indexOf("[ ] a") + 1;
+  const inB = doc.indexOf("[x] b") + 1;
+  check("]x from the top lands inside the first box", neighbourBox(state, 0, 1), inA);
+  check("]x from a box goes to the next, ticked or not", neighbourBox(state, inA, 1), inB);
+  check("]x past the last box finds nothing", neighbourBox(state, inB, 1), null);
+  check("[x from a box goes to the one before", neighbourBox(state, inB, -1), inA);
+  check("[x before the first box finds nothing", neighbourBox(state, inA, -1), null);
+  check("[x from the end lands on the last box", neighbourBox(state, doc.length, -1), inB);
+}
 
 if (fails) process.exit(1);

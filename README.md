@@ -73,7 +73,8 @@ pointer to that file, and its last twenty lines.
 
 A question with options can be answered without typing. A markdown task list —
 `- [ ] yes`, `- [ ] no` — is drawn as boxes, and `⌃J` on an item's line ticks or
-unticks it, in normal mode or insert mode. The tick is the text `[x]`, so the
+unticks it, in normal mode or insert mode. `]x` and `[x` put the cursor in the
+next or previous box, ticked or not. The tick is the text `[x]`, so the
 diff carries it back like any other edit, and a question can still be answered in
 words anywhere around it.
 

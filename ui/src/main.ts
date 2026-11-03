@@ -12,7 +12,7 @@ import {
 import { getCM, Vim, vim } from "@replit/codemirror-vim";
 
 import { stillRunningNotice } from "../../src/spill";
-import { checkboxes, toggleAtCursor } from "./checkbox";
+import { checkboxes, neighbourBox, toggleAtCursor } from "./checkbox";
 import { drawDiagrams } from "./diagram";
 import { diagramMenu } from "./diagrammenu";
 import { diffReview, pickReviewFile, reviewNumber, stepReviewFile } from "./diffview";
@@ -500,6 +500,16 @@ function bindVim(original: string) {
   Vim.defineAction("relayPreviousCommand", () => stepShellBlock(-1));
   Vim.mapCommand("]r", "action", "relayNextCommand", {}, { context: "normal" });
   Vim.mapCommand("[r", "action", "relayPreviousCommand", {}, { context: "normal" });
+
+  const stepBox = (direction: 1 | -1) => {
+    const anchor = neighbourBox(view.state, view.state.selection.main.head, direction);
+    if (anchor === null) return note(direction === 1 ? "no next box" : "no previous box");
+    view.dispatch({ selection: { anchor }, effects: EditorView.scrollIntoView(anchor, { y: "center" }) });
+  };
+  Vim.defineAction("relayNextBox", () => stepBox(1));
+  Vim.defineAction("relayPreviousBox", () => stepBox(-1));
+  Vim.mapCommand("]x", "action", "relayNextBox", {}, { context: "normal" });
+  Vim.mapCommand("[x", "action", "relayPreviousBox", {}, { context: "normal" });
 
   Vim.defineAction("relayOpenFile", () => void openFileAtCursor());
   Vim.mapCommand("gf", "action", "relayOpenFile", {}, { context: "normal" });

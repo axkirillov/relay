@@ -24,6 +24,12 @@ export function boxAt(state: EditorState, pos: number): Box | null {
   return boxes(state, line.from, line.to).find((b) => b.from >= line.from && b.to <= line.to) ?? null;
 }
 
+export function neighbourBox(state: EditorState, pos: number, direction: 1 | -1): number | null {
+  const caretsInBoxes = boxes(state).map((b) => b.from + 1);
+  const caret = direction === 1 ? caretsInBoxes.find((c) => c > pos) : caretsInBoxes.filter((c) => c < pos).at(-1);
+  return caret ?? null;
+}
+
 export function toggle(box: Box): { from: number; to: number; insert: string } {
   return { from: box.from + 1, to: box.from + 2, insert: box.ticked ? " " : "x" };
 }

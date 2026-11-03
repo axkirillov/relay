@@ -147,6 +147,7 @@ export function page(source: string, framed = false, readOnly = false): string {
       <dt><kbd>j k</kbd> · <kbd>/</kbd> · <kbd>:N</kbd></dt><dd>Move, search, or go to line N</dd>
       ${readOnly ? `<dt><kbd>esc</kbd> · <kbd>:q</kbd></dt><dd>Close this read-only round</dd>` : `<dt><kbd>i</kbd> · <kbd>esc</kbd></dt><dd>Edit · return to normal mode</dd>
       <dt><kbd>⌃J</kbd></dt><dd>Tick or untick the checkbox on this line</dd>
+      <dt><kbd>]x</kbd> · <kbd>[x</kbd></dt><dd>Jump to the next or previous checkbox</dd>
       <dt><kbd>⌘X</kbd> · <kbd>ZZ</kbd></dt><dd>Accept and send your reply</dd>
       <dt><kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also accept</dd>
       <dt><kbd>:w</kbd></dt><dd>Save the draft now</dd>
