@@ -454,7 +454,7 @@ stand-in of the same name first on the relay's `PATH` and assert what it recorde
 ## Watching what a command spawned
 
 - **Never `pkill -f relay.js`.** The human's own relays are `node
-  ~/repos/axkirillov/relay/dist/relay.js`, so that pattern reaches every agent
+  ~/development/repos/axkirillov/relay/dist/relay.js`, so that pattern reaches every agent
   waiting on the window and each one reports back that the human closed it. Kill
   by the pid you spawned, or match on something only your run has — the queue
   directory, an env var, the document's own path.
