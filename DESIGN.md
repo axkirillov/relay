@@ -183,6 +183,8 @@ The run's id, time and *edited* are dim. Stop is a red button at the right.
 
 **A mermaid diagram** sits on base. Its nodes are base with a surface2 line and `--fg` text. Its edges are dim. Its notes are mantle with a surface0 line.
 
+**A mermaid chart** also sits on base. A chart is the one place where colour does not make a claim: each series, or slice, takes the next accent in a fixed order — blue, peach, green, mauve, yellow, teal, red, sky, pink, lavender, maroon, flamingo — so a bar chart and a pie drawn from the same numbers match. Slice labels are crust, for contrast on the accent. Axes are overlay0, their labels subtext0. A 2×2 alternates mantle and surface0, with its points in blue. A sankey keeps mermaid's own colours.
+
 **The search and vim panels** are mantle with a surface0 line above them. A field in them has a surface0 line, radius 4, mantle ground, and `--fg` text.
 
 ## Words on screen

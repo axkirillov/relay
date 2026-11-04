@@ -19,7 +19,7 @@ their edits is printed to stdout.
 The document is rendered, not shown as source: markdown tables, HTML and inline
 SVG are drawn in place, so a diagram or a chart written into the document arrives
 as a picture. So is a ```` ```mermaid ```` fence — a class diagram, a flowchart, a
-sequence diagram — in the window's own colours. One Mermaid cannot draw stays as
+sequence diagram, or a chart: bars and lines, a pie, a 2×2, a sankey — in the window's own colours. One Mermaid cannot draw stays as
 code, with Mermaid's reason in red under it and the document's line number in
 that, so `:N` goes to the mistake. Right-click a drawn diagram, or any inline SVG,
 to save it as a PNG or copy it to the clipboard as one. Images do too — `![](shot.png)` beside the

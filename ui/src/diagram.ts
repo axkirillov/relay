@@ -2,6 +2,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import type { Mermaid, MermaidConfig } from "mermaid";
+import type { Palette } from "../../src/palette.ts";
 import { pageColours } from "./colours.ts";
 
 type SyntaxNode = {
@@ -39,6 +40,66 @@ function isDark(hex: string): boolean {
   return 0.299 * r + 0.587 * g + 0.114 * b < 128;
 }
 
+const seriesOrder = [
+  "blue",
+  "peach",
+  "green",
+  "mauve",
+  "yellow",
+  "teal",
+  "red",
+  "sky",
+  "pink",
+  "lavender",
+  "maroon",
+  "flamingo",
+] as const;
+
+function chartColours(palette: Palette) {
+  const series = seriesOrder.map((name) => palette[name]);
+  const slices = Object.fromEntries(series.map((hex, i) => [`pie${i + 1}`, hex]));
+  return {
+    ...slices,
+    pieOpacity: "1",
+    pieStrokeColor: palette.base,
+    pieStrokeWidth: "2px",
+    pieOuterStrokeColor: palette.base,
+    pieSectionTextColor: palette.crust,
+    pieTitleTextColor: palette.subtext1,
+    pieLegendTextColor: palette.subtext1,
+    xyChart: {
+      backgroundColor: palette.base,
+      titleColor: palette.subtext1,
+      dataLabelColor: palette.subtext1,
+      legendTextColor: palette.subtext1,
+      xAxisLabelColor: palette.subtext0,
+      xAxisTitleColor: palette.subtext0,
+      xAxisTickColor: palette.overlay0,
+      xAxisLineColor: palette.overlay0,
+      yAxisLabelColor: palette.subtext0,
+      yAxisTitleColor: palette.subtext0,
+      yAxisTickColor: palette.overlay0,
+      yAxisLineColor: palette.overlay0,
+      plotColorPalette: series.join(", "),
+    },
+    quadrant1Fill: palette.mantle,
+    quadrant2Fill: palette.surface0,
+    quadrant3Fill: palette.mantle,
+    quadrant4Fill: palette.surface0,
+    quadrant1TextFill: palette.subtext0,
+    quadrant2TextFill: palette.subtext0,
+    quadrant3TextFill: palette.subtext0,
+    quadrant4TextFill: palette.subtext0,
+    quadrantPointFill: palette.blue,
+    quadrantPointTextFill: palette.subtext1,
+    quadrantXAxisTextFill: palette.subtext0,
+    quadrantYAxisTextFill: palette.subtext0,
+    quadrantTitleFill: palette.subtext1,
+    quadrantInternalBorderStrokeFill: palette.surface1,
+    quadrantExternalBorderStrokeFill: palette.surface2,
+  };
+}
+
 function config(): MermaidConfig {
   const palette = pageColours();
   return {
@@ -67,6 +128,7 @@ function config(): MermaidConfig {
       noteBkgColor: palette.mantle,
       noteTextColor: palette.subtext1,
       noteBorderColor: palette.surface0,
+      ...chartColours(palette),
     },
   };
 }
