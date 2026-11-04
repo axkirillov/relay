@@ -178,6 +178,23 @@ into your own Electron process: it runs the real shell in-process, so
   relay that way. Race the screenshot against a short timeout and treat a missed
   picture as nothing — the DOM reads are the assertions.
 
+## Two cases a fresh relay never shows
+
+- **The footer with the queue showing.** `#queue:empty` is `display: none`, and a
+  harness relay has nobody behind it, so the footer you test is one column short of
+  the human's. A second footer button passed a harness run and then wrapped
+  **send** onto a full-width row on their screen. The page polls `/queue` every
+  second and clears text you set once: fill it on a 50 ms interval, then compare
+  the vertical centres of the controls — tops differ between text and buttons.
+- **A relay started before the rebuild.** It builds its page in memory but reads
+  `dist/assets/relay.js` from disk per request, so rebuilding main hands every
+  relay already queued the new bundle against its old page. A `getElementById(…)!`
+  for an element the page only just gained throws there, ends `boot()` early, and
+  every key bound after it goes dead. To see it: `git worktree add` the previous
+  commit, build it, copy the new `relay.js` over its own, point `RELAY_REPO` at
+  it, and drive a key bound late in `boot()` such as `⌃J`. Run the shipped bundle
+  the same way as the control.
+
 ## Spawn the relay from inside the harness
 
 ```js
