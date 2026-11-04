@@ -67,6 +67,7 @@ reply "$TMP/edited.md"
 
 grep -q '^-Raise the cap to 250k' "$TMP/out" || fail "diff is missing the removed line"
 grep -q '^+Fix the query instead' "$TMP/out" || fail "diff is missing the added line"
+grep -q "agrees" "$TMP/out" && fail "a plain send said the human agrees"
 
 DIR=$(ls -dt "$HOME_RELAY"/*-finding 2>/dev/null | head -1 || true)
 [ -n "$DIR" ] || fail "nothing written to the round's directory"
@@ -121,6 +122,17 @@ wait "$PID" 2>/dev/null || true
 diff -q "$TMP/twice" "$DIR2/accepted.md" >/dev/null \
   || fail "a second pass over an accepted document did not leave it alone"
 grep -q '^The (job_id, created_at) one\.$' "$TMP/twice" || fail "the reused document lost the human's line"
+
+# --- agreeing ---------------------------------------------------------------------
+# ⌘A sends the document like ⌘S, and the agent reads that the human agrees.
+serve "$TMP/next.md"
+jq -n --rawfile doc "$TMP/next.md" '{doc: $doc, waiting: [], finished: {}, agreed: true}' \
+  | curl -sf -X POST -H 'Content-Type: application/vnd.relay.accept+json' --data-binary @- "${URL}accept" \
+  || fail "agree was refused"
+wait "$PID" || fail "relay exited $? after agreeing"
+grep -q '^no changes' "$TMP/out" || fail "agreeing to an unchanged document did not say it is unchanged"
+[ "$(tail -1 "$TMP/out")" = "the user agrees with the agent's proposals" ] \
+  || fail "agreeing did not end stdout with the agreement: $(cat "$TMP/out")"
 
 # --- the rounds that came before the ledger did --------------------------------
 # The ledger is written a round at a time, so on the day it ships it is empty and

@@ -136,7 +136,8 @@ export function page(source: string, framed = false, readOnly = false): string {
       </div>
       <span id="queue"></span>
       <button id="help" class="button soft" type="button" aria-haspopup="dialog" aria-controls="help-dialog">help</button>
-      ${readOnly ? `<button id="close" class="button primary" type="button">close <kbd>:q</kbd></button>` : `<button id="accept" class="button primary" type="button" title="Accept and send your reply">accept <kbd>⌘X</kbd></button>`}
+      ${readOnly ? `<button id="close" class="button primary" type="button">close <kbd>:q</kbd></button>` : `<button id="agree" class="button" type="button" title="Send your reply and agree with the agent's proposals">agree <kbd>⌘A</kbd></button>
+      <button id="accept" class="button primary" type="button" title="Send your reply">send <kbd>⌘S</kbd></button>`}
     </div>
   </footer>
 
@@ -148,8 +149,9 @@ export function page(source: string, framed = false, readOnly = false): string {
       ${readOnly ? `<dt><kbd>esc</kbd> · <kbd>:q</kbd></dt><dd>Close this read-only round</dd>` : `<dt><kbd>i</kbd> · <kbd>esc</kbd></dt><dd>Edit · return to normal mode</dd>
       <dt><kbd>⌃J</kbd></dt><dd>Tick or untick the checkbox on this line</dd>
       <dt><kbd>]x</kbd> · <kbd>[x</kbd></dt><dd>Jump to the next or previous checkbox</dd>
-      <dt><kbd>⌘X</kbd> · <kbd>ZZ</kbd></dt><dd>Accept and send your reply</dd>
-      <dt><kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also accept</dd>
+      <dt><kbd>⌘S</kbd> · <kbd>ZZ</kbd></dt><dd>Send your reply</dd>
+      <dt><kbd>:wq</kbd> · <kbd>:x</kbd> · <kbd>:acc</kbd></dt><dd>Also send</dd>
+      <dt><kbd>⌘A</kbd> · <kbd>:agree</kbd></dt><dd>Send your reply and agree with the agent's proposals — in insert mode, ⌘A selects all</dd>
       <dt><kbd>:w</kbd></dt><dd>Save the draft now</dd>
       <dt><kbd>:q</kbd></dt><dd>Close without replying</dd>
       <dt><kbd>:res</kbd></dt><dd>Restore this line or the selected lines</dd>

@@ -13,6 +13,8 @@ import * as storage from "./storage.js";
 import * as tasks from "./task.js";
 import { attend } from "./window.js";
 
+const agreement = "the user agrees with the agent's proposals";
+
 const usage = `relay <file.md>
 relay --priority [off]
 relay --read <round>
@@ -21,8 +23,9 @@ Show a markdown document to the human and wait — for as long as it takes — f
 their reply. They can edit anywhere in it; their edits are highlighted live
 against what you sent.
 
-On accept, the unified diff of their edits is printed to stdout and relay exits
-0. If they close the window without replying, relay exits 1 and prints nothing.
+When they send, the unified diff of their edits is printed to stdout and relay
+exits 0. When they agree, the diff is followed by the line "${agreement}".
+If they close the window without replying, relay exits 1 and prints nothing.
 
 A \`\`\`diff block is shown as a review the human can write in. They edit the patch
 where it stands, and any line they write that does not open with a diff marker is
@@ -172,7 +175,7 @@ if (turn?.ahead) process.stderr.write(`relay: queued behind ${turn.ahead} — wa
 
 const screen = turn ? attend(turn, relay.url, !!process.env.RELAY_DEBUG) : null;
 
-const accepted = relay.accepted.then((edited) => ({ edited }));
+const accepted = relay.accepted.then(({ doc, agreed }) => ({ edited: doc, agreed }));
 const dismissed: Promise<null> = screen ? screen.closed.then(() => null) : new Promise(() => {});
 
 let outcome = await Promise.race([accepted, dismissed]);
@@ -200,6 +203,7 @@ if (outcome === null) {
   const changed = structuredPatch(name, name, sent, outcome.edited).hunks.length > 0;
   process.stdout.write(changed ? patch : "no changes — the human accepted the document as written\n");
   if (changed) process.stdout.write(commentReport(outcome.edited));
+  if (outcome.agreed) process.stdout.write(`\n${agreement}\n`);
 }
 
 function wait(ms: number): Promise<void> {

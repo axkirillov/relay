@@ -203,7 +203,7 @@ try {
   await key("q"); await waitPhase(10, "queued");
   await key("A"); await call("Input.insertText", { text: "; printf 'changed\\n'" }); await key("Escape");
   assert.equal(await text('[data-run-id="10"] .cm-run-edited'), "command edited");
-  await key("x", 2);
+  await key("s", 4);
   await until(() => relay.exitCode !== null, "accepted diff");
   assert.equal(relay.exitCode, 0, relay.errors);
   assert.ok(relay.output.includes("[x] Keep the layout"));
@@ -241,7 +241,7 @@ try {
   await click("#help");
   assert.equal(await text("#help-close"), "esc back to round");
   assert.ok(!(await text("#help-dialog")).includes("Tick or untick"));
-  assert.ok(!(await text("#help-dialog")).includes("Accept and send"));
+  assert.ok(!(await text("#help-dialog")).includes("Send your reply"));
   await key("x", 2);
   assert.equal(await js('document.querySelector("#help-dialog").open'), true);
   await shot("read-help");

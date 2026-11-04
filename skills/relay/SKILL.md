@@ -28,7 +28,7 @@ and exits.
 
 | Exit | Meaning | stdout |
 |---|---|---|
-| 0 | Accepted | The unified diff of their edits, or `no changes — the human accepted the document as written` |
+| 0 | Sent or agreed | The unified diff of their edits, or `no changes — the human accepted the document as written`. When they agreed, a last line follows: `the user agrees with the agent's proposals` |
 | 1 | Closed without a reply | Empty. Do not resend the same document; ask in the terminal or wait. |
 | 2 | Bad usage, or the file could not be read | Empty; stderr says why |
 

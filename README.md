@@ -78,7 +78,9 @@ next or previous box, ticked or not. The tick is the text `[x]`, so the
 diff carries it back like any other edit, and a question can still be answered in
 words anywhere around it.
 
-In the window: `⌘X` or `ZZ` accepts — `:wq`, `:x` and `:acc` do too — `:q`
+In the window: `⌘S` or `ZZ` sends your reply — `:wq`, `:x` and `:acc` do too.
+`⌘A` or `:agree` sends it as well, and the agent gets the line *the user agrees
+with the agent's proposals* after the diff; in insert mode `⌘A` selects all. `:q`
 closes without replying, `:w` saves the draft now, and `:res` puts a stretch of
 the document back the way it arrived: the cursor line in normal mode, the
 selection in visual mode, or a range like `:12,18res`. Lines are numbered so they
@@ -88,10 +90,10 @@ Whatever a yank or a delete takes reaches the system clipboard as well as vim's
 own register — vim's `clipboard=unnamed` — so what `y` picks up leaves the window
 with you.
 
-The footer keeps mode, edit count and **Accept** in place. Its second row shows
+The footer keeps mode, edit count, **Agree** and **Send** in place. Its second row shows
 one action for the cursor: **Run**, **Tick/Untick**, **Open link**, or a mode
 change, with the key beside it. You can click that action too. Status messages
-and the waiting-document count share this row without moving Accept. **Help**
+and the waiting-document count share this row without moving Send. **Help**
 (or `:help`) opens the shortcut list; Escape closes it and returns to the editor.
 The document stays narrow and centred.
 

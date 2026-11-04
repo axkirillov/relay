@@ -21,9 +21,11 @@ const bundle = fileURLToPath(new URL("./assets/relay.js", import.meta.url));
 const styles = fileURLToPath(new URL("./assets/relay.css", import.meta.url));
 const diagrams = fileURLToPath(new URL("./assets/mermaid.js", import.meta.url));
 
+export type Reply = { doc: string; agreed: boolean };
+
 export type Relay = {
   url: string;
-  accepted: Promise<string>;
+  accepted: Promise<Reply>;
   close(): void;
 };
 
@@ -44,8 +46,8 @@ export async function serve(
   opts: Options = {},
 ): Promise<Relay> {
   ensureDefaultTheme();
-  let settle: (doc: string) => void;
-  const accepted = new Promise<string>((resolve) => {
+  let settle: (reply: Reply) => void;
+  const accepted = new Promise<Reply>((resolve) => {
     settle = resolve;
   });
 
@@ -403,7 +405,7 @@ let taken = false;
 function handleAccept(
   req: IncomingMessage,
   res: ServerResponse,
-  settle: (doc: string) => void,
+  settle: (reply: Reply) => void,
   letGo: (waiting: Waiting[], finished: Record<number, boolean>) => void,
 ) {
   const chunks: Buffer[] = [];
@@ -426,15 +428,17 @@ function handleAccept(
     let doc = body;
     let waiting: Waiting[] = [];
     let finished: Record<number, boolean> = {};
+    let agreed = false;
     if (req.headers["content-type"] === "application/vnd.relay.accept+json") {
       try {
-        const payload = JSON.parse(body) as { doc: string; waiting: Waiting[]; finished: Record<number, boolean> };
-        if (typeof payload.doc !== "string" || !Array.isArray(payload.waiting) || typeof payload.finished !== "object" ||
+        const payload = JSON.parse(body) as { doc: string; waiting: Waiting[]; finished: Record<number, boolean>; agreed?: boolean };
+        if (typeof payload.doc !== "string" || (payload.agreed !== undefined && typeof payload.agreed !== "boolean") || !Array.isArray(payload.waiting) || typeof payload.finished !== "object" ||
           payload.waiting.some((item) => !Number.isSafeInteger(item.id) || !Number.isSafeInteger(item.previous) ||
             typeof item.command !== "string" || item.command.length > maxCommandBytes)) throw new Error("invalid queue");
         doc = payload.doc;
         waiting = payload.waiting;
         finished = payload.finished;
+        agreed = payload.agreed === true;
       } catch {
         return send(res, 400, "text/plain", "invalid queued commands");
       }
@@ -446,7 +450,7 @@ function handleAccept(
       taken = false;
       return send(res, 500, "text/plain", `could not hand off queued commands: ${(err as Error).message}`);
     }
-    res.writeHead(204).end(() => settle(doc));
+    res.writeHead(204).end(() => settle({ doc, agreed }));
   });
 }
 

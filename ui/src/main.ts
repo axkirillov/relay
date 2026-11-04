@@ -147,11 +147,11 @@ function watchQueue() {
   window.setInterval(() => void read(), 1000);
 }
 
-async function accept() {
+async function accept(agreed = false) {
   if (sending) return;
   sending = true;
   const waiting = [...pending.values()];
-  overlay("↑", "sending", "handing your reply to the agent…");
+  overlay("↑", agreed ? "agreeing" : "sending", "handing your reply to the agent…");
   try {
     await ttys.settle();
     if (waiting.length) {
@@ -167,12 +167,13 @@ async function accept() {
     const res = await fetch("/accept", {
       method: "POST",
       headers: { "Content-Type": "application/vnd.relay.accept+json" },
-      body: JSON.stringify({ doc: view.state.doc.toString(), waiting, finished: Object.fromEntries(finished) }),
+      body: JSON.stringify({ doc: view.state.doc.toString(), waiting, finished: Object.fromEntries(finished), agreed }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    overlay("✓", "accepted", "the agent has your reply — this window is closing");
+    const done = agreed ? "agreed" : "sent";
+    overlay("✓", done, "the agent has your reply — this window is closing");
     setTimeout(() => {
-      overlay("✓", "accepted", "the agent has your reply — you can close this window now");
+      overlay("✓", done, "the agent has your reply — you can close this window now");
     }, 3000);
   } catch (err) {
     sending = false;
@@ -447,6 +448,7 @@ async function open(href: string) {
 function bindVim(original: string) {
   if (!reading) {
     Vim.defineEx("accept", "acc", () => void accept());
+    Vim.defineEx("agree", "agree", () => void accept(true));
     Vim.defineEx("write", "w", () => void saveNow());
     Vim.defineEx("wq", "wq", () => void accept());
     Vim.defineEx("xit", "x", () => void accept());
@@ -605,6 +607,7 @@ async function boot() {
   document.getElementById("context-action")!.addEventListener("click", useContext);
   if (!reading) {
     document.getElementById("accept")!.addEventListener("click", () => void accept());
+    document.getElementById("agree")!.addEventListener("click", () => void accept(true));
     document.getElementById("retry")!.addEventListener("click", () => void saveNow());
   }
   else document.getElementById("close")!.addEventListener("click", () => window.close());
@@ -623,10 +626,12 @@ async function boot() {
   window.addEventListener(
     "keydown",
     (e) => {
-      if (reading || help.isOpen() || ttys.inside(e.target) || !e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.key.toLowerCase() !== "x") return;
+      if (reading || help.isOpen() || ttys.inside(e.target) || !e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      const key = e.key.toLowerCase();
+      if (key !== "s" && !(key === "a" && currentMode !== "insert")) return;
       e.preventDefault();
       e.stopPropagation();
-      void accept();
+      void accept(key === "a");
     },
     true,
   );
