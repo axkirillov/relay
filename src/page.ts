@@ -43,7 +43,7 @@ export function page(source: string, framed = false, readOnly = false): string {
     border-top: 1px solid var(--line);
     color: var(--dim);
   }
-  .footer-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: .75rem; }
+  .footer-bar { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: auto; align-items: center; gap: .75rem; }
   .footer-state { display: flex; gap: .75rem; min-width: 0; align-items: center; }
   #stats, #note, #queue { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #stats { min-width: 0; }

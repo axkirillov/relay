@@ -607,7 +607,7 @@ async function boot() {
   document.getElementById("context-action")!.addEventListener("click", useContext);
   if (!reading) {
     document.getElementById("accept")!.addEventListener("click", () => void accept());
-    document.getElementById("agree")!.addEventListener("click", () => void accept(true));
+    document.getElementById("agree")?.addEventListener("click", () => void accept(true));
     document.getElementById("retry")!.addEventListener("click", () => void saveNow());
   }
   else document.getElementById("close")!.addEventListener("click", () => window.close());
