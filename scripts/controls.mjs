@@ -151,6 +151,7 @@ try {
   await goto("printf 'second"); await key("j", 2);
   await until(() => js('document.querySelector("#run-choice").hasAttribute("data-show")'), "run chooser");
   await sleep(2100);
+  await shot("run-choice");
   await key("p"); await waitPhase(2, "running");
   await goto("printf 'queued"); await key("j", 2);
   await until(() => js('document.querySelector("#run-choice").hasAttribute("data-show")'), "queue chooser");

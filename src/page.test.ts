@@ -59,5 +59,7 @@ for (const document of [waiting, framed]) {
   assert.ok(!document.includes("⌘X"));
   assert.ok(document.includes("Close without replying"));
   assert.ok(document.includes("Restore this line or the selected lines"));
+  assert.ok(document.includes("<kbd>q</kbd> queue<small>"));
+  assert.ok(document.includes("<kbd>p</kbd> parallel<small>"));
 }
 console.log("ok   key-line footer, help and run-choice cards, and read-only controls");

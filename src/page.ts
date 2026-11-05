@@ -182,8 +182,8 @@ export function page(source: string, framed = false, readOnly = false): string {
       <div class="subject">run this command</div>
       <div id="run-preview"></div>
       <div class="choices">
-        <button class="row" data-choice="queue"><kbd>[Q]</kbd>ueue<small>after the previous run succeeds</small></button>
-        <button class="row" data-choice="parallel"><kbd>[P]</kbd>arallel<small>start now, on its own</small></button>
+        <button class="row" data-choice="queue"><kbd>q</kbd> queue<small>after the previous run succeeds</small></button>
+        <button class="row" data-choice="parallel"><kbd>p</kbd> parallel<small>start now, on its own</small></button>
       </div>
       <div class="keys"><span><kbd>↑↓</kbd> move</span><span><kbd>↵</kbd> run</span><span class="spacer"></span><span><kbd>esc</kbd> cancel</span></div>
     </div>

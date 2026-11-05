@@ -140,7 +140,7 @@ At the right are the queue (*2 waiting*, dim, no box), *help* as a soft button, 
 
 - **Help** is labelled *KEYS*, with the subject *edit and reply* (or *read this round*). Each section is headed by a dim label. Each entry is the key in `--fg`, then what it does in `--said`. The note at the bottom is dim at 11px. The key line reads *esc close*.
 - **The diagram menu** opens where a diagram is right-clicked. It is a box on base with a line edge, no label and no subject: two rows, **[S]ave diagram as PNG…** and **[C]opy diagram as PNG**, each with its letter in sky.
-- **The run choice** is labelled *ANOTHER COMMAND IS RUNNING*, with the subject *run this command*. The command follows in dim at 11px. There are two rows, **[Q]ueue** and **[P]arallel**, each with its letter in sky and a dim second line. The keyboard's row is on surface0. The key line reads *↑↓ move ↵ run esc cancel*.
+- **The run choice** is labelled *ANOTHER COMMAND IS RUNNING*, with the subject *run this command*. The command follows in dim at 11px. There are two rows, *q queue* and *p parallel*: the key first in sky, then the verb, as passe puts a key before its label, and a dim second line. The keyboard's row is on surface0. The key line reads *↑↓ move ↵ run esc cancel*.
 
 **A key line** is passe's: 11px, the key bare in `--fg`, then the verb in dim, entries `.75rem` apart.
 
