@@ -18,7 +18,7 @@ assert.ok(waiting.includes("<body>"));
 assert.ok(reading.includes("<body data-read>"));
 assert.ok(!reading.includes('id="accept"'));
 assert.ok(!reading.includes('id="agree"'));
-assert.ok(reading.includes('<button id="close" class="button primary" type="button">close <kbd>:q</kbd></button>'));
+assert.ok(reading.includes('<button id="close" class="button primary" type="button"><kbd>:q</kbd> close</button>'));
 assert.ok(!reading.includes("Send your reply"));
 assert.ok(!reading.includes("Tick or untick"));
 assert.ok(!reading.includes("Close without replying"));
@@ -51,9 +51,9 @@ for (const document of [waiting, framed, reading]) {
 }
 for (const document of [waiting, framed]) {
   assert.ok(document.includes('<button id="accept" class="button primary"'));
-  assert.ok(document.includes("send <kbd>⌘S</kbd>"));
+  assert.ok(document.includes("<kbd>⌘S</kbd> send</button>"));
   assert.ok(document.includes('<button id="agree" class="button"'));
-  assert.ok(document.includes("agree <kbd>⌘A</kbd>"));
+  assert.ok(document.includes("<kbd>⌘A</kbd> agree</button>"));
   assert.ok(document.includes("<kbd>⌘S</kbd> · <kbd>ZZ</kbd>"));
   assert.ok(document.includes("<kbd>⌘A</kbd> · <kbd>:agree</kbd>"));
   assert.ok(!document.includes("⌘X"));

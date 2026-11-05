@@ -136,8 +136,8 @@ export function page(source: string, framed = false, readOnly = false): string {
       </div>
       <span id="queue"></span>
       <button id="help" class="button soft" type="button" aria-haspopup="dialog" aria-controls="help-dialog">help</button>
-      ${readOnly ? `<button id="close" class="button primary" type="button">close <kbd>:q</kbd></button>` : `<button id="agree" class="button" type="button" title="Send your reply and agree with the agent's proposals">agree <kbd>⌘A</kbd></button>
-      <button id="accept" class="button primary" type="button" title="Send your reply">send <kbd>⌘S</kbd></button>`}
+      ${readOnly ? `<button id="close" class="button primary" type="button"><kbd>:q</kbd> close</button>` : `<button id="agree" class="button" type="button" title="Send your reply and agree with the agent's proposals"><kbd>⌘A</kbd> agree</button>
+      <button id="accept" class="button primary" type="button" title="Send your reply"><kbd>⌘S</kbd> send</button>`}
     </div>
   </footer>
 

@@ -75,7 +75,7 @@ kbd { font: inherit; color: var(--fg); }
   .button.soft:hover { color: var(--fg); background: var(--hover); }
   .button.danger { color: var(--danger); }
   .button.primary { color: var(--deep); background: var(--accent); border-color: var(--accent); font-weight: 600; }
-  .button.primary kbd { color: inherit; font-weight: 400; margin-left: .4em; }
+  .button.primary kbd { color: inherit; font-weight: 400; }
   .button.primary:hover { background: color-mix(in srgb, var(--accent) 85%, transparent); }
   .button.primary:focus-visible { outline-offset: 2px; }
 
