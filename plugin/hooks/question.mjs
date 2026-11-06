@@ -1,12 +1,20 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { answer, askInRelay, readHookInput } from "./window.mjs";
 
 const otherLabel = "Other:";
 
-export function questionDocument(questions) {
+const quoteLimit = 1200;
+
+export function questionDocument(questions, context = {}) {
   const parts = ["# Claude asks", ""];
+  parts.push(`Claude, working in \`${context.cwd ?? "?"}\`, stopped to ask you ${questions.length === 1 ? "a question" : `${questions.length} questions`}.`);
+  parts.push("Tick your answers, or write your own under *Other*, then accept.", "");
+  if (context.prompt) parts.push("Your last message to it:", "", quoted(context.prompt), "");
+  if (context.said) parts.push("What it said before asking:", "", quoted(context.said), "");
   questions.forEach((question, index) => {
     parts.push(`## ${index + 1}. ${question.question}`, "");
+    if (question.header) parts.push(`*${question.header}*`, "");
     parts.push(question.multiSelect ? "Tick any." : "Tick one.", "");
     for (const option of question.options ?? []) {
       parts.push(`- [ ] ${option.label}${option.description ? ` — ${option.description}` : ""}`);
@@ -31,6 +39,41 @@ export function answersFrom(text, questions) {
   return answers;
 }
 
+function quoted(text) {
+  const clipped = text.length > quoteLimit ? `${text.slice(0, quoteLimit)}…` : text;
+  return clipped.trim().split("\n").map((line) => `> ${line}`).join("\n");
+}
+
+export function conversationContext(transcriptPath) {
+  let lines;
+  try {
+    lines = readFileSync(transcriptPath, "utf8").split("\n").filter(Boolean);
+  } catch {
+    return {};
+  }
+  let prompt;
+  const said = [];
+  for (const line of lines) {
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const content = entry.message?.content;
+    if (entry.type === "user" && !entry.isMeta) {
+      const text = typeof content === "string" ? content : (content ?? []).filter((part) => part.type === "text").map((part) => part.text).join("\n");
+      if (text.trim()) {
+        prompt = text;
+        said.length = 0;
+      }
+    } else if (entry.type === "assistant" && Array.isArray(content)) {
+      for (const part of content) if (part.type === "text" && part.text.trim()) said.push(part.text);
+    }
+  }
+  return { prompt, said: said.join("\n\n") || undefined };
+}
+
 function tickedLine(line, label) {
   const match = /^\s*[-*] \[[xX]\] (.*)$/.exec(line);
   return !!match && (match[1] === label || match[1].startsWith(`${label} — `));
@@ -38,7 +81,8 @@ function tickedLine(line, label) {
 
 export async function decide(input, ask = askInRelay) {
   const questions = input.tool_input?.questions ?? [];
-  const reply = await ask(questionDocument(questions), input.cwd);
+  const context = { cwd: input.cwd, ...conversationContext(input.transcript_path) };
+  const reply = await ask(questionDocument(questions, context), input.cwd);
   if (!reply.accepted) return deny("The user closed the relay window without answering.");
   const answers = answersFrom(reply.text, questions);
   if (!Object.keys(answers).length) return deny("The user accepted the relay window without answering.");

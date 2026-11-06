@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { answersFrom, questionDocument } from "./question.mjs";
+import { answersFrom, conversationContext, questionDocument } from "./question.mjs";
 import { permissionDocument, verdictFrom } from "./permission.mjs";
 import { applyDiff } from "./window.mjs";
 
@@ -94,4 +94,28 @@ test("the permission hook allows only when Allow is ticked", () => {
   const input = { cwd: tmpdir(), tool_name: "Bash", tool_input: { command: "ls" } };
   assert.deepEqual(runHook("permission.mjs", input, stubRelay("s/- \\[ \\] Allow/- [x] Allow/")).hookSpecificOutput.decision, { behavior: "allow" });
   assert.equal(runHook("permission.mjs", input, stubRelay("s/x/x/")).hookSpecificOutput.decision.behavior, "deny");
+});
+
+test("the question window quotes the last prompt and what Claude said since", () => {
+  const transcript = join(scratch, "transcript.jsonl");
+  const entry = (type, content) => JSON.stringify({ type, message: { content } });
+  writeFileSync(transcript, [
+    entry("user", "an older prompt"),
+    entry("assistant", [{ type: "text", text: "old reply" }]),
+    entry("user", "Pick a colour for the logo"),
+    entry("assistant", [{ type: "thinking", thinking: "hm" }]),
+    entry("assistant", [{ type: "text", text: "Two shades fit the brand." }]),
+    entry("user", [{ type: "tool_result", content: "ok" }]),
+  ].join("\n") + "\n");
+  const context = conversationContext(transcript);
+  assert.deepEqual(context, { prompt: "Pick a colour for the logo", said: "Two shades fit the brand." });
+  const sent = questionDocument(questions, { cwd: "/w", ...context });
+  assert.match(sent, /^> Pick a colour for the logo$/m);
+  assert.match(sent, /^> Two shades fit the brand\.$/m);
+  assert.doesNotMatch(sent, /older prompt/);
+  assert.deepEqual(answersFrom(sent.replace("- [ ] Vue", "- [x] Vue"), questions), { "Which framework?": "Vue" });
+});
+
+test("a missing transcript leaves only the questions", () => {
+  assert.deepEqual(conversationContext(join(scratch, "none.jsonl")), {});
 });
