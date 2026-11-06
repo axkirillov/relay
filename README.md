@@ -228,9 +228,15 @@ and Windows is not a story it tells.
 - the skills `relay`, `relay-html`, `relay-images`, `relay-mermaid` and `relay-pr`;
 - the Clear output style, which tells the agent that the terminal is not read
   and relay is the one channel to you;
-- for Claude Code, two hooks: a question Claude asks with AskUserQuestion opens
+- for Claude Code, hooks: a question Claude asks with AskUserQuestion opens
   as a relay window with checkboxes, and an approval prompt opens as a relay
-  window with **Allow** and **Deny**. Your answer goes back to Claude.
+  window with **Allow** and **Deny**. Your answer goes back to Claude. A plain
+  `relay <file>` call runs without asking;
+- for pi, the same skills and style, and, over `pi.events` when a session
+  starts: `auto-mode:trust` lets a plain `relay <file>` through, alone in its
+  batch; `secret-scanner:paths` has the document scanned before it opens;
+  `background-bash:hold` makes relay run in the background and holds the turn
+  while its window is open. Extensions that do not listen ignore them.
 
 `relay --plugin-dir` prints the folder. Load it for one session:
 

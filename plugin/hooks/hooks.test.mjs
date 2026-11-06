@@ -130,3 +130,10 @@ test("a plain relay call is allowed without opening a window", async () => {
     assert.equal(isRelayCall({ tool_name: "Bash", tool_input: { command } }), false, command);
   }
 });
+
+test("a plain relay call skips the permission check, anything else is left alone", () => {
+  const relay = { tool_name: "Bash", tool_input: { command: "relay /tmp/a.md" } };
+  assert.equal(runHook("plain-relay.mjs", relay).hookSpecificOutput.permissionDecision, "allow");
+  const other = { tool_name: "Bash", tool_input: { command: "relay a.md && ls" } };
+  assert.equal(execFileSync("node", [join(here, "plain-relay.mjs")], { input: JSON.stringify(other), encoding: "utf8" }), "");
+});
