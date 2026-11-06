@@ -1,0 +1,8 @@
+{
+  "name": "relay",
+  "version": "0.1.0",
+  "description": "Talk to the user only through relay windows: the Clear output style, the relay skills, and questions and approval prompts answered in relay.",
+  "author": {
+    "name": "Aleksandr Kirillov"
+  }
+}

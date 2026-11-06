@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
@@ -18,6 +19,7 @@ const agreement = "the user agrees with the agent's proposals";
 const usage = `relay <file.md>
 relay --priority [off]
 relay --read <round>
+relay --plugin-dir
 
 Show a markdown document to the human and wait — for as long as it takes — for
 their reply. They can edit anywhere in it; their edits are highlighted live
@@ -47,6 +49,10 @@ happened — the name of a directory in ~/.relay, or the path to one — as it l
 the day it arrived, and prints the URL on stdout. Nothing is asked and nothing is
 answered: it joins no line, files no round, and waits until it is killed.
 
+\`--plugin-dir\` prints the folder of relay's agent plugin: a Claude Code plugin
+(\`claude --plugin-dir <it>\`) and, in its pi/ folder, a pi extension
+(\`pi -e <it>/pi/index.ts\`).
+
 Waiting for a human outlasts most command timeouts, and a queued relay waits
 longer still. If the harness running this puts a clock on a command, start relay
 in the background and read its output when it exits — a timeout that fires while
@@ -59,6 +65,11 @@ the window is open costs the human's reply.
 delete process.env.ELECTRON_RUN_AS_NODE;
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
+
+if (args.length === 1 && args[0] === "--plugin-dir") {
+  process.stdout.write(fileURLToPath(new URL("../plugin", import.meta.url)) + "\n");
+  process.exit(0);
+}
 
 if (args.length <= 2 && args[0] === "--priority") {
   const state = args[1] ?? "on";

@@ -1,0 +1,16 @@
+{
+  "name": "relay",
+  "owner": {
+    "name": "Aleksandr Kirillov"
+  },
+  "metadata": {
+    "description": "Relay's agent plugin: talk to the user through relay windows."
+  },
+  "plugins": [
+    {
+      "name": "relay",
+      "source": "./plugin",
+      "description": "Talk to the user only through relay windows: the Clear output style, the relay skills, and questions and approval prompts answered in relay."
+    }
+  ]
+}

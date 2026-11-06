@@ -221,19 +221,34 @@ source and the link points into it, so the clone stays where it is and
 `git pull && pnpm build` is the upgrade. macOS and Linux; the window is Electron,
 and Windows is not a story it tells.
 
-### The Claude Code skill
+### The agent plugin
 
-`skills/relay/` teaches Claude Code to ask through relay: run it in the
-background, stop while the window is open, and read the diff that comes back.
-Link it into your skills, from the clone:
+`plugin/` makes an agent talk to you only through relay. It carries:
+
+- the skills `relay`, `relay-html`, `relay-images`, `relay-mermaid` and `relay-pr`;
+- the Clear output style, which tells the agent that the terminal is not read
+  and relay is the one channel to you;
+- for Claude Code, two hooks: a question Claude asks with AskUserQuestion opens
+  as a relay window with checkboxes, and an approval prompt opens as a relay
+  window with **Allow** and **Deny**. Your answer goes back to Claude.
+
+`relay --plugin-dir` prints the folder. Load it for one session:
 
 ```sh
-mkdir -p ~/.claude/skills
-ln -s "$PWD/skills/relay" ~/.claude/skills/relay
+claude --plugin-dir "$(relay --plugin-dir)"
+pi -e "$(relay --plugin-dir)/pi/index.ts"
 ```
 
-For one project only, link it into that project's `.claude/skills/` instead.
-`git pull` updates it with the rest.
+Or install it for every session:
+
+```sh
+claude plugin marketplace add axkirillov/relay
+claude plugin install relay@relay
+pi install git:github.com/axkirillov/relay
+```
+
+The Clear style forces itself on in every session the plugin loads in, so
+load it where you want relay to be the only channel.
 
 ## Build
 
@@ -241,7 +256,7 @@ For one project only, link it into that project's `.claude/skills/` instead.
 pnpm install
 pnpm build        # dist/relay.js, dist/shell.cjs, dist/queue-worker.js, the editor bundle, and Mermaid's
 pnpm check        # types
-pnpm test         # the line arithmetic behind :res, the queue, the window's presence
+pnpm test         # the line arithmetic behind :res, the queue, the window's presence, the plugin's hooks
 pnpm smoke        # end to end, no window: two relays of one task, the second carrying the first
 pnpm smoke:open   # the link under the cursor out to the machine's opener, whole and as data
 pnpm smoke:queue  # two relays, one window, in turn — opens a real window briefly
