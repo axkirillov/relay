@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { answersFrom, conversationContext, questionDocument } from "./question.mjs";
-import { permissionDocument, verdictFrom } from "./permission.mjs";
+import { decide as decidePermission, isRelayCall, permissionDocument, verdictFrom } from "./permission.mjs";
 import { applyDiff } from "./window.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -118,4 +118,15 @@ test("the question window quotes the last prompt and what Claude said since", ()
 
 test("a missing transcript leaves only the questions", () => {
   assert.deepEqual(conversationContext(join(scratch, "none.jsonl")), {});
+});
+
+test("a plain relay call is allowed without opening a window", async () => {
+  const never = () => assert.fail("opened a window");
+  for (const command of ["relay /tmp/a.md", "  ~/.local/bin/relay notes.md"]) {
+    const out = await decidePermission({ tool_name: "Bash", tool_input: { command } }, never);
+    assert.equal(out.hookSpecificOutput.decision.behavior, "allow");
+  }
+  for (const command of ["relay a.md; rm -rf x", "rm;~/relay a.md", "relay a.md > ~/.zshrc", "relay a.md && ls", "relay $(cat x)", "echo relay a.md", "relay"]) {
+    assert.equal(isRelayCall({ tool_name: "Bash", tool_input: { command } }), false, command);
+  }
 });

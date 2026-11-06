@@ -30,12 +30,22 @@ export function verdictFrom(text) {
   return { allow: ticked("Allow") && !ticked("Deny"), note: rest.join(noteLabel).trim() };
 }
 
+export function isRelayCall(input) {
+  const command = input.tool_input?.command;
+  return input.tool_name === "Bash" && typeof command === "string" && /^\s*([^\s;&|$`]*\/)?relay\s+[^;&|$`<>()\n]+$/.test(command);
+}
+
 export async function decide(input, ask = askInRelay) {
+  if (isRelayCall(input)) return allow();
   const reply = await ask(permissionDocument(input), input.cwd);
   if (!reply.accepted) return deny("The user closed the relay window without answering. Do not retry.");
-  const { allow, note } = verdictFrom(reply.text);
-  if (allow) return { hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "allow" } } };
+  const { allow: allowedByUser, note } = verdictFrom(reply.text);
+  if (allowedByUser) return allow();
   return deny(note ? `The user denied this in relay: ${note}` : "The user denied this in relay. Do not retry.");
+}
+
+function allow() {
+  return { hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "allow" } } };
 }
 
 function deny(message) {
