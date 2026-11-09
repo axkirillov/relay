@@ -228,10 +228,8 @@ and Windows is not a story it tells.
 - the skills `relay`, `relay-html`, `relay-images`, `relay-mermaid` and `relay-pr`;
 - the Clear output style, which tells the agent that the terminal is not read
   and relay is the one channel to you;
-- for Claude Code, hooks: a question Claude asks with AskUserQuestion opens
-  as a relay window with checkboxes, and an approval prompt opens as a relay
-  window with **Allow** and **Deny**. Your answer goes back to Claude. A plain
-  `relay <file>` call runs without asking;
+- for Claude Code, a hook that lets a plain `relay <file>` call run without
+  asking;
 - for pi, the same skills and style, and, over `pi.events` when a session
   starts: `auto-mode:trust` lets a plain `relay <file>` through, alone in its
   batch; `secret-scanner:paths` has the document scanned before it opens;
