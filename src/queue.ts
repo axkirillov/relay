@@ -33,6 +33,10 @@ export type Waiting = {
   url?: string;
 };
 
+export function passeSession(): string | undefined {
+  return process.env.PASSE_SESSION || undefined;
+}
+
 export function enter(id: string, source: string, task: string): Turn {
   const dir = queueDir();
   mkdirSync(dir, { recursive: true });
@@ -41,7 +45,7 @@ export function enter(id: string, source: string, task: string): Turn {
   const name = `${since}-${process.pid}.json`;
   const mine = join(dir, name);
 
-  const fields: Record<string, unknown> = { pid: process.pid, client: clientOf(), id, source, since, task };
+  const fields: Record<string, unknown> = { pid: process.pid, client: clientOf(), session: passeSession(), id, source, since, task };
   let ticket = body();
   writeFileSync(mine, ticket);
 
