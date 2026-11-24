@@ -16,6 +16,11 @@ their edits is printed to stdout.
 - exit **1** — the window was closed without a reply; stdout is empty
 - exit **2** — bad usage, or the file could not be read
 
+The window does not belong to the process that asked. `relay <file.md>` starts
+the window's server as a process of its own and passes its output and exit code
+back. Killing relay, or closing the session that ran it, leaves the window open
+and in line; an answer sent after that is still saved in `~/.relay/<round>/`.
+
 The document is rendered, not shown as source: markdown tables, HTML and inline
 SVG are drawn in place, so a diagram or a chart written into the document arrives
 as a picture. So is a ```` ```mermaid ```` fence — a class diagram, a flowchart, a
@@ -269,6 +274,7 @@ pnpm smoke:dismiss # closing the window dismisses the queued relay too
 pnpm smoke:read   # saved rounds stay read-only, including their logs
 pnpm smoke:queue-handoff # queued commands survive acceptance
 pnpm smoke:detach # an active command survives acceptance
+pnpm smoke:outlive # killing relay leaves its window open, and the answer is still saved
 pnpm smoke:controls # headless Chrome: contextual footer, Help, run badges and Stop
 ```
 

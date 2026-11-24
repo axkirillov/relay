@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
+import { clientOf, detach, reportTo, spoolOf } from "./detach.js";
 import { commentReport, earlyCloses } from "./diff.js";
 import * as priority from "./priority.js";
 import * as queue from "./queue.js";
@@ -28,6 +29,10 @@ against what you sent.
 When they send, the unified diff of their edits is printed to stdout and relay
 exits 0. When they agree, the diff is followed by the line "${agreement}".
 If they close the window without replying, relay exits 1 and prints nothing.
+
+The window does not belong to the process that asked. relay serves it from a
+process of its own, so killing relay, or closing the session that ran it, leaves
+the window open; the answer is still saved in ~/.relay/<round> when it comes.
 
 A \`\`\`diff block is shown as a review the human can write in. They edit the patch
 where it stands, and any line they write that does not open with a diff marker is
@@ -158,6 +163,11 @@ if (broken.length) {
   );
   process.exit(2);
 }
+
+if (!process.env.RELAY_NO_OPEN && !spoolOf()) process.exit(await detach(args));
+
+const spool = spoolOf();
+if (spool) reportTo(spool, clientOf());
 
 const task = tasks.taskOf(process.cwd());
 tasks.fill();

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { clientOf } from "./detach.ts";
 import { alive, beatMs, touch } from "./live.ts";
 import { queueDir } from "./paths.ts";
 import { marked } from "./priority.ts";
@@ -24,6 +25,7 @@ export type Waiting = {
   name: string;
   at: number;
   pid: number;
+  client?: number;
   rank: Rank;
   id?: string;
   source?: string;
@@ -39,7 +41,7 @@ export function enter(id: string, source: string, task: string): Turn {
   const name = `${since}-${process.pid}.json`;
   const mine = join(dir, name);
 
-  const fields: Record<string, unknown> = { pid: process.pid, id, source, since, task };
+  const fields: Record<string, unknown> = { pid: process.pid, client: clientOf(), id, source, since, task };
   let ticket = body();
   writeFileSync(mine, ticket);
 
@@ -134,7 +136,8 @@ export function line(dir = queueDir()): Waiting[] {
       continue;
     }
     try {
-      const { id, source, url, task } = JSON.parse(readFileSync(file, "utf8"));
+      const { id, source, url, task, client } = JSON.parse(readFileSync(file, "utf8"));
+      if (typeof client === "number") t.client = client;
       if (typeof id === "string") t.id = id;
       if (typeof source === "string") t.source = source;
       if (typeof url === "string") t.url = url;
