@@ -37,7 +37,8 @@
     "smoke:read": "bash scripts/read.sh",
     "smoke:controls": "node scripts/controls.mjs",
     "smoke:draft": "bash scripts/draft.sh",
-    "smoke:outlive": "bash scripts/outlive.sh"
+    "smoke:outlive": "bash scripts/outlive.sh",
+    "smoke:versioned": "bash scripts/versioned.sh"
   },
   "dependencies": {
     "@codemirror/commands": "^6.9.0",

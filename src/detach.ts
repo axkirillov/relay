@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { relayHome } from "./paths.ts";
@@ -34,7 +34,7 @@ export async function detach(args: string[]): Promise<number> {
 
 function start(spool: string, args: string[]): Promise<number> {
   const script = '"$@" >"$RELAY_SPOOL/out" 2>"$RELAY_SPOOL/err" </dev/null & echo $!';
-  const child = spawn("/bin/sh", ["-c", script, "relay", process.execPath, ...process.execArgv, process.argv[1]!, ...args], {
+  const child = spawn("/bin/sh", ["-c", script, "relay", process.execPath, ...process.execArgv, realpathSync(process.argv[1]!), ...args], {
     detached: true,
     stdio: ["ignore", "pipe", "inherit"],
     env: { ...process.env, RELAY_SPOOL: spool, RELAY_CLIENT: String(process.pid) },

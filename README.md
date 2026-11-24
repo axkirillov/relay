@@ -226,6 +226,13 @@ source and the link points into it, so the clone stays where it is and
 `git pull && pnpm build` is the upgrade. macOS and Linux; the window is Electron,
 and Windows is not a story it tells.
 
+Each build goes into a folder of its own under `dist/builds/`, and `dist/current`
+is switched to it only once it is complete. `dist/relay.js` and `dist/shell.cjs`
+lead through `dist/current`. A relay that is already running keeps reading the
+build it started from, so a rebuild never changes what an open window is served.
+A build stays while a running relay uses it, and the build before the current one
+always stays; the next build removes the rest.
+
 ### The agent plugin
 
 `plugin/` makes an agent talk to you only through relay. It carries:
@@ -263,7 +270,7 @@ load it where you want relay to be the only channel.
 
 ```
 pnpm install
-pnpm build        # dist/relay.js, dist/shell.cjs, dist/queue-worker.js, the editor bundle, and Mermaid's
+pnpm build        # a new dist/builds/<id>/ (relay.js, shell.cjs, queue-worker.js, the editor bundle, Mermaid's), then dist/current
 pnpm check        # types
 pnpm test         # the line arithmetic behind :res, the queue, the window's presence, the plugin's hooks
 pnpm smoke        # end to end, no window: two relays of one task, the second carrying the first
@@ -275,6 +282,7 @@ pnpm smoke:read   # saved rounds stay read-only, including their logs
 pnpm smoke:queue-handoff # queued commands survive acceptance
 pnpm smoke:detach # an active command survives acceptance
 pnpm smoke:outlive # killing relay leaves its window open, and the answer is still saved
+pnpm smoke:versioned # a rebuild leaves a running relay on its own build; unused builds go
 pnpm smoke:controls # headless Chrome: contextual footer, Help, run badges and Stop
 ```
 

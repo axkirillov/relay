@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
+import { holdBuild } from "./builds.js";
 import { clientOf, detach, reportTo, spoolOf } from "./detach.js";
 import { commentReport, earlyCloses } from "./diff.js";
 import * as priority from "./priority.js";
@@ -68,11 +69,12 @@ the window is open costs the human's reply.
 `;
 
 delete process.env.ELECTRON_RUN_AS_NODE;
+holdBuild();
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
 
 if (args.length === 1 && args[0] === "--plugin-dir") {
-  process.stdout.write(fileURLToPath(new URL("../plugin", import.meta.url)) + "\n");
+  process.stdout.write(fileURLToPath(new URL("../../../plugin", import.meta.url)) + "\n");
   process.exit(0);
 }
 

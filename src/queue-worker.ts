@@ -2,6 +2,8 @@ import { spawn } from "node:child_process";
 import { closeSync, openSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { holdBuild } from "./builds.ts";
+
 export type Waiting = { id: number; command: string; previous: number };
 export type QueuePlan = {
   cwd: string;
@@ -64,6 +66,7 @@ export async function runQueue(plan: QueuePlan): Promise<void> {
 }
 
 if (process.argv[1]?.endsWith("queue-worker.js") && process.argv[2]) {
+  holdBuild();
   const plan = JSON.parse(readFileSync(process.argv[2], "utf8")) as QueuePlan;
   void runQueue(plan);
 }
