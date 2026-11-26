@@ -2,12 +2,16 @@ import { spawn } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { relayHome } from "./paths.ts";
+import { relayHome } from "@axkirillov/relay-contract/paths";
 
 const pollMs = 100;
 
 export function spoolOf(): string | undefined {
   return process.env.RELAY_SPOOL || undefined;
+}
+
+export function sessionOf(): string | undefined {
+  return process.env.RELAY_SESSION || undefined;
 }
 
 export function clientOf(): number | undefined {

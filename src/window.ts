@@ -2,9 +2,9 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-import { rehearsing } from "./paths.ts";
-import { lastClose, screenHeld } from "./presence.ts";
-import type { Turn } from "./queue.ts";
+import { rehearsing } from "@axkirillov/relay-contract/paths";
+import { lastClose, screenHeld } from "@axkirillov/relay-contract/presence";
+import type { Turn } from "@axkirillov/relay-contract/queue";
 
 const require = createRequire(import.meta.url);
 const shell = fileURLToPath(new URL("./shell.cjs", import.meta.url));

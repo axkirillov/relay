@@ -1,0 +1,50 @@
+{
+  "name": "@axkirillov/relay-contract",
+  "version": "0.1.0",
+  "description": "The files relay and the windows that show it share under ~/.relay: the queue, who holds the screen, priority, tasks and rounds.",
+  "license": "MIT",
+  "author": "Aleksandr Kirillov",
+  "homepage": "https://github.com/axkirillov/relay/tree/main/packages/contract#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/axkirillov/relay.git",
+    "directory": "packages/contract"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    "./live": "./src/live.ts",
+    "./paths": "./src/paths.ts",
+    "./presence": "./src/presence.ts",
+    "./priority": "./src/priority.ts",
+    "./queue": "./src/queue.ts",
+    "./round": "./src/round.ts",
+    "./task": "./src/task.ts"
+  },
+  "files": [
+    "dist",
+    "!dist/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./live": { "types": "./dist/live.d.ts", "default": "./dist/live.js" },
+      "./paths": { "types": "./dist/paths.d.ts", "default": "./dist/paths.js" },
+      "./presence": { "types": "./dist/presence.d.ts", "default": "./dist/presence.js" },
+      "./priority": { "types": "./dist/priority.d.ts", "default": "./dist/priority.js" },
+      "./queue": { "types": "./dist/queue.d.ts", "default": "./dist/queue.js" },
+      "./round": { "types": "./dist/round.d.ts", "default": "./dist/round.js" },
+      "./task": { "types": "./dist/task.d.ts", "default": "./dist/task.js" }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}

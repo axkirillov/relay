@@ -61,7 +61,7 @@ grep -q 'queued behind' "$TMP/b.err" && fail "the marked relay queued behind the
 # What the window would show, read the way the window reads it.
 head() {
   node --no-warnings --input-type=module -e \
-    "import { line } from '$WT/src/queue.ts'; const [h] = line(); process.stdout.write(h ? h.url + ' ' + h.rank : '')"
+    "import { line } from '$WT/packages/contract/src/queue.ts'; const [h] = line(); process.stdout.write(h ? h.url + ' ' + h.rank : '')"
 }
 [ "$(head)" = "$UB top" ] || fail "the head of the line is $(head), not the marked relay at $UB"
 
