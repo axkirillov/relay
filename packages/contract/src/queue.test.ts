@@ -54,18 +54,17 @@ const dead = 999_999;
 const live = process.ppid;
 
 {
-  process.env.PASSE_SESSION = "20261124-155605-5xc2";
-  const t = enter("tagged", "/tmp/tagged.md", mine);
+  const t = enter("tagged", "/tmp/tagged.md", mine, { session: "20261124-155605-5xc2" });
   const [name] = tickets();
-  check("a ticket names the passe session that ran relay", JSON.parse(readFileSync(join(dir, name!), "utf8")).session, "20261124-155605-5xc2");
+  check("a ticket names the session that ran relay", JSON.parse(readFileSync(join(dir, name!), "utf8")).session, "20261124-155605-5xc2");
+  check("and the line reads it back", line()[0]?.session, "20261124-155605-5xc2");
   t.leave();
-  delete process.env.PASSE_SESSION;
 }
 
 {
   const t = enter("untagged", "/tmp/untagged.md", mine);
   const [name] = tickets();
-  check("a ticket outside a passe session names none", "session" in JSON.parse(readFileSync(join(dir, name!), "utf8")), false);
+  check("a ticket outside a session names none", "session" in JSON.parse(readFileSync(join(dir, name!), "utf8")), false);
   t.leave();
 }
 

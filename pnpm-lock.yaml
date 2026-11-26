@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@axkirillov/relay-contract':
+        specifier: workspace:*
+        version: link:packages/contract
       '@codemirror/commands':
         specifier: ^6.9.0
         version: 6.10.4
@@ -93,6 +96,15 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
+  packages/contract:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
       typescript:
         specifier: ^5.9.2
         version: 5.9.3

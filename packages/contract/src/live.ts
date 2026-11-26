@@ -1,4 +1,5 @@
 import { statSync, utimesSync } from "node:fs";
+import { stat } from "node:fs/promises";
 
 export const staleMs = 10_000;
 export const beatMs = 2_000;
@@ -20,15 +21,30 @@ export function fresh(mtimeMs: number, now = Date.now(), awake = keepingTime(now
   return now - awake < staleMs;
 }
 
-export function alive(file: string, pid: number): boolean {
-  if (pid === process.pid) return true;
+function running(pid: number): boolean {
   try {
     process.kill(pid, 0);
+    return true;
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "EPERM") return false;
+    return (err as NodeJS.ErrnoException).code === "EPERM";
   }
+}
+
+export function alive(file: string, pid: number): boolean {
+  if (pid === process.pid) return true;
+  if (!running(pid)) return false;
   try {
     return fresh(statSync(file).mtimeMs);
+  } catch {
+    return false;
+  }
+}
+
+export async function aliveLater(file: string, pid: number): Promise<boolean> {
+  if (pid === process.pid) return true;
+  if (!running(pid)) return false;
+  try {
+    return fresh((await stat(file)).mtimeMs);
   } catch {
     return false;
   }

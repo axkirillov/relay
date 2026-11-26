@@ -1,4 +1,5 @@
 import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import { tasksDir } from "./paths.ts";
@@ -17,14 +18,23 @@ export function marked(task: string): boolean {
   }
 }
 
-export function mark(task: string, on: boolean): void {
+export async function markedLater(task: string): Promise<boolean> {
+  try {
+    await stat(file(task));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function mark(task: string, on: boolean): boolean {
   const path = file(task);
   if (!on) {
     try {
       rmSync(path);
     } catch {
     }
-    return;
+    return false;
   }
   const dir = taskDir(task);
   mkdirSync(dir, { recursive: true });
@@ -32,6 +42,11 @@ export function mark(task: string, on: boolean): void {
     writeFileSync(join(dir, "task"), task + "\n");
   } catch {}
   writeFileSync(path, "");
+  return true;
+}
+
+export function flip(task: string): boolean {
+  return mark(task, !marked(task));
 }
 
 export function all(): string[] {

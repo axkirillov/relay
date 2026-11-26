@@ -1,10 +1,10 @@
 import { join } from "node:path";
 
 import { app, BrowserWindow, Menu, screen } from "electron";
+import { relayHome } from "@axkirillov/relay-contract/paths";
+import { holdScreen, noteClosed } from "@axkirillov/relay-contract/presence";
+import * as queue from "@axkirillov/relay-contract/queue";
 
-import { relayHome } from "./paths.js";
-import { holdScreen, noteClosed } from "./presence.js";
-import * as queue from "./queue.js";
 import { loadTheme } from "./theme.js";
 
 const pollMs = 120;

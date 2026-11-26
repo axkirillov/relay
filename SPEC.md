@@ -684,11 +684,11 @@ has marked. A ticket says which session it came from — `task`, the worktree th
 relay was run in — and whether that session is marked is read off the ledger as
 the line is read, by relay.
 
-A ticket also carries `session`, the passe session record from `PASSE_SESSION`,
-when relay runs inside one. The worktree cannot always name the sender: an agent
-may run relay from its task folder or `/tmp`, and a relay from an OrbStack VM
-reaches the Mac with no process parent in the session. The record id can, and
-passe reads it to show whose document is on screen.
+A ticket also carries `session`, from `RELAY_SESSION`, when whatever started the
+agent set it. The worktree cannot always name the sender: an agent may run relay
+from its task folder or `/tmp`, and a relay from a VM reaches the Mac with no
+process parent in the session. The session id can, and a window that shows the
+queue reads it to show whose document is on screen. relay does not interpret it.
 
 The line is per-human, not per-repo: relays from four worktrees share it. No
 timeout, no cap. `RELAY_NO_OPEN=1` skips the line, having no window to contend

@@ -2,18 +2,18 @@ import { readFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import * as priority from "@axkirillov/relay-contract/priority";
+import * as queue from "@axkirillov/relay-contract/queue";
+import { read as readRound, type Round } from "@axkirillov/relay-contract/round";
+import * as tasks from "@axkirillov/relay-contract/task";
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
 import { holdBuild } from "./builds.js";
-import { clientOf, detach, reportTo, spoolOf } from "./detach.js";
+import { clientOf, detach, reportTo, sessionOf, spoolOf } from "./detach.js";
 import { commentReport, earlyCloses } from "./diff.js";
-import * as priority from "./priority.js";
-import * as queue from "./queue.js";
-import { read as readRound, type Round } from "./round.js";
 import { scratchDir } from "./run.js";
 import { serve } from "./server.js";
 import * as storage from "./storage.js";
-import * as tasks from "./task.js";
 import { attend } from "./window.js";
 
 const agreement = "the user agrees with the agent's proposals";
@@ -178,7 +178,7 @@ const prefill = process.env.RELAY_PREFILL ? await readFile(process.env.RELAY_PRE
 
 const store = storage.open(path, sent);
 tasks.note(task, store.id);
-const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path, task);
+const turn = process.env.RELAY_NO_OPEN ? null : queue.enter(store.id, path, task, { client: clientOf(), session: sessionOf() });
 
 const relay = await serve(path, sent, prefill, () => store.dir, {
   onDraft: store.draft,

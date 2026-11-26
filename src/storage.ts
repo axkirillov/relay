@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { relayHome } from "./paths.ts";
+import { relayHome } from "@axkirillov/relay-contract/paths";
 
 export type Store = {
   id: string;

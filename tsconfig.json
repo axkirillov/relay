@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "ui/src", "build.mjs"]
+  "include": ["src", "ui/src", "packages/contract/src", "build.mjs"]
 }

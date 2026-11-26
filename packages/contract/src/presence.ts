@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-import { alive, heartbeat } from "./live.ts";
+import { alive, heartbeat, touch } from "./live.ts";
 import { closedFile, windowFile } from "./paths.ts";
 
 export function holdScreen(): () => void {
@@ -19,6 +19,10 @@ export function holdScreen(): () => void {
       rmSync(file);
     } catch {}
   };
+}
+
+export function stillHere(): void {
+  touch(windowFile());
 }
 
 export function screenHeld(): boolean {
